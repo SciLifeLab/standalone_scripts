@@ -4,10 +4,10 @@ Repository to store standalone scripts that do not belong to any bigger package 
 
 ## Contents
 
-### backup_gihtub.py
+#### backup_gihtub.py
 Performs a backup of all the repositories in user's GitHub account.
 
-#### Dependencies
+*Dependencies*
 
 * logbook
 * pygithub3
