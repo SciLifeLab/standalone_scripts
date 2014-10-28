@@ -15,7 +15,7 @@ if __name__ == "__main__":
         "a dict, and sends it to a given CouchDB."))
     parser.add_argument("--server", dest="server", action="store", help=("Address "
         "to the CouchDB server. Add authentication like this if needed: user:password@couchdb_server.domain:port"))
-    parser.add_argument("--db", dest="db", action="store", default=None,
+    parser.add_argument("--db", dest="db", action="store", default="uppmax",
         help="Name of the CouchDB database")
 
     args = parser.parse_args()
