@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
         project_list.append(project_dict)
 
-    if args.server == "":
+    if not args.server:
         pprint(project_list)
     else:
         couch = couchdb.Server(args.server)
