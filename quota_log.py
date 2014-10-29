@@ -1,12 +1,12 @@
 """Generates dictionaries for the load on the quota using 'uquota'. If a couchdb 
 is specified, the dictionaries will be sent there. Otherwise prints the dictionaries.
 """
-import argparse
-import datetime
-import subprocess
-from platform import node as host_name
-from pprint import pprint
-import couchdb
+    import argparse
+    import datetime
+    import subprocess
+    from platform import node as host_name
+    from pprint import pprint
+    import couchdb
 
 
 
@@ -36,7 +36,9 @@ if __name__ == "__main__":
         project_dict["quota limit (GB)"] = project[2]
         try:
             project_dict["over quota"] = project[3]
-        except:
+        except IndexError:
+            # Projects that are not over quota will not have this field, because
+            # uquota command only outputs a * in case the project account is over quota
             pass
 
         project_list.append(project_dict)
