@@ -9,7 +9,9 @@ Performs a backup of all the repositories in user's GitHub account.
 
 *Dependencies*
 
+* couchdb
 * logbook
+* pprint
 * pygithub3
 
 #### data_to_ftp.py
