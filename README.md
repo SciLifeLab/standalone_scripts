@@ -11,3 +11,13 @@ Performs a backup of all the repositories in user's GitHub account.
 
 * logbook
 * pygithub3
+
+#### data_to_ftp.py
+Used to transfer data to user's ftp server maintaing the directory tree structure. Main intention
+is to get the data to user outside Sweden.
+
+*Dependencies*
+
+* ConfigParser
+* ftplib
+* other modules such as os,sys,argparse
