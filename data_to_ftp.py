@@ -6,29 +6,30 @@ import ConfigParser
 import subprocess
 from ftplib import FTP
 
-DESCRIPTION = """A stand alone script to deliver the data to a ftp server provided by USER outside
-                 Sweden or from some other reason who dont have acces to UPPMAX. It is neccesary
-                 before running this script the fake/real delivery to am UPPMAX projects INBOX
-                 should be done."""
+DESCRIPTION = """\
+A stand alone script to deliver the data to a ftp server provided by USER outside
+Sweden or from some other reason who dont have acces to UPPMAX. It is neccesary
+before running this script the fake/real delivery to am UPPMAX projects INBOX
+should be done.
 
-config_file_format = """Input config file should be in following format, especially the key/header
-                        names should be same as in the example, else the list 'config_keys' in
-                        source code should be changed to match the key names as in config file
+[ftp]
+domain: xxxx
+port: xxxx
+username: xxxx
+password: xxxx
+project: xxxx
+uppmaxid: xxxx"""
 
-                        [ftp]
-                        domain: xxxx
-                        port: xxxx
-                        username: xxxx
-                        password: xxxx
-                        project: xxxx
-                        uppmaxid: xxxx"""
+config_file_format = """Input config file should be formated as mentioned in description, especially the
+                        key/header names should be same as in the example, else the list 'config_keys'
+                        in source code should be changed to match the key names as in config file"""
 
 ## command line arugments for the script ##
-parser = argparse.ArgumentParser(description=DESCRIPTION)
+parser = argparse.ArgumentParser(description=DESCRIPTION,formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('config_file',type=str,help=config_file_format)
 parser.add_argument('--exclude_sample',type=str,default=None,help="Samples to be exculded from tranfser, can be single sample \
-                                                                   name or multiple sample name seperated by comma(,).")
-parser.add_argument('--only_sample',type=str,default=None,help="Sample(s) that have to copied ignoring other in the INBOX.\
+                                                                     name or multiple sample name seperated by comma(,).")
+parser.add_argument('--only_sample',type=str,default=None,help="Sample(s) that have to copied ignoring other in the INBOX. \
                                                                 Multiple sample names are given by comma separated.")
 parser.add_argument('--no_reports',default=False,action='store_true',help="Dont tranfer/copy report in INBOX")
 parser.add_argument('--no_md5check',default=False,action='store_true',help="Dont check for md5sum files for fastq files, by default it does.")
