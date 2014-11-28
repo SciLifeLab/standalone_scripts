@@ -20,3 +20,7 @@ Script used to mirror (completely) Clarity LIMS database from production to stag
 * pprint
 * pygithub3
 
+#### data_to_ftp.py
+Used to transfer data to user's ftp server maintaing the directory tree structure. Main intention
+is to get the data to user outside Sweden.
+
