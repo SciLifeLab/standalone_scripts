@@ -1,12 +1,12 @@
 """Generates dictionaries for the load on the quota using 'uquota'. If a couchdb 
 is specified, the dictionaries will be sent there. Otherwise prints the dictionaries.
 """
-    import argparse
-    import datetime
-    import subprocess
-    from platform import node as host_name
-    from pprint import pprint
-    import couchdb
+import argparse
+import datetime
+import subprocess
+from platform import node as host_name
+from pprint import pprint
+import couchdb
 
 
 
