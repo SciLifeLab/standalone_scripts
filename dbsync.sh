@@ -14,6 +14,7 @@ STAGING="genologics-stage.scilifelab.se"
 # in. This includes the apiuser. We connect with this user hundreds of times per day
 # and this creates a really big table that fills up the disk, we just don't need that.
 psql -U $DB_USER $DB -c "DELETE FROM LoginAudit WHERE (Username = 'apiuser');"
+vacuumdb --dbname $DB --table LoginAudit -U $DB_USER -v -f
 
 echo "Preventing new connections from happening on $STAGING..."
 ssh $STAGING "psql -U $DB_USER $DB -c 'REVOKE CONNECT ON DATABASE \"$DB\" FROM PUBLIC;'"
