@@ -26,3 +26,14 @@ Returns a summary of quota usage in Uppmax
 
 * couchdb
 * pprint
+
+#### couchdb_replication.py
+handles the replication of the couchdb instance
+
+*Dependencies*
+
+* couchdb
+* logbook
+* pycrypto
+* yaml
+
