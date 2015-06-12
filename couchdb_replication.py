@@ -65,7 +65,7 @@ class Config(object):
                       }
 
 
-def _get_databases_info(source, destination, skip):
+def _get_databases_info(source, destination, skip=None):
     """Returns a tuple containing a python representation of source and destination
     couchDB instances. It also returns a list of the databases in both instances
     (excluding the _replicator database).
@@ -190,7 +190,7 @@ def _set_roles(server):
     security_obj['admins']['roles'] = config.roles['admins']
     security_obj['members']['roles'] = config.roles['members']
 
-    s_couch, d_couch, s_dbs, d_dbs = _get_databases_info(source, destination)
+    s_couch, d_couch, s_dbs, d_dbs = _get_databases_info(source, destination, None)
     l.info("Setting roles to destination databases: {}".format(str(security_obj)))
     for db in d_dbs:
         d_couch[db].resource.put('_security', security_obj)
