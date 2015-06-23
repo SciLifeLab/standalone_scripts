@@ -70,6 +70,8 @@ def _get_databases_info(source, destination, skip=None):
     couchDB instances. It also returns a list of the databases in both instances
     (excluding the _replicator database).
     """
+    if not skip:
+        skip=[]
     s_couch = couchdb.Server(source)
     d_couch = couchdb.Server(destination)
     _, _, s_dbs = s_couch.resource.get_json('_all_dbs')
