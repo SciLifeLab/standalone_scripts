@@ -44,7 +44,7 @@ def collect_urls(xml_path, print_urls, **kwargs):
 
    return downloads
 
-def download_files(downloads, output_dir='downloads', **kwargs):
+def download_files(downloads, output_dir='downloads', force_overwrite=False, **kwargs):
    """ Save files to disk. Input: Dict with desired filename as key, URL as value.
    """
    # Make the directory if we need to
@@ -55,11 +55,14 @@ def download_files(downloads, output_dir='downloads', **kwargs):
    num_dls = len(downloads)
    i = 1
    for fn, url in downloads.iteritems():
-      print("Downloading {} of {} - {}".format(i, num_dls, fn))
       path = os.path.join(output_dir, fn)
-      dl = urllib2.urlopen(url)
-      with open(path, 'wb') as fh:
-         fh.write(dl.read())
+      if not os.path.exists(path) or force_overwrite:
+         print("Downloading {} of {} - {}".format(i, num_dls, fn))
+         dl = urllib2.urlopen(url)
+         with open(path, 'wb') as fh:
+            fh.write(dl.read())
+      else:
+         print("Skipping {} of {} - {}".format(i, num_dls, fn))
       i += 1
 
 
@@ -70,6 +73,8 @@ if __name__ == "__main__":
                         help="Directory to save attachments to. Default: downloads/")
    parser.add_argument("-p", "--print_urls", dest="print_urls", action='store_true',
                         help="Save URLs to file 'attachment_urls.txt' instead of downloading")
+   parser.add_argument("-f", "--force_overwrite", dest="force_overwrite", action='store_true',
+                        help="Overwrite existing files. Default: Don't download if file exists.")
    parser.add_argument("-i", "--input_path", dest="xml_path", required=True,
                         help="Path to ZenDesk tickets.xml export.")
    kwargs = vars(parser.parse_args())
