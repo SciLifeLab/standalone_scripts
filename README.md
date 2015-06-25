@@ -37,3 +37,13 @@ handles the replication of the couchdb instance
 * pycrypto
 * yaml
 
+#### ZenDesk Attachments Backup
+Takes a ZenDesk XML dump backup file and searches for attachment URLs that match specified
+filename patterns. These are then downloaded to a local directory.
+
+*Dependencies*
+
+* argparse
+* os
+* urllib2
+* re
