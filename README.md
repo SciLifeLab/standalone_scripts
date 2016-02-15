@@ -47,3 +47,21 @@ filename patterns. These are then downloaded to a local directory.
 * os
 * urllib2
 * re
+
+#### repooler.py
+Calculates a decent way to re-pool samples in the case that the amount of clusters from each
+sample doesn't reach the required threshold due to mismeasurements in concentration.
+
+*Depdendencies*
+
+* couchdb
+* re
+* math
+* cp√ollectis
+* unicodedata
+* csv
+* copy
+* click
+* time, datetime
+* Genologics: lims, config, entities
+
