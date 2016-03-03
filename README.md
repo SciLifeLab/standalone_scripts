@@ -20,6 +20,7 @@ is to get the data to user outside Sweden.
 Script used to mirror (completely) Clarity LIMS database from production to staging server
 
 #### quota_log.py
+###### DO NOT USE THIS SCRIPT! Use `taca server_status uppmax` instead!
 Returns a summary of quota usage in Uppmax
 
 *Dependencies*
@@ -57,7 +58,7 @@ sample doesn't reach the required threshold due to mismeasurements in concentrat
 * couchdb
 * re
 * math
-* cp√ollectis
+* cp√Éollectis
 * unicodedata
 * csv
 * copy
