@@ -5,11 +5,14 @@ Denis Moreno, Joel Gruselius
 Scilifelab
 2016-03-04
 """
+import logging
+import logging.handlers
 import argparse
 import sys
 import datetime
 import couchdb
 import yaml
+import socket
 
 def save_to_statusdb(db, message, args):
     data={'message':message}
@@ -36,16 +39,33 @@ def setupServer(conf):
     url="http://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'], db_conf['port'])
     return couchdb.Server(url)
 
+def setupLog(name, logfile, log_level=logging.INFO, max_size=209715200, nb_files=5):
+    mainlog = logging.getLogger(name)
+    mainlog.setLevel(level=log_level)
+    mfh = logging.handlers.RotatingFileHandler(logfile, maxBytes=max_size, backupCount=nb_files)
+    mft = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    mfh.setFormatter(mft)
+    mainlog.addHandler(mfh)
+    return mainlog
+
 def main(args):
+    mainlog=setupLog(name="upload_robot_logs", logfile=args.logfile, nb_files=1)
+    mainlog.info("Starting uploading from instrument {}".format(args.name))
     #read the configuration
     with open(args.conf) as conf_file:
         conf=yaml.load(conf_file)
-
+    
     couch=setupServer(conf)
-    db=couch['instrument_logs']
+    db=couch[conf['statusdb']['db']]
 
     message=read_message(args)
-    save_to_statusdb(db, message, args)
+    mainlog.info("Read message : {}".format(message))
+    try:
+        save_to_statusdb(db, message, args)
+    except Exception:
+        mainlog.error("Failed to upload to statusdb : {}".format(sys.exc_info()[0]))
+    else:
+        mainlog.info("Uploaded message {} from {} to statusdb".format(message, args.name))
 
 
 
@@ -58,10 +78,10 @@ if __name__=="__main__":
                       " to read. its contents will be uploaded to satusdb as a message"))
 
     parser.add_argument("-n", "--name", dest = "name", help = (
-                      "name of the instrument"))
+                      "name of the instrument. Default is the host name"), default=socket.gethostname())
 
     parser.add_argument("-l", "--logfile", dest = "logfile", help = ("log file",
-                      " that will be used. default is ./statusdb_upload.log "), default="statusdb_upload.log")
+                      " that will be used. Default is ./statusdb_upload.log "), default="statusdb_upload.log")
 
     parser.add_argument("-c", "--conf", dest="conf", 
     default='statusdb.yaml', 
