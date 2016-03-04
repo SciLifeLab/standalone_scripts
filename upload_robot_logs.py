@@ -56,7 +56,7 @@ def main(args):
         conf=yaml.load(conf_file)
     
     couch=setupServer(conf)
-    db=couch[conf['statusdb']['db']]
+    db=couch[conf['statusdb']['instrument_logs_db']]
 
     message=read_message(args)
     mainlog.info("Read message : {}".format(message))
