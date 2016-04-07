@@ -8,6 +8,7 @@ import unicodedata
 import csv
 import copy
 import click
+import sys
 
 from time import time
 from datetime import datetime
@@ -22,6 +23,10 @@ def connection():
     user = ''
     pw = ''
     couch = couchdb.Server('http://' + user + ':' + pw + '@tools.scilifelab.se:5984')
+    try:
+        couch.version()
+    except:
+        sys.exit("Can't connect to couch server. Most likely username or password are incorrect.")
     return couch
 
 #Fetches the structure of a project
@@ -381,9 +386,11 @@ def main(target_clusters, clusters_per_lane, project_id, dest_plate_list, allow_
     structure = proj_struct(couch, project_id, target_clusters)
     [lane_maps, clusters_rem, clusters_expr] = parse_indata(structure, target_clusters)
     if allow_non_dupl_struct:
+        sys.warn("WARN: Allow_non_dupl_struct is experimental at best. Use with a MASSIVE grain of salt")
         aggregator(lane_maps,clusters_rem,clusters_per_lane)
     else:
         simple_unique_set(lane_maps)
+        sys.warn("WARN: Output from repooler is experimental. Remember to review all numbers before re-sequencing.")
     [ideal_ratios, req_lanes, total_lanes] = sample_distributor(lane_maps, clusters_rem, clusters_per_lane)
     acc_ratios = correct_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes)
     generate_output(project_id, dest_plate_list, total_lanes, req_lanes, lane_maps, acc_ratios)    

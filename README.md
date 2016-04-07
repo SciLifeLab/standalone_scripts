@@ -53,16 +53,9 @@ filename patterns. These are then downloaded to a local directory.
 Calculates a decent way to re-pool samples in the case that the amount of clusters from each
 sample doesn't reach the required threshold due to mismeasurements in concentration.
 
-*Depdendencies*
+*Dependencies*
 
 * couchdb
-* re
-* math
-* cpÃollectis
-* unicodedata
-* csv
-* copy
 * click
-* time, datetime
 * Genologics: lims, config, entities
 
