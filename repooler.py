@@ -22,7 +22,9 @@ from genologics.entities import Process
 def connection():
     user = 'isak'
     pw = 'Purpleplant89'
-    couch = couchdb.Server('http://' + user + ':' + pw + '@tools.scilifelab.se:5984')
+    tools_server = 'tools.scilifelab.se:5984'
+    print("Database used: " + tools_server)
+    couch = couchdb.Server('http://' + user + ':' + pw + '@' + tools_server)
     try:
         couch.version()
     except:
@@ -278,6 +280,7 @@ def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_rati
     #Cred to Denis for providing a base epp
     location = dict()
     lims = Lims(BASEURI, USERNAME, PASSWORD)
+    print("LIMS server used: " + BASEURI)
     allProjects = lims.get_projects()
     for proj in allProjects:
         if proj.id == project:
