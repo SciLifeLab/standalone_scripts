@@ -20,8 +20,8 @@ from genologics.entities import Process
 #Assumes ind. sample conc measurements have failed. As such it relies on changing relative volume on already normalized samples and structure
 #Structure are retained as conc measurements failure means there's no way to know conc. delta between samples from seperate poolss
 def connection():
-    user = 'isak'
-    pw = 'Purpleplant89'
+    user = ''
+    pw = ''
     tools_server = 'tools.scilifelab.se:5984'
     print("Database used: " + tools_server)
     couch = couchdb.Server('http://' + user + ':' + pw + '@' + tools_server)
