@@ -23,16 +23,17 @@ def connection():
     user = ''
     pw = ''
     tools_server = 'tools.scilifelab.se:5984'
-    print("Database server used: " + tools_server)
-    couch = couchdb.Server('http://' + user + ':' + pw + '@' + tools_server)
+    print("Database server used: {}".format(tools_server))
+    couch = couchdb.Server('http://{}:{}@{}'.format(user, pw, tools_server))
     try:
         couch.version()
     except:
         sys.exit("Can't connect to couch server. Most likely username or password are incorrect.")
     return couch
 
-""""Fetches the structure of a project"""
+
 def proj_struct(couch, project, target_clusters):
+    """"Fetches the structure of a project"""
     db = couch['x_flowcells']
     view = db.view('names/project_ids_list')
     fc_track = defaultdict(set)
@@ -85,8 +86,9 @@ def proj_struct(couch, project, target_clusters):
                    del fc_track[project][fc][lane]
     return fc_track[project]
 
-"""Takes in data and finds unique lane structure, clusters per sample and lane division"""
+
 def parse_indata(struct, target_clusters):
+    """Takes in data and finds unique lane structure, clusters per sample and lane division"""
     clusters_rem = dict()
     clusters_expr = dict()
     lane_maps = dict()
@@ -113,8 +115,9 @@ def parse_indata(struct, target_clusters):
                 
     return [lane_maps, clusters_rem, clusters_expr] 
 
-"""Creates a set where every sample uniquely appears once and only once"""
+
 def simple_unique_set(lane_maps):
+    """Creates a set where every sample uniquely appears once and only once"""
     unique_lane_maps = dict()
     for keyz, valz in lane_maps.items():
         #Fetch what lanes inclusion of given lane excludes
@@ -161,6 +164,7 @@ def simple_unique_set(lane_maps):
 
     validate_template_struct(lane_maps)
     
+    
 def aggregator(lane_maps,clusters_rem,clusters_per_lane):
 #Iterate
     #Find all samples that are also expressed in another struct
@@ -172,8 +176,9 @@ def aggregator(lane_maps,clusters_rem,clusters_per_lane):
     #Ceil(dups) those babies
     raise Exception('Error: Not yet implemented!')
 
-"""Gives how many lanes would be necessary to meet the thresholds with the provided lane map if no offsets were set"""
+
 def lanes_wo_offset(lane_maps, clusters_rem, clusters_per_lane): 
+    """Gives how many lanes would be necessary to meet the thresholds with the provided lane map if no offsets were set"""
     total_lanes = 0
     #In each lane structure
     for index in lane_maps:
@@ -187,8 +192,9 @@ def lanes_wo_offset(lane_maps, clusters_rem, clusters_per_lane):
         total_lanes = total_lanes + math.ceil((biggest*float(samples))/clusters_per_lane)    
     return total_lanes 
 
-"""Gives how many percent of the lane should be allocated to a specific sample"""    
+
 def sample_distributor(lane_maps, clusters_rem, clusters_per_lane):
+    """Gives how many percent of the lane should be allocated to a specific sample"""    
     ideal_ratios = dict()
     req_lanes = dict()
     
@@ -211,8 +217,9 @@ def sample_distributor(lane_maps, clusters_rem, clusters_per_lane):
     
     return [ideal_ratios, req_lanes, total_lanes]
 
-"""Crude way to check that no samples are in different TYPES of lanes"""
+
 def validate_template_struct(lane_maps): 
+    """Crude way to check that no samples are in different TYPES of lanes"""
     tempList = list()
     
     for k, v in lane_maps.items():
@@ -225,10 +232,11 @@ def validate_template_struct(lane_maps):
             raise Exception('Error: This app does NOT handle situations where a sample' 
             'is present in lanes/well with differing structure!')
 
-"""Corrects volumes since conc is non-constant
-Also normalizes the numbers
-Finally translates float -> int without underexpressing anything"""
+
 def correct_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes):
+    """Corrects volumes since conc is non-constant
+    Also normalizes the numbers
+    Finally translates float -> int without underexpressing anything"""
     # Since some samples are strong and some weaksauce
     # 10% in ideal_ratios does not mean 10% of lane volume
     # As such, ideal_ratios need to be divided by actual_reads/expected_reads
@@ -288,8 +296,9 @@ def correct_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lan
                     
     return acc_ratios
 
-""""Gathers the container id and well name for all samples in project"""
+
 def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, allow_non_dupl_struct, pool_volume, unoffset_lanes):
+    """"Gathers the container id and well name for all samples in project"""
     #Cred to Denis for providing a base epp
     location = dict()
     lims = Lims(BASEURI, USERNAME, PASSWORD)
@@ -385,8 +394,8 @@ def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_rati
                             destNo += 1
                       
 @click.command()
-@click.option('--project_id', required=True,help='REQUIRED: ID of project to repool. Examples:P2652, P1312 etc.')
-@click.option('--pool_volume', required=True,help='REQUIRED: Volume of each pool in microlitre. Typically 20 <= pool_volume <= 200')
+@click.option('--project_id', required=True,help='ID of project to repool. Examples:P2652, P1312 etc.')
+@click.option('--pool_volume', required=True,help='Volume of each pool in microlitre. Typically 20 <= pool_volume <= 200')
 @click.option('--dest_plate_list', default=['dp_1'], 
               help='List of destination plates for the robot\'s csv file. Include too many rather than too few; excess will be unused. Default: [dp_1]') 
 @click.option('--target_clusters', default=320*1000000, help='Threshold of clusters per sample. \nDefault:320*1000000')
