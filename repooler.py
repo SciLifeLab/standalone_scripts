@@ -23,7 +23,7 @@ def connection():
     user = ''
     pw = ''
     tools_server = 'tools.scilifelab.se:5984'
-    print("Database used: " + tools_server)
+    print("Database server used: " + tools_server)
     couch = couchdb.Server('http://' + user + ':' + pw + '@' + tools_server)
     try:
         couch.version()
@@ -31,7 +31,7 @@ def connection():
         sys.exit("Can't connect to couch server. Most likely username or password are incorrect.")
     return couch
 
-#Fetches the structure of a project
+""""Fetches the structure of a project"""
 def proj_struct(couch, project, target_clusters):
     db = couch['x_flowcells']
     view = db.view('names/project_ids_list')
@@ -85,13 +85,13 @@ def proj_struct(couch, project, target_clusters):
                    del fc_track[project][fc][lane]
     return fc_track[project]
 
+"""Takes in data and finds unique lane structure, clusters per sample and lane division"""
 def parse_indata(struct, target_clusters):
     clusters_rem = dict()
     clusters_expr = dict()
     lane_maps = dict()
     counter = 1
     
-    #Takes in data and finds unique lane structure, clusters per sample and lane division
     #Output could probably be sent as a nested hash. 
     #Clusters_rem AND clusters_expr may seem redundant, but it saves some calculatin
     for fc, lanes in struct.items():
@@ -113,7 +113,7 @@ def parse_indata(struct, target_clusters):
                 
     return [lane_maps, clusters_rem, clusters_expr] 
 
-#Creates a set where every sample uniquely appears once and only once
+"""Creates a set where every sample uniquely appears once and only once"""
 def simple_unique_set(lane_maps):
     unique_lane_maps = dict()
     for keyz, valz in lane_maps.items():
@@ -150,10 +150,10 @@ def simple_unique_set(lane_maps):
                             break
             if acceptable:        
                 unique_lane_maps[keyz] = valz
-            
+                
     lane_maps = unique_lane_maps
     
-    #ALL SAMPLES PRESENT CHECK
+    #CHECK THAT ALL SAMPLES ARE PRESENT
     # summap = []
     # for k in lane_maps.keys():
     #     summap += lane_maps[k]
@@ -171,9 +171,23 @@ def aggregator(lane_maps,clusters_rem,clusters_per_lane):
     #Use the remaining structs
     #Ceil(dups) those babies
     raise Exception('Error: Not yet implemented!')
-    
 
-#Gives how many percent of the lane should be allocated to a specific sample    
+"""Gives how many lanes would be necessary to meet the thresholds with the provided lane map if no offsets were set"""
+def lanes_wo_offset(lane_maps, clusters_rem, clusters_per_lane): 
+    total_lanes = 0
+    #In each lane structure
+    for index in lane_maps:
+        biggest = 0
+        #Ignore undetermined
+        samples = len(lane_maps[index])-1
+        #Find worst sample
+        for entry in lane_maps[index]:
+            if clusters_rem[entry] > biggest:
+                biggest = clusters_rem[entry]    
+        total_lanes = total_lanes + math.ceil((biggest*float(samples))/clusters_per_lane)    
+    return total_lanes 
+
+"""Gives how many percent of the lane should be allocated to a specific sample"""    
 def sample_distributor(lane_maps, clusters_rem, clusters_per_lane):
     ideal_ratios = dict()
     req_lanes = dict()
@@ -197,7 +211,7 @@ def sample_distributor(lane_maps, clusters_rem, clusters_per_lane):
     
     return [ideal_ratios, req_lanes, total_lanes]
 
-#Crude way to check that no samples are in different TYPES of lanes
+"""Crude way to check that no samples are in different TYPES of lanes"""
 def validate_template_struct(lane_maps): 
     tempList = list()
     
@@ -211,9 +225,9 @@ def validate_template_struct(lane_maps):
             raise Exception('Error: This app does NOT handle situations where a sample' 
             'is present in lanes/well with differing structure!')
 
-#Corrects volumes since conc is non-constant
-#Also normalizes the numbers
-#Finally translates float -> int without underexpressing anything
+"""Corrects volumes since conc is non-constant
+Also normalizes the numbers
+Finally translates float -> int without underexpressing anything"""
 def correct_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes):
     # Since some samples are strong and some weaksauce
     # 10% in ideal_ratios does not mean 10% of lane volume
@@ -238,7 +252,6 @@ def correct_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lan
             counter += 1
                    
     #Normalizes numbers
-    
     for index in xrange(1, len(ideal_ratios.keys())+1):
         curSum = sum(ideal_ratios[index])    
         for sample in xrange(0, len(ideal_ratios[index])):
@@ -275,8 +288,8 @@ def correct_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lan
                     
     return acc_ratios
 
-def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_ratios):
-    #Gathers the container id and well name for all samples in project
+""""Gathers the container id and well name for all samples in project"""
+def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, allow_non_dupl_struct, pool_volume, unoffset_lanes):
     #Cred to Denis for providing a base epp
     location = dict()
     lims = Lims(BASEURI, USERNAME, PASSWORD)
@@ -303,37 +316,33 @@ def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_rati
     #PRINT section
     #Print stats including duplicates
     timestamp = datetime.fromtimestamp(time()).strftime('%Y-%m-%d_%H:%M')
-    sumName = projName,  "_summary_", timestamp,".txt"
-    sumName = ''.join(sumName)
+    sumName = '{}_summary_{}.txt'.format(projName, timestamp)
     with open(sumName, "w") as summary:
         if sum(req_lanes.values()) != 0:
             OPT = sum(total_lanes)/sum(req_lanes.values())
         else: 
-            OPT = 0
-        output = "Ideal lanes (same schema): ", str(sum(req_lanes.values())) , ", Total lanes: ", str(sum(total_lanes)), ", OPT: ", str(round(OPT,3)),'\n'
-        output = ''.join(output)
-        summary.write( output )
-        output = "Unique pools: ", str(len(total_lanes)), ", Average pool duplication: ", str(sum(total_lanes)/float(len(total_lanes))) ,'\n'
-        output = ''.join(output)
+            OPT = "ERROR"
+            
+        output = 'Target clusters per sample: {}, Expected clusters per lane: {}\n'.format(str(target_clusters), str(clusters_per_lane))    
+        output = output + 'Project ID: {}, Allow non-duplicate structures: {}\n'.format(project, str(allow_non_dupl_struct))
+        output = output + 'Destination plate name list: {}\n'.format(str(destid))
+        output = output + 'Ideal lanes (same schema): {}, Total lanes: {}, Expression over theoretical ideal (OPT): {}x\n'.format(str(round(sum(req_lanes.values()),3)), str(sum(total_lanes)), str(round(OPT,3)))
+        output = output + 'Lanes needed if no offset was used: {}\n'.format(str(unoffset_lanes))
+        output = output + 'Unique pools: {} Average pool duplication: {}\n'.format(str(len(total_lanes)), str(round(sum(total_lanes)/float(len(total_lanes)),3)))
         summary.write( output )
         
         bin = 0
         for index in xrange(1, len(lane_maps)+1):
             bin  += 1
-            summary.write('\n')
-            output = "Wells ", str(bin) , '-' , str(bin+int(total_lanes[index-1])-1),':','\n'
-            output = ''.join(output)
+            output = '\nLane {} to {}:\n'.format(str(bin), str(bin+int(total_lanes[index-1])-1))
             summary.write( output )
             bin += int(total_lanes[index-1]-1)
             for counter in xrange(1, len(lane_maps[index])):
-                output = str(lane_maps[index][counter]),' ', str(acc_ratios[index][counter]), "%",'\n'
-                output = ''.join(output)
+                output = '{} {}%\n'.format(str(lane_maps[index][counter]), str(acc_ratios[index][counter]))
                 summary.write( output )
 
-    
     #Creates csv   
-    name = projName,"_repool_",timestamp,".csv"
-    name = ''.join(name)
+    name = '{}_repool_{}.csv'.format(projName, timestamp)
     wells = ['Empty','A','B','C','D','E','F','G','H']
     #Index 0 is number, index 1 is Letter
     wellIndex = [1, 1]
@@ -342,6 +351,12 @@ def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_rati
     with open(name, 'w') as csvfile:
         writer = csv.writer(csvfile)
         for index in xrange(1, len(lane_maps)+1):
+            try:
+                destid[destNo]
+            except IndexError:
+                destid.append ('dp_{}'.format(str(destNo+1)))
+                #print "Critical error; not enough destination plates provided"
+                
             for dupes in xrange(1, int(total_lanes[index-1])+1):
                 if lane_maps[index] == 0:
                     raise Exception('Error: Project not logged in x_flowcells database!')
@@ -350,10 +365,9 @@ def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_rati
                     #<source plate ID>,<source well>,<volume>,<destination plate ID>,<destination well>
                     #Destination well 200 microL, minimum pipette 2 microL; acc_ratios multiplied by 2.
                     sample = lane_maps[index][counter]
-                    position = wells[wellIndex[1]],':',str(wellIndex[0])
-                    position = ''.join(position)
+                    position = '{}:{}'.format(wells[wellIndex[1]], str(wellIndex[0]))
                     try:
-                        output = location[sample][0],location[sample][1],str(int(acc_ratios[index][counter]*2)),str(destid[destNo]),position
+                        output = location[sample][0],location[sample][1],str(int(acc_ratios[index][counter]*(pool_volume/float(100)))),str(destid[destNo]),position
                     except KeyError:
                         print "Error: Samples incorrectly parsed into database, thus causing sample name conflicts!"
                     if not acc_ratios[index][counter] == 0:
@@ -369,34 +383,35 @@ def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_rati
                         else:
                             wellIndex[0] = 1
                             destNo += 1
-                            try:
-                                destid[destNo]
-                            except IndexError:
-                                print "Critical error; not enough destination plates provided"
                       
 @click.command()
 @click.option('--project_id', required=True,help='REQUIRED: ID of project to repool. Examples:P2652, P1312 etc.')
-@click.option('--dest_plate_list', default=['dp_1','dp_2','dp_3','dp_4','dp_5'], 
-              help='List of destination plates for the robot\'s csv file. Include too many rather than too few; excess will be unused Default:[dp_1,dp_2,dp_3,dp_4,dp_5]') 
+@click.option('--pool_volume', required=True,help='REQUIRED: Volume of each pool in microlitre. Typically 20 <= pool_volume <= 200')
+@click.option('--dest_plate_list', default=['dp_1'], 
+              help='List of destination plates for the robot\'s csv file. Include too many rather than too few; excess will be unused. Default: [dp_1]') 
 @click.option('--target_clusters', default=320*1000000, help='Threshold of clusters per sample. \nDefault:320*1000000')
 @click.option('--clusters_per_lane', default=380*1000000, help='Expected clusters generated by a single lane/well. \nDefault:380*1000000')  
 @click.option('--allow_non_dupl_struct', is_flag=True, help='Allow for samples to be present in different types of flowcells')           
 
-def main(target_clusters, clusters_per_lane, project_id, dest_plate_list, allow_non_dupl_struct):
+def main(target_clusters, clusters_per_lane, project_id, dest_plate_list, pool_volume, allow_non_dupl_struct):
     """Application that calculates samples under threshold for a project, then calculate the optimal composition for reaching the threshold
-    without altering concentrations nor the structure of the pools. Outputs both a summary as well as a functional csv file."""    
+    without altering concentrations nor the structure of the pools. Outputs both a summary as well as a functional csv file."""
+    #Stupid quickfix
+    pool_volume = int(pool_volume)    
     couch = connection()
     structure = proj_struct(couch, project_id, target_clusters)
     [lane_maps, clusters_rem, clusters_expr] = parse_indata(structure, target_clusters)
     if allow_non_dupl_struct:
-        print("WARN: Allow_non_dupl_struct is experimental at best. Use with a MASSIVE grain of salt")
         aggregator(lane_maps,clusters_rem,clusters_per_lane)
     else:
         simple_unique_set(lane_maps)
-        print("WARN: Output from repooler is experimental. Remember to review all numbers before re-sequencing.")
     [ideal_ratios, req_lanes, total_lanes] = sample_distributor(lane_maps, clusters_rem, clusters_per_lane)
+    unoffset_lanes = lanes_wo_offset(lane_maps, clusters_rem, clusters_per_lane)
     acc_ratios = correct_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes)
-    generate_output(project_id, dest_plate_list, total_lanes, req_lanes, lane_maps, acc_ratios)    
-
+    generate_output(project_id, dest_plate_list, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, allow_non_dupl_struct, pool_volume, unoffset_lanes)    
+    if allow_non_dupl_struct:
+        print("WARN: Allow_non_dupl_struct is experimental at best. Use with a MASSIVE grain of salt")
+    else:
+        print("WARN: Output from repooler is experimental. Remember to review all numbers before re-sequencing.")
 if __name__ == '__main__':
     main()
