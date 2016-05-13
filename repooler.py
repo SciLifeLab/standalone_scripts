@@ -4,6 +4,7 @@ import couchdb
 import re
 import math
 from collections import defaultdict, Counter, OrderedDict
+import numpy
 import unicodedata
 import csv
 import copy
@@ -24,11 +25,13 @@ def connection():
     pw = 'Purpleplant89'
     tools_server = 'tools.scilifelab.se:5984'
     print("Database server used: http://{}".format(tools_server))
+    print("LIMS server used: " + BASEURI)
     couch = couchdb.Server('http://{}:{}@{}'.format(user, pw, tools_server))
     try:
+        print "Connecting to statusDB..."
         couch.version()
     except:
-        sys.exit("Can't connect to couch server. Most likely username or password are incorrect.")
+        sys.exit("Can't connect to couch server. Username & Password is incorrect, or network is inaccessible.")
     return couch
 
 
@@ -38,7 +41,7 @@ def proj_struct(couch, project, target_clusters):
     view = db.view('names/project_ids_list')
     fc_track = defaultdict(set)
     
-    #Adds flowcells to ALL projects. Due to intractions its easier to just get FCs for ALL projects
+    #Adds flowcells to ALL projects. Due to interactions its easier to just get FCs for ALL projects
     for rec in view.rows:
         fc = ''.join(rec.key)
         fc = unicodedata.normalize('NFKD', fc).encode('ascii','ignore')
@@ -89,41 +92,119 @@ def proj_struct(couch, project, target_clusters):
 
 def parse_indata(struct, target_clusters):
     """Takes in data and finds unique lane structure, clusters per sample and lane division"""
-    clusters_rem = dict()
-    clusters_expr = dict()
-    lane_maps = dict()
-    counter = 1
+    clusters_rem = dict() #Total remaining clusters
+    lane_maps = dict() #All possible structs. Sample-aggregate is a string, values are average expression
+    sample_struct = dict() #All possible structs. Each sample is a value.
+    copies = dict() #Keeps track of duplicates of each structure
+    #Changed counter from 1 to 0 for lane_maps; uh-oh
     
-    #Output could probably be sent as a nested hash. 
-    #Clusters_rem AND clusters_expr may seem redundant, but it saves some calculatin
+    #TODO: LANES IN SAMPLE_STRUCT IS DISPLAYED TWICE
+    
     for fc, lanes in struct.items():
         for lane, samples in lanes.items():
-            
-            #Concatinatina the structure into a set of unique structures
-            mapping = sorted(samples.keys(), reverse=True)
-            if not mapping in lane_maps.values():
-                lane_maps[counter] = mapping 
-                counter +=1
+            #Concats the structure into a set of unique structures
+            mapp = sorted(samples, reverse=True)
+            map_names = str(mapp)
+            map_values = [value for (key, value) in sorted(samples.items(), reverse=True)]
+
+            if not map_names in lane_maps:
+                sample_struct[map_names] = mapp
+                lane_maps[map_names] = map_values
+                copies[map_names] = 1
+            else:
+                copies[map_names] = copies[map_names]+1
                 
-            #Calculate clusters read per sample
+            #Calculate remaining clusters for each sample
             for sample, value in samples.items():
                 if not sample in clusters_rem:
                     clusters_rem[sample] = target_clusters
-                    clusters_expr[sample] = 0
                 clusters_rem[sample] -= value
-                clusters_expr[sample] += value   
+                if clusters_rem[sample] < 0:
+                    clusters_rem[sample] = 0
+    
+    #Calculate average output of sample for each structure type
+    for names, values in lane_maps.items():
+        values = numpy.array(values)
+        lane_maps[names] = values/copies[names]
+        #Manually overwrites undetermined to exclude them
+        lane_maps[names][0] = target_clusters
+
+    return [lane_maps, clusters_rem, sample_struct] 
+
+
+def simple_unique_set(sample_struct, clusters_rem, target_clusters):
+    """Creates a set where every sample uniquely appears once and only once
+    Prioritizes lanes with most unsequenced samples first"""
+
+
+    #Inline function to calculate number of unfinished samples per lane
+    def f(x):
+        count = 0
+        for sample in x:
+            if clusters_rem[sample] < target_clusters:
+                count = count + 1
+        print count
+        return count
+
+    #Best = Most samples in need of sequencing = End of lists
+    best_cands = OrderedDict(sorted(sample_struct.items(), key=lambda t: f(t[1])))
+    
+    unique_sample_structs = dict()
+    
+    #pop the best candidate
+    prime = best_cands.pop()
+    #List which lanes are excluded from primes inclusion (unique requirement)
+    for name, dupe in prime:
+        excluded = list()
+        for str, lis in best_cands:
+            for sample in lis:
+                if dupe == sample and name != str and sample != 'Undetermined':
+                    excluded.append(str)
+                    break
                 
-    return [lane_maps, clusters_rem, clusters_expr] 
+    #CONTINUE FROM HERE!!"
+    #Check that none of the excluded lanes have uniquely present samples
+    for str in excluded:
+        for samples in sample_struct[str]:
+            
+    
+    
+    
+    acceptable = False
+    for key in excluded:
+        total_duplicates = list()
+        for values in lane_maps[key]:
+            duplicate = 0
+            for k, v in lane_maps.items():
+                for dupe in v:
+                    if dupe == values and k != key and sample != 'Undetermined':
+                        acceptable = True
+                        break
+            total_duplicates.append(duplicate)
+            
+    if acceptable:
+        #Check that the lane doesn't have sample dupes in the accepted set already
+        for entries in valz:
+            for kuyz, vulz in unique_lane_maps.items():
+                for things in vulz:
+                    if things == entries and entries != 'Undetermined':
+                        acceptable = False
+                        break
+        if acceptable:        
+            unique_lane_maps[keyz] = valz
+                
 
-
-def simple_unique_set(lane_maps):
-    #Update this to have some sort of logic. Ideally picking lanes with most samples with stuff left todo first.
-    """Creates a set where every sample uniquely appears once and only once"""
+    validate_samples_unique(unique_lane_maps)
+    
+    
+    import pdb
+    pdb.set_trace()
+    
     unique_lane_maps = dict()
     for keyz, valz in lane_maps.items():
         #Fetch what lanes inclusion of given lane excludes
         excluded = list()
-        for sample in valz:
+        for sample in lane_maps:
             for k, v in lane_maps.items():
                 for dupe in v:
                     if dupe == sample and keyz != k and sample != 'Undetermined':
@@ -155,10 +236,11 @@ def simple_unique_set(lane_maps):
             if acceptable:        
                 unique_lane_maps[keyz] = valz
                 
-    lane_maps = unique_lane_maps
-    
-    validate_samples_unique(lane_maps)
+
+    validate_samples_unique(unique_lane_maps)
     #validate_all_samples_present(lane_maps)
+    
+    return unique_lane_maps
     
 def validate_all_samples_present(lane_maps):    
     summap = []
@@ -177,27 +259,9 @@ def aggregator(lane_maps,clusters_rem,clusters_per_lane):
     #Ceil(dups) those babies
     raise Exception('Error: Not yet implemented!')
 
-def lanes_wo_offset(lane_maps, clusters_rem, clusters_per_lane): 
-    """Gives how many lanes would be necessary to meet the thresholds with the provided lane map if no offsets were set"""
-    #It also doesn't care about minimum due to pool size
-    #THIS IS SUPERWRONG
-    good_stuff = copy.deepcopy(ideal_ratios)
-    fix_conc_offset(lane_maps, clusters_expr, good_stuff)
-    
-    total = 0
-    #Get the sample in each FC that needs most to be better expressed
-    for i in good_stuff:
-        #Get how many times it is increased
-        multiple=math.ceil(max(good_stuff)/(len(lane_maps[i])-1))
-        #Multiply total lanes by that number
-        total = total + total_lanes[i-1]*multiple
-  
-    return total
-
-
 def sample_distributor(lane_maps, clusters_rem, clusters_per_lane):
     """Gives how many percent of the lane should be allocated to a specific sample"""    
-    ideal_ratios = dict()
+    ratios_equal_conc = dict()
     req_lanes = dict()
     
     for index in lane_maps:
@@ -206,18 +270,18 @@ def sample_distributor(lane_maps, clusters_rem, clusters_per_lane):
             if clusters_rem[entry] > 0:
                 summ += clusters_rem[entry]
         for entry in lane_maps[index]:
-            if not index in ideal_ratios:
-                ideal_ratios[index] = list()
+            if not index in ratios_equal_conc:
+                ratios_equal_conc[index] = list()
             if clusters_rem[entry] > 0:
-                ideal_ratios[index].append(clusters_rem[entry]/float(summ))
+                ratios_equal_conc[index].append(clusters_rem[entry]/float(summ))
             else: 
-                ideal_ratios[index].append(0.0)
+                ratios_equal_conc[index].append(0.0)
         #Minimal number of required lanes per pool
         req_lanes[index] = summ/float(clusters_per_lane)
     #Have to be rounded up, rounding down when only using duplicates makes no sense
     total_lanes = map(math.ceil, req_lanes.values())
     
-    return [ideal_ratios, req_lanes, total_lanes]
+    return [ratios_equal_conc, req_lanes, total_lanes]
 
 
 def validate_samples_unique(lane_maps): 
@@ -235,10 +299,10 @@ def validate_samples_unique(lane_maps):
             'is present in lanes/well with differing structure!')
 
 
-def fix_conc_offset(lane_maps, clusters_expr, ideal_ratios):
+def fix_conc_offset(lane_maps, clusters_expr, ratios_equal_conc):
     """Since some samples are strong and some weaksauce
-    10% in ideal_ratios does not mean 10% of lane volume
-    As such, ideal_ratios need to be divided by actual_reads/expected_reads
+    10% in ratios_equal_conc does not mean 10% of lane volume
+    As such, ratios_equal_conc need to be divided by actual_reads/expected_reads
     Ignores undetermined clusters in calculation
     Assumes sample conc cant be altered; aka only volume is modified"""
     #THIS IS BROKEN, SINCE SAMPLES MAY HAVE BEEN SEQUENCED IN DIFFERENT POOLS
@@ -256,42 +320,42 @@ def fix_conc_offset(lane_maps, clusters_expr, ideal_ratios):
                 laneTypeExpr += clusters_expr[sample]
         for sample in lane_maps[ind]:
             act = clusters_expr[sample]/float(laneTypeExpr)
-            ideal_ratios[ind][counter] = ideal_ratios[ind][counter]*(exp/act)
+            ratios_equal_conc[ind][counter] = ratios_equal_conc[ind][counter]*(exp/act)
             counter += 1
                    
     #Normalizes numbers
-    for index in xrange(1, len(ideal_ratios.keys())+1):
-        curSum = sum(ideal_ratios[index])    
-        for sample in xrange(0, len(ideal_ratios[index])):
+    for index in xrange(1, len(ratios_equal_conc.keys())+1):
+        curSum = sum(ratios_equal_conc[index])    
+        for sample in xrange(0, len(ratios_equal_conc[index])):
             if curSum == 0:
-                ideal_ratios[index][sample] = 0
+                ratios_equal_conc[index][sample] = 0
             else:
-                ideal_ratios[index][sample] = (ideal_ratios[index][sample]/curSum)*100
+                ratios_equal_conc[index][sample] = (ratios_equal_conc[index][sample]/curSum)*100
 
-def realize_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes):
+def realize_numbers(lane_maps, clusters_expr, ratios_equal_conc, req_lanes, total_lanes):
     """Actual numbers need to be offset to: 
     A) Work with a pipette of min 2uL 
     B) Work with a pipette with an increase of 0.1*x uL
     C) Downsize under 100%"""
     added=0
     
-    #Fixes ideal_ratios
-    fix_conc_offset(lane_maps, clusters_expr, ideal_ratios)
-    acc_ratios = copy.deepcopy(ideal_ratios)
+    #Fixes ratios_equal_conc
+    fix_conc_offset(lane_maps, clusters_expr, ratios_equal_conc)
+    acc_ratios = copy.deepcopy(ratios_equal_conc)
 
     ##DOUBLECHECK ROUNDING
     #Set A
-    for i in ideal_ratios:
+    for i in ratios_equal_conc:
         dupes=total_lanes[i-1]
         minTres=round(200/(float(dupes*5)), 2)
         minAdd= round(200/(float(dupes*5*20)), 2)
-        for sample in ideal_ratios[i]:
+        for sample in ratios_equal_conc[i]:
             sampleIndex = acc_ratios[i].index(sample)
             if sample < minTres and not sample == 0.0:
                 acc_ratios[i][sampleIndex] = minTres
             #Sets B
             elif not round(sample, 2) % minAdd == 0 and not sample == 0.0:
-                acc_ratios[i][sampleIndex] = (ideal_ratios[i][sampleIndex] 
+                acc_ratios[i][sampleIndex] = (ratios_equal_conc[i][sampleIndex] 
                                               - (sample % minAdd) + minAdd)
             #Silly float fix
             acc_ratios[i][sampleIndex] = round(acc_ratios[i][sampleIndex], 2)
@@ -310,7 +374,7 @@ def realize_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lan
                 if sum(acc_ratios[i]) <= 100.0:
                     break
                 elif (not acc_ratios[i][sampleIndex] == 0.0 and not acc_ratios[i][sampleIndex]-minAdd < minTres and
-                (acc_ratios[i][sampleIndex]- minAdd)*total_lanes[i-1]  > ideal_ratios[i][sampleIndex]*req_lanes[i]):
+                (acc_ratios[i][sampleIndex]- minAdd)*total_lanes[i-1]  > ratios_equal_conc[i][sampleIndex]*req_lanes[i]):
                     acc_ratios[i][sampleIndex] = round(acc_ratios[i][sampleIndex]-minAdd, 2)
                     stuck = False
             if stuck:
@@ -327,28 +391,30 @@ def realize_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lan
                 acc_ratios[i][acc_ratios[i].index(sample)] = round(acc_ratios[i][acc_ratios[i].index(sample)]/float(total), 2)     
     return acc_ratios, added 
      
-def round_whole(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes):
-    """Translates float -> int without underexpressing anything
+def round_whole(lane_maps, clusters_expr, ratios_equal_conc, req_lanes, total_lanes):
+    """Old rounding that made some faulty assumptions about pool sizes
+    
+    Translates float -> int without underexpressing anything
     Iteratively rounds to whole percent (min pipette for volume) to reach 100%
     ideal_ratio * req_lanes.values() = needed
     acc_ratio * total_lanes = current
     means a sample can take any whole number between the two"""
     
     added = 0
-    #Fixes ideal_ratios
-    fix_conc_offset(lane_maps, clusters_expr, ideal_ratios)
-    acc_ratios = copy.deepcopy(ideal_ratios)
+    #Fixes ratios_equal_conc
+    fix_conc_offset(lane_maps, clusters_expr, ratios_equal_conc)
+    acc_ratios = copy.deepcopy(ratios_equal_conc)
             
-    for index in xrange(1, len(ideal_ratios.keys())+1):
-        for sample in xrange(0, len(ideal_ratios[index])):
-            acc_ratios[index][sample] = math.ceil(ideal_ratios[index][sample])
+    for index in xrange(1, len(ratios_equal_conc.keys())+1):
+        for sample in xrange(0, len(ratios_equal_conc[index])):
+            acc_ratios[index][sample] = math.ceil(ratios_equal_conc[index][sample])
         if sum(acc_ratios[index]) == 100:
             break
         else:
             while sum(acc_ratios[index]) > 100:
                 stuck = True
-                for sample in xrange(1, len(ideal_ratios[index])):
-                    need = ideal_ratios[index][sample]*req_lanes.values()[index-1]
+                for sample in xrange(1, len(ratios_equal_conc[index])):
+                    need = ratios_equal_conc[index][sample]*req_lanes.values()[index-1]
                     cur = (acc_ratios[index][sample] - 1)*total_lanes[index-1]
                     if sum(acc_ratios[index]) > 100 and cur >= need:
                         acc_ratios[index][sample] -= 1
@@ -362,14 +428,13 @@ def round_whole(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes):
     print "Lanes added due to pipette limitations: {}".format(added)                
     return acc_ratios
 
-def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, allow_non_dupl_struct, extra_lanes):
+def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, extra_lanes,lane_volume,pool_excess):
     """"Gathers the container id and well name for all samples in project"""
     timestamp = datetime.fromtimestamp(time()).strftime('%Y-%m-%d_%H:%M')
     
     #Cred to Denis for providing a base epp
     location = dict()
     lims = Lims(BASEURI, USERNAME, PASSWORD)
-    print("LIMS server used: " + BASEURI)
     allProjects = lims.get_projects()
     for proj in allProjects:
         if proj.id == project:
@@ -390,10 +455,12 @@ def generate_output(project, destid, total_lanes, req_lanes, lane_maps, acc_rati
                 location[o.name.split()[0]].append(o.location[0].id)
                 location[o.name.split()[0]].append(o.location[1])
    
-    generate_summary(projName, timestamp, project, destid, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, allow_non_dupl_struct, extra_lanes)
-    generate_csv(projName, timestamp, location, destid, total_lanes, lane_maps, acc_ratios)
+    generate_summary(projName, timestamp, project, destid, total_lanes, req_lanes, 
+                     lane_maps, acc_ratios, target_clusters, clusters_per_lane, extra_lanes)
+    generate_csv(projName, timestamp, location, destid, total_lanes, lane_maps, acc_ratios, lane_volume, pool_excess)
     
-def generate_summary(projName, timestamp, project, destid, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, allow_non_dupl_struct, extra_lanes):                
+def generate_summary(projName, timestamp, project, destid, total_lanes, req_lanes, lane_maps, acc_ratios, 
+                     target_clusters, clusters_per_lane, extra_lanes):                
     """Print stats including duplicates"""
     
     sumName = '{}_summary_{}.txt'.format(projName, timestamp)
@@ -402,13 +469,16 @@ def generate_summary(projName, timestamp, project, destid, total_lanes, req_lane
             OPT = sum(total_lanes)/sum(req_lanes.values())
         else: 
             OPT = "ERROR"
+        
+        if OPT > 1.5:
+            print("Warning, OPT exceeds 1.5x! Generated solution is so poor a better one can likely be done by hand!")
             
         output = 'Target clusters per sample: {}, Expected clusters per lane: {}\n'.format(str(target_clusters), str(clusters_per_lane))    
         output = output + 'Project ID: {}, Allow non-duplicate structures: {}\n'.format(project, str(allow_non_dupl_struct))
         output = output + 'Destination plate name list: {}\n'.format(str(destid))
-        output = output + 'Ideal lanes (same schema): {}, Total lanes: {}, Expression over theoretical ideal (OPT): {}x\n'.format(str(round(sum(req_lanes.values()),3)), str(sum(total_lanes)), str(round(OPT,3)))
+        output = (output + 'Ideal lanes (same schema): {}, Total lanes: {}, Expression over theoretical ideal (OPT): {}x\n'
+                  .format(str(round(sum(req_lanes.values()),3)), str(sum(total_lanes)), str(round(OPT,3))))
         output = output + 'Lanes added to prevent sum of lane > 100%: {} (this can be mitigated with bigger pools).\n'.format(extra_lanes)
-        #output = output + 'Lanes needed if no offset was used: {}\n'.format(str(unoffset_lanes))
         output = output + 'Unique pools: {}, Average pool duplication: {}\n'.format(str(len(total_lanes)), str(round(sum(total_lanes)/float(len(total_lanes)),3)))
         summary.write( output )
         
@@ -422,7 +492,7 @@ def generate_summary(projName, timestamp, project, destid, total_lanes, req_lane
                 output = '{} {}%\n'.format(str(lane_maps[index][counter]), str(acc_ratios[index][counter]))
                 summary.write( output )
                 
-def generate_csv(projName, timestamp, location, destid, total_lanes, lane_maps, acc_ratios):
+def generate_csv(projName, timestamp, location, destid, total_lanes, lane_maps, acc_ratios, lane_volume, pool_excess):
     """Creates the output csv file"""
     
     name = '{}_repool_{}.csv'.format(projName, timestamp)
@@ -451,13 +521,13 @@ def generate_csv(projName, timestamp, location, destid, total_lanes, lane_maps, 
 
             for counter in xrange(1, len(lane_maps[index])):
                 #<source plate ID>,<source well>,<volume>,<destination plate ID>,<destination well>
-                #Destination well 200 microL, minimum pipette 2 microL; acc_ratios multiplied by dupes.
-                #WRONG
                 sample = lane_maps[index][counter]
                 position = '{}:{}'.format(wells[wellIndex[1]], str(wellIndex[0]))
                 
                 try:
-                    output = location[sample][0],location[sample][1],str(int(acc_ratios[index][counter]*dupes)/float(100)),str(destid[destNo]),position
+                    #out_pool = acc_ratios[index][counter]/100*(float(lane_volume)*dupes+pool_excess)
+                    out_pool = acc_ratios[index][counter]/100*(float(lane_volume)*dupes)
+                    output = location[sample][0],location[sample][1],str(out_pool),str(destid[destNo]),position
                 except KeyError:
                     print "Error: Samples incorrectly parsed into database, thus causing sample name conflicts!"
                 if not acc_ratios[index][counter] == 0:
@@ -480,29 +550,22 @@ def generate_csv(projName, timestamp, location, destid, total_lanes, lane_maps, 
               help='List of destination plates for the robot\'s csv file. Include too many rather than too few; excess will be unused. Default: [dp_1]') 
 @click.option('--target_clusters', default=320*1000000, help='Threshold of clusters per sample. \nDefault:320*1000000')
 @click.option('--clusters_per_lane', default=380*1000000, help='Expected clusters generated by a single lane/well. \nDefault:380*1000000')  
-@click.option('--pool_excess', default=5, help='Excess pool volume when creating a pool. \nDefault:5 (uL)') 
-@click.option('--allow_non_dupl_struct', is_flag=True, help='Allow for samples to be present in different types of flowcells')           
+@click.option('--lane_volume', default=5, help='Lane volume. \nDefault:5 (uL)') 
+@click.option('--pool_excess', default=2, help='Excess pool volume when creating a pool. \nDefault:2 (uL)') 
+@click.option('--min_pipette', default=1, help='Minimum pipette volume. \nDefault:1 (uL)')          
 
-def main(target_clusters, clusters_per_lane, project_id, dest_plate_list, pool_excess, allow_non_dupl_struct):
+def main(target_clusters, clusters_per_lane, project_id, dest_plate_list, lane_volume, pool_excess, min_pipette):
     """Application that calculates samples under threshold for a project, then calculate the optimal composition for reaching the threshold
     without altering concentrations nor the structure of the pools. Outputs both a summary as well as a functional csv file."""  
     couch = connection()
     structure = proj_struct(couch, project_id, target_clusters)
-    [lane_maps, clusters_rem, clusters_expr] = parse_indata(structure, target_clusters)
-    if allow_non_dupl_struct:
-        aggregator(lane_maps,clusters_rem,clusters_per_lane)
-    else:
-        #This needs to calculate pool size for each type of lane and set the min and rounding accordingly.
-        simple_unique_set(lane_maps)
-    [ideal_ratios, req_lanes, total_lanes] = sample_distributor(lane_maps, clusters_rem, clusters_per_lane)
-    #TODO: Skipping this for now
-    #unoffset_lanes = lanes_wo_offset(lane_maps, clusters_rem, clusters_per_lane)
-    acc_ratios, extra_lanes = realize_numbers(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes)
-    #acc_ratios = round_whole(lane_maps, clusters_expr, ideal_ratios, req_lanes, total_lanes)
-    generate_output(project_id, dest_plate_list, total_lanes, req_lanes, lane_maps, acc_ratios, target_clusters, clusters_per_lane, allow_non_dupl_struct, extra_lanes)    
-    if allow_non_dupl_struct:
-        print("WARN: Allow_non_dupl_struct is experimental at best. Use with a MASSIVE grain of salt")
-    else:
-        print("WARN: Output from repooler is experimental. Remember to review all numbers before re-sequencing.")
+    [all_lane_maps, clusters_rem, sample_struct] = parse_indata(structure, target_clusters)
+    lane_maps = simple_unique_set(sample_struct, clusters_rem, target_clusters)
+    [ratios_equal_conc, req_lanes, total_lanes] = sample_distributor(lane_maps, clusters_rem, clusters_per_lane)
+    acc_ratios, extra_lanes = realize_numbers(lane_maps, lane_maps, ratios_equal_conc, req_lanes, total_lanes)
+    generate_output(project_id, dest_plate_list, total_lanes, req_lanes, lane_maps, acc_ratios, 
+                    target_clusters, clusters_per_lane, extra_lanes,lane_volume,pool_excess)    
+
+    print("WARN: Output from repooler is experimental. Remember to review all numbers before re-sequencing.")
 if __name__ == '__main__':
     main()
