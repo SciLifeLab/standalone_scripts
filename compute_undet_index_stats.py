@@ -69,45 +69,71 @@ def load_yaml_config(config_file):
 
 
 class Indexes:
-
-    indexes_by_prep = {}
+    
+    #indexes_by_kit looks like:
+    #Kit_name:
+    #   i7_index1:
+    #       index_name: index_seq
+    #       ...
+    #   i5_index2:
+    indexes_by_kit = {}
+    #indexes looks like:
+    #index_seq: ((index_name, index_type, kit_name), ....)
     indexes = {}
 
     def __init__(self, indexes_file):
         try:
             with open(indexes_file, 'r') as f:
-                self.indexes_by_prep = yaml.load(f)
+                self.indexes_by_kit = yaml.load(f)
         except IOError as e:
                 e.message = "Could not open configuration file \"{}\".".format(indexes_file)
                 raise e
         #now create a more index centric object
-        for library_type in self.indexes_by_prep: #for each lib prep type
-            for index_type in self.indexes_by_prep[library_type]: # for each type of indexes
-                for index_name, index_seq in self.indexes_by_prep[library_type][index_type]['Index'].iteritems():
-                    if index_seq not in self.indexes:
+        for kit_type in self.indexes_by_kit: #for each kit type
+            if kit_type not in self.indexes_by_kit:
+                print "file {} badly fomatted".format(indexes_file)
+                return
+            for index_type in self.indexes_by_kit[kit_type]: # for each type of indexes
+                for index_name, index_seq in self.indexes_by_kit[kit_type][index_type].iteritems():
+                    if not self.is_index(index_seq):
                         self.indexes[index_seq] = []
                     self.indexes[index_seq].append({'name': index_name,
-                        'index_type': index_type,
-                        'library': library_type,
-                        'supported_sequencers': self.indexes_by_prep[library_type][index_type]['Instrument']
-                        })
+                                                'index_type': index_type,
+                                                'kit_type': kit_type,
+                                               })
 
-    def return_libraries(self):
-        libraries = []
-        for library_type in self.indexes_by_prep:
-            libraries.append(library_type)
-        return libraries
+    def reverse_complement(self, index):
+        for base in index:
+            if base not in 'ATCGatcg':
+                print "Error: NOT a DNA sequence"
+                return None
+        seq1 = 'ATCGTAGCatcgtagc'
+        seq_dict = { seq1[i]:seq1[i+4] for i in range(16) if i < 4 or 8<=i<12 }
+        return "".join([seq_dict[base] for base in reversed(index)])
+    
+    def is_index(self, index):
+        if index not in self.indexes or self.reverse_complement(index) not in self.indexes:
+            return False
+        else:
+            return True
+    
+
+    def return_kits(self):
+        kits = []
+        for kit_type in self.indexes_by_kit:
+            kits.append(kit_type)
+        return kits
 
     def check_left_shift_conflicts(self):
         #checks if indexes from the same library after a left shift are conflicting
-        for library_type in self.indexes_by_prep: #for each lib prep type
-            for index_type in self.indexes_by_prep[library_type]: # for each type of indexes
-                for index_name, index_seq in self.indexes_by_prep[library_type][index_type]['Index'].iteritems():
+        for kit_type in self.indexes_by_kit: #for each lib kit type
+            for index_type in self.indexes_by_kit[kit_type]: # for each type of indexes
+                for index_name, index_seq in self.indexes_by_kit[kit_type][index_type].iteritems():
                     fake_index = index_seq[1:] + "A"
-                    for index_name_check, index_seq_check in self.indexes_by_prep[library_type][index_type]['Index'].iteritems():
+                    for index_name_check, index_seq_check in self.indexes_by_kit[kit_type][index_type].iteritems():
                         hamming_dist = distance.hamming(index_seq_check, fake_index)
                         if hamming_dist <= 2:
-                            print "{} {} {} {} {}".format(index_seq, index_seq_check, fake_index, hamming_dist, library_type)
+                            print "{} {} {} {} {}".format(index_seq, index_seq_check, fake_index, hamming_dist, kit_type)
 
 
 
@@ -214,6 +240,8 @@ def main(args):
     load_yaml_config(configuration_file)
     couch=setupServer(CONFIG)
     flowcell_db = couch["x_flowcells"]
+    import pdb
+    pdb.set_trace()
     fetch_undermined_stats(configuration_file, INDEXES)
 
 
