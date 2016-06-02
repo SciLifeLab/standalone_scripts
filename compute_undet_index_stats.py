@@ -35,6 +35,30 @@ def list_applications():
     for application in applications:
         print "{} {}".format(application, applications[application])
 
+def list_LibraryMethods(method_of_interest=None):
+    couch        = setupServer(CONFIG)
+    projects_db  = couch['projects']
+    libraryMethods = {}
+    for project_id in projects_db:
+        if "creation_time" not in projects_db[project_id]:
+            continue
+        library  = "unkonwn"
+        if "details" in projects_db[project_id]:
+            if "library_construction_method" in projects_db[project_id]["details"]:
+                method = projects_db[project_id]["details"]["library_construction_method"]
+        if method in libraryMethods:
+            libraryMethods[method] += 1
+        else:
+            libraryMethods[method] = 1
+    methods_of_interest = []
+    for method in libraryMethods:
+        print "{} {}".format(method, libraryMethods[method])
+        if method_of_interest is not None:
+            if method_of_interest in method:
+                methods_of_interest.append(method)
+    return methods_of_interest
+
+
 
 
 
@@ -95,35 +119,50 @@ class Indexes:
                 return
             for index_type in self.indexes_by_kit[kit_type]: # for each type of indexes
                 for index_name, index_seq in self.indexes_by_kit[kit_type][index_type].iteritems():
-                    if not self.is_index(index_seq):
-                        self.indexes[index_seq] = []
-                    self.indexes[index_seq].append({'name': index_name,
-                                                'index_type': index_type,
-                                                'kit_type': kit_type,
-                                               })
+                    index_obj = {'name': index_name, 'index_type': index_type, 'kit_type': kit_type}
+                    self._add_index(index_seq, index_obj)
 
-    def reverse_complement(self, index):
+    #computes reverse complement
+    def _reverse_complement(self, index):
         for base in index:
-            if base not in 'ATCGatcg':
+            if base not in 'ATCGNatcgn':
                 print "Error: NOT a DNA sequence"
                 return None
-        seq1 = 'ATCGTAGCatcgtagc'
-        seq_dict = { seq1[i]:seq1[i+4] for i in range(16) if i < 4 or 8<=i<12 }
-        return "".join([seq_dict[base] for base in reversed(index)])
-    
-    def is_index(self, index):
-        if index not in self.indexes or self.reverse_complement(index) not in self.indexes:
-            return False
-        else:
-            return True
-    
+        complement_dict = {"A":"T", "C":"G", "G":"C", "T":"A", "N":"N", "a":"t", "c":"g", "g":"c", "t":"a", "n":"n" }
+        return "".join([complement_dict[base] for base in reversed(index)])
 
+    #check if index exists in the  indexes list
+    def is_index(self, index):
+        if index in self.indexes or self._reverse_complement(index) in self.indexes:
+            return True
+        else:
+            return False
+
+    def _add_index(self, index_seq, index_obj):
+        index_to_modify = ""
+        if index_seq in self.indexes:
+            index_to_modify = index_seq
+        elif self._reverse_complement(index_seq) in self.indexes:
+            index_to_modify = self._reverse_complement(index_seq)
+        else:
+            index_to_modify = index_seq
+            self.indexes[index_to_modify] = []
+        #add the information
+        self.indexes[index_to_modify].append(index_obj)
+        
+
+
+
+    #returns all kits
     def return_kits(self):
         kits = []
         for kit_type in self.indexes_by_kit:
             kits.append(kit_type)
         return kits
 
+
+
+    #still to be defined
     def check_left_shift_conflicts(self):
         #checks if indexes from the same library after a left shift are conflicting
         for kit_type in self.indexes_by_kit: #for each lib kit type
@@ -134,6 +173,74 @@ class Indexes:
                         hamming_dist = distance.hamming(index_seq_check, fake_index)
                         if hamming_dist <= 2:
                             print "{} {} {} {} {}".format(index_seq, index_seq_check, fake_index, hamming_dist, kit_type)
+
+
+
+
+def check_index(configuration_file, INDEXES, index):
+    load_yaml_config(configuration_file)
+    couch=setupServer(CONFIG)
+    flowcell_db = couch["x_flowcells"]
+    flowcell_docs = {}
+    
+    for fc_doc in flowcell_db:
+        try:
+            undetermined = flowcell_db[fc_doc]["Undetermined"]
+        except KeyError:
+            continue
+        flowcell_docs[flowcell_db[fc_doc]["RunInfo"]["Id"]] = fc_doc
+    time_line = {}
+    projects  = {}
+    projects["M_Nister_16_01"] = {}
+    projects["U_Gyllensten_16_01"] = {}
+    projects["K_Kindberg_15_01"] = {}
+    projects["A_Wedell_16_01"] = {}
+    projects["M_Lundberg_16_01"] = {}
+    projects["L_Raberg_16_01"] = {}
+    projects["L_Aaltonen_16_01"] = {}
+    
+    for FCid in sorted(flowcell_docs):
+        # first check that I have all necessary info to extract information
+        fc_doc = flowcell_docs[FCid]
+
+        
+        FC_type = ""
+        if "ST-" in FCid:
+            FC_type = "HiSeqX"
+        elif "000000000-" in FCid:
+            FC_type = "MiSeq"
+        else:
+            FC_type = "HiSeq2500"
+        if FC_type is "HiSeqX":
+            date = FCid.split("_")[0]
+            date_nice = "{}/{}/{}".format(date[0:2],date[2:4],date[4:6])
+            if date_nice not in time_line:
+                time_line[date_nice] = 0
+            undetermined = flowcell_db[fc_doc]["Undetermined"]
+            for lane in undetermined:
+                projects_in_lane =  [sample["Project"] for sample in flowcell_db[fc_doc]["samplesheet_csv"] if sample["Lane"]== lane]
+                for project in projects_in_lane:
+                    if project in projects:
+                        projects[project][FCid] = 0 #initialiase
+            for lane in undetermined:
+                if 'TOTAL' in undetermined[lane]:
+                    del undetermined[lane]['TOTAL']
+                for undet_sequence in undetermined[lane]:
+                    index_cont = index
+                    if len(undet_sequence) < len(index):
+                        index_cont = index[0:len(index)]
+                    index_to_check = undet_sequence
+                    if len(undet_sequence) > len(index):
+                        index_to_check = index[0:len(undet_sequence)]
+                    if index_to_check == index_cont:
+                        time_line[date_nice] += 1
+                        projects_in_lane =  [sample["Project"] for sample in flowcell_db[fc_doc]["samplesheet_csv"] if sample["Lane"]== lane]
+                        for project in projects_in_lane:
+                            if project in projects:
+                                projects[project][FCid] = 1
+                            
+    for date in sorted(time_line):
+        print "{} {}".format(date, time_line[date])
 
 
 
@@ -201,10 +308,9 @@ def fetch_undermined_stats(configuration_file, INDEXES):
                 if most_occuring_undet[0] not in MostOccurringUndetIndexes["Total"]:
                     MostOccurringUndetIndexes["Total"][most_occuring_undet[0]] = 0
                 MostOccurringUndetIndexes["Total"][most_occuring_undet[0]] += 1
-    
-    # how often I see the left index shift
 
-    #
+
+
     print "Flowcells: {}".format(FC_num)
     print "HiSeqX: {}".format(FC_XTen_num)
     print "HiSeq2500: {}".format(FC_HiSeq_num)
@@ -239,10 +345,15 @@ def main(args):
     
     load_yaml_config(configuration_file)
     couch=setupServer(CONFIG)
-    flowcell_db = couch["x_flowcells"]
+
     import pdb
     pdb.set_trace()
-    fetch_undermined_stats(configuration_file, INDEXES)
+    NeoPrep_LibMethods = list_LibraryMethods("Neo")
+
+
+    #fetch_undermined_stats(configuration_file, INDEXES)
+    #check_index(configuration_file, INDEXES, "CTTGTAAT")
+
 
 
 

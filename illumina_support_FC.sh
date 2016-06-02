@@ -3,6 +3,7 @@
 ### requested by Illumina tech support in order to troubleshoot an HiSeqX run
 ###
 
+
 if [ $# -eq 1 ]; then
     echo "Trying to retrive information for FC $0"
 else
@@ -10,6 +11,7 @@ else
 fi
 
 FC="$1"
+
 
 if [ -d $FC ]; then
     echo "FC $FC exists: aborting, delete before rerunning this"
@@ -34,6 +36,15 @@ scp -r francesco.vezzi@preproc1.scilifelab.se:/srv/illumina/HiSeq_X_data/nosync/
 echo "    fetch InterOp dir"
 scp -r francesco.vezzi@preproc1.scilifelab.se:/srv/illumina/HiSeq_X_data/nosync/$FC/InterOp $FC >> $FC\_sync.out 2>> $FC\_sync.err
 
+echo "    fetch Config dir"
+scp -r francesco.vezzi@preproc1.scilifelab.se:/srv/illumina/HiSeq_X_data/nosync/$FC/Config $FC >> $FC\_sync.out 2>> $FC\_sync.err
+
+echo "    fetch RTALogs dir"
+scp -r francesco.vezzi@preproc1.scilifelab.se:/srv/illumina/HiSeq_X_data/nosync/$FC/RTALogs $FC >> $FC\_sync.out 2>> $FC\_sync.err
+
+echo "    fetch Recipe dir"
+scp -r francesco.vezzi@preproc1.scilifelab.se:/srv/illumina/HiSeq_X_data/nosync/$FC/Recipe $FC >> $FC\_sync.out 2>> $FC\_sync.err
+
 echo "    fetch Demux dir"
 scp -r francesco.vezzi@preproc1.scilifelab.se:/srv/illumina/HiSeq_X_data/nosync/$FC/Demultiplexing $FC >> $FC\_sync.out 2>> $FC\_sync.err
 
@@ -49,6 +60,10 @@ echo " - bcl2fastq.err (std err of bcl2fastq command)"
 echo " - bcl2fastq.out (std out of bcl2fastq command)"
 echo " - InterOp folder"
 echo " - Logs folder"
+echo " - Config folder"
+echo " - RTALogs folder"
+echo " - Recipe folder"
+echo " - Demultiplexing folder"
 echo ""
 
 
