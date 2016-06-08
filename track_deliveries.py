@@ -81,17 +81,17 @@ def parse_FCdbs():
     couch        = setupServer(CONFIG)
     flowcell_db  = couch['x_flowcells']
     flowcell_projects = {}
-    #for fc_doc in flowcell_db:
-    #    try:
-    #        sample_stats = flowcell_db[fc_doc]["illumina"]["Demultiplex_Stats"]["Barcode_lane_statistics"]
-    #    except KeyError:
-    #        continue
-    #    for sample in sample_stats:
-    #        project_id = sample["Sample"].replace("Sample_" , "").split("_")[0]
-    #        sample_run_yield = int(sample["Yield (Mbases)"].replace(",", ""))
-    #        if project_id not in flowcell_projects:
-    #            flowcell_projects[project_id] = 0
-    #        flowcell_projects[project_id] += sample_run_yield
+    for fc_doc in flowcell_db:
+        try:
+            sample_stats = flowcell_db[fc_doc]["illumina"]["Demultiplex_Stats"]["Barcode_lane_statistics"]
+        except KeyError:
+            continue
+        for sample in sample_stats:
+            project_id = sample["Sample"].replace("Sample_" , "").split("_")[0]
+            sample_run_yield = int(sample["Yield (Mbases)"].replace(",", ""))
+            if project_id not in flowcell_projects:
+                flowcell_projects[project_id] = 0
+            flowcell_projects[project_id] += sample_run_yield
     flowcell_db  = couch['flowcells']
     flowcell_projects_TMP = {}
     for fc_doc in flowcell_db:
@@ -102,7 +102,7 @@ def parse_FCdbs():
         for sample in sample_stats:
             project_id = sample["Sample ID"].replace("Sample_" , "").split("_")[0]
             sample_run_yield = int(sample["Yield (Mbases)"].replace(",", ""))
-            if project_id not in flowcell_projects:
+            if project_id not in flowcell_projects_TMP:
                 flowcell_projects_TMP[project_id] = 0
             flowcell_projects_TMP[project_id] += sample_run_yield
     #now merge the DB
@@ -115,31 +115,66 @@ def parse_FCdbs():
 
 
 def compute_delivery_footprint():
-    
     projects = parse_FCdbs()
     couch        = setupServer(CONFIG)
     projects_db  = couch['projects']
     
+    #for project_id in projects_db:
+    #    if "creation_time" not in projects_db[project_id]:
+    #        continue
+    #    if projects_db[project_id]["project_id"] not in projects:
+    #        continue
+    #    if projects_db[project_id]["creation_time"].startswith("2015"):
+    #       if "uppnex_id" not in projects_db[project_id]:
+    #            uppnex_id = "null"
+    #        else:
+    #            uppnex_id = projects_db[project_id]["uppnex_id"].lower()
+    #        if "eliver" in uppnex_id:
+    #            uppnex_id = "null"
+    #        print "{} {} {} ".format(uppnex_id.lstrip().rstrip().replace("/INBOX", ""),
+    #                projects[projects_db[project_id]["project_id"]],
+    #                projects_db[project_id]["project_id"]
+    #                )
+    #return
+    bp = {}
     for project_id in projects_db:
+        if "creation_time" not in projects_db[project_id]: # project is too old
+            continue
+        if projects_db[project_id]["project_id"] not in projects: # project has not been sequenced or the sequencing info is not stored
+            continue
+        delivered = "True"
         if "close_date" not in projects_db[project_id]:
-            continue #skip not already closed
-        if "creation_time" not in projects_db[project_id]:
-            continue
-        if projects_db[project_id]["project_id"] not in projects:
-            continue
-        if "uppnex_id" in projects_db[project_id] and "reference_genome" in projects_db[project_id] \
-            and "application" in projects_db[project_id] and "project_id" in projects_db[project_id] \
-            and "best_practice_bioinformatics" in projects_db[project_id]["details"]:
-            sensitive = "False"
-            if projects_db[project_id]["reference_genome"] == "hg19":
-                sensitive = "True"
-            if projects_db[project_id]["uppnex_id"].startswith("b"):
-                print "{} {} {} {} {}".format(projects_db[project_id]["uppnex_id"].lstrip().rstrip().replace("/INBOX", ""),
-                    projects_db[project_id]["close_date"],
+            delivered = "False"
+        if "uppnex_id" not in projects_db[project_id]:
+            uppnex_id = "null"
+        else:
+            uppnex_id = projects_db[project_id]["uppnex_id"].lower()
+        if "eliver" in uppnex_id:
+            uppnex_id = "null"
+        #take away all the shit that can be attached to uppnex_id
+        uppnex_id = uppnex_id.split(",")[0].lstrip().rstrip().replace("/inbox", "")
+        if uppnex_id == "" or "snic" in uppnex_id or "hard" in uppnex_id:
+            uppnex_id = "null"
+        if uppnex_id[0].isdigit():
+            uppnex_id = "b{}".format(uppnex_id)
+        sensitive = "False"
+        if "reference_genome" in projects_db[project_id] and projects_db[project_id]["reference_genome"] == "hg19":
+            sensitive = "True"
+        best_practice_bioinformatics = "False"
+        if "details" in projects_db[project_id] and "best_practice_bioinformatics"  in projects_db[project_id]["details"]:
+            if projects_db[project_id]["details"]["best_practice_bioinformatics"] == "Yes":
+                best_practice_bioinformatics = "True"
+        if "close_date" not in projects_db[project_id]:
+            date = projects_db[project_id]["creation_time"].split("T")[0]
+        else:
+            date = projects_db[project_id]["close_date"]
+        print "{} {} {} {} {} {} {}".format(uppnex_id,
+                    date,
                     projects[projects_db[project_id]["project_id"]],
                     projects_db[project_id]["project_id"],
-                    sensitive)
-
+                    sensitive,
+                    best_practice_bioinformatics,
+                    delivered)
 
 
 def setupServer(conf):
