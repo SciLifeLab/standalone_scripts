@@ -242,6 +242,51 @@ def check_index(configuration_file, INDEXES, index):
     for date in sorted(time_line):
         print "{} {}".format(date, time_line[date])
 
+def undermined_stats(configuration_file):
+    load_yaml_config(configuration_file)
+    couch=setupServer(CONFIG)
+    flowcell_db = couch["x_flowcells"]
+    flowcell_docs = {}
+    
+    for fc_doc in flowcell_db:
+        try:
+            undetermined = flowcell_db[fc_doc]["Undetermined"]
+        except KeyError:
+            continue
+        flowcell_docs[flowcell_db[fc_doc]["RunInfo"]["Id"]] = fc_doc
+    time_line = []
+    
+    for FCid in sorted(flowcell_docs):
+        # first check that I have all necessary info to extract information
+        fc_doc = flowcell_docs[FCid]
+        FC_type = ""
+        if "ST-" in FCid:
+            FC_type = "HiSeqX"
+        elif "000000000-" in FCid:
+            FC_type = "MiSeq"
+        else:
+            FC_type = "HiSeq2500"
+
+        undetermined = flowcell_db[fc_doc]["Undetermined"]
+        lanes_undet = [FCid, []]
+        for lane in ['1','2','3','4','5','6','7','8']:
+            if lane not in undetermined:
+                continue
+            undet_CTTGTAAT = 0
+            for undetermined_index in undetermined[lane]:
+                if 'CTTGTAAT' in undetermined_index:
+                    undet_CTTGTAAT = undetermined[lane][undetermined_index]
+                    lanes_undet[1].append([lane, undet_CTTGTAAT])
+        if len(lanes_undet[1]) > 0:
+            time_line.append(lanes_undet)
+    for FC in time_line:
+        FCid = FC[0]
+        for lane in FC[1]:
+            print "{} {} {}".format(FCid, lane[0], lane[1])
+
+
+
+
 
 
 def fetch_undermined_stats(configuration_file, INDEXES):
@@ -346,11 +391,11 @@ def main(args):
     load_yaml_config(configuration_file)
     couch=setupServer(CONFIG)
 
-    import pdb
-    pdb.set_trace()
-    NeoPrep_LibMethods = list_LibraryMethods("Neo")
+    #import pdb
+    #pdb.set_trace()
+    #NeoPrep_LibMethods = list_LibraryMethods("Neo")
 
-
+    undermined_stats(configuration_file)
     #fetch_undermined_stats(configuration_file, INDEXES)
     #check_index(configuration_file, INDEXES, "CTTGTAAT")
 
