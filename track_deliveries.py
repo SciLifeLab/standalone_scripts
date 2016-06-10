@@ -257,10 +257,10 @@ def main(args):
     configuration_file = args.config
     load_yaml_config(configuration_file)
     couch=setupServer(CONFIG)
-    #import pdb
-    #pdb.set_trace()
-    #list_Reference()
-    compute_delivery_footprint()
+    import pdb
+    pdb.set_trace()
+    list_Reference()
+    #compute_delivery_footprint()
 
 
 
