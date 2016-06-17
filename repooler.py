@@ -245,17 +245,6 @@ def validate_all_samples_present(subset_struct, sample_struct, clusters_rem):
                 break
         if not found:
             raise Exception('Error: Sample missing after subset was generated! {} is one of these'.format(element))
-    
-def aggregator(lane_maps,clusters_rem,clusters_per_lane):
-#Iterate
-    #Find all samples that are also expressed in another struct
-    #Sort those structs by duplication
-    #Fill them to floor(dups); unless mod % 1 > some_number; then ceil(dups)
-    #Note the remaining necessary
-#End
-    #Use the remaining structs
-    #Ceil(dups) those babies
-    raise Exception('Error: Not yet implemented!')
 
 def sample_distributor(sample_struct, clusters_rem, clusters_per_lane): 
     """Gives the percentage volume each sample should have in a lane, BEFORE accounting
@@ -317,7 +306,6 @@ def integrate_conc_diff(lane_maps, desired_ratios):
         else: 
             # Should fix NAN bug
             volume_ratios[key] = 0
-        #TODO: Verify these numbers are correct, maybe volume_ratios/desired ratios or such?
     return volume_ratios, conc_factor
 
 def realize_numbers(lane_maps, best_sample_struct, volume_ratios, conc_factor, clusters_rem, total_lanes, pool_excess, lane_volume, min_pipette):
@@ -386,7 +374,7 @@ def realize_numbers(lane_maps, best_sample_struct, volume_ratios, conc_factor, c
                     break
                 
         final_pool_sizes[key] = poolsize*float(sum(uprounded))
-        ##TODO: Sum of output rounded_ratios is less than 100% before normalizing; Doublecheck results!     
+        ##TODO: Sum of output rounded_ratios is less than 100% before normalizing; weird but likely correct. 
         rounded_ratios[key] = uprounded/float(sum(uprounded))
     return [rounded_ratios, final_pool_sizes, extra_lanes]
   
@@ -463,7 +451,6 @@ def generate_summary(projName, best_sample_struct, timestamp, project_id, dest_p
                 
                 for sample in xrange(1, len(value)):
                     if sample != "Undetermined":
-                        #TODO: IS EACH PERCENTAGE BASED ON REQ OR TOTAL. ARE EXTRA LANES INCLUDED??
                         if key in extra_lanes:
                             lane_ratio = req_lanes[key]/(total_lanes[key]+extra_lanes[key])
                         else:
@@ -504,7 +491,6 @@ def generate_csv(projName, timestamp, location, dest_plate_list, total_lanes, be
                 sample = best_sample_struct[key][instance]
                 position = '{}:{}'.format(wells[wellIndex[1]], str(wellIndex[0]))
                 try:
-                    #TODO: THIS IS SOMEHOW WRONG.. FIGURE OUT WHY
                     out_pool = round(rounded_ratios[key][instance]*final_pool_sizes[key],2)
                     output = location[sample][0],location[sample][1],str(out_pool),str(dest_plate_list[destNo]),position
                 except KeyError:
@@ -545,7 +531,6 @@ def main(target_clusters, clusters_per_lane, project_id, dest_plate_list, lane_v
     [lane_maps, clusters_rem, sample_struct] = parse_indata(structure, target_clusters)
     best_sample_struct = simple_unique_set(sample_struct, clusters_rem, target_clusters)
     [desired_ratios, total_lanes, req_lanes] = sample_distributor(best_sample_struct, clusters_rem, clusters_per_lane)
-    #Verify from here
     [volume_ratios, conc_factor] = integrate_conc_diff(lane_maps, desired_ratios)
     [rounded_ratios, final_pool_sizes, extra_lanes] = realize_numbers(lane_maps, best_sample_struct, volume_ratios, conc_factor, 
                                                                       clusters_rem, total_lanes, pool_excess, lane_volume, min_pipette)
