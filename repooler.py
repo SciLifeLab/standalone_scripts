@@ -297,15 +297,18 @@ def integrate_conc_diff(lane_maps, desired_ratios):
         for index in xrange(1, len(lane_maps[key])):
             expect_output.append(1/float(len(lane_maps[key]) -1))#-1 Removes undetermined
         #TODO: One could include undetermined here
-        conc_factor[key] = actual_output/expect_output
+        #Overriding errstate since expected is 0 for undetermined
+        with numpy.errstate(divide='ignore'):
+            conc_factor[key] = actual_output/expect_output
         #Division verified. One with high Actual/Expressed should naturally be less of in repool.
+        
         volume_ratios[key] = desired_ratios[key] / conc_factor[key]
         #Merge down to 100%. Makes sense, since samples differ in volume.
         if not sum(volume_ratios[key]) == 0:
             volume_ratios[key] = volume_ratios[key]/sum(volume_ratios[key])
         else: 
             # Should fix NAN bug
-            volume_ratios[key] = 0
+            volume_ratios[key] = numpy.zeros(len(volume_ratios[key]))
     return volume_ratios, conc_factor
 
 def realize_numbers(lane_maps, best_sample_struct, volume_ratios, conc_factor, clusters_rem, total_lanes, pool_excess, lane_volume, min_pipette):
@@ -375,7 +378,10 @@ def realize_numbers(lane_maps, best_sample_struct, volume_ratios, conc_factor, c
                 
         final_pool_sizes[key] = poolsize*float(sum(uprounded))
         ##TODO: Sum of output rounded_ratios is less than 100% before normalizing; weird but likely correct. 
-        rounded_ratios[key] = uprounded/float(sum(uprounded))
+        if sum(uprounded) == 0:
+            rounded_ratios[key] = uprounded
+        else:
+            rounded_ratios[key] = uprounded/float(sum(uprounded))
     return [rounded_ratios, final_pool_sizes, extra_lanes]
   
 
@@ -424,7 +430,7 @@ def generate_summary(projName, best_sample_struct, timestamp, project_id, dest_p
             raise Exception('Ideally zero more lanes are required. Unable to calcuate OPT!')  
         
         if OPT > 1.5:
-            print("Warning, OPT exceeds 1.5x! Generated solution is so poor a better one can likely be done by hand!")
+            print("\nWarning, OPT exceeds 1.5x! Generated solution is so poor a better one can likely be done by hand!")
             
         output = 'Target clusters per sample: {}, Expected clusters per lane: {}\n'.format(str(target_clusters), str(clusters_per_lane))  
         output = output + 'Lane volume: {} microliter(s), Pool excess: {} microliter(s)\n'.format(lane_volume, pool_excess) 
@@ -468,46 +474,47 @@ def generate_csv(projName, timestamp, location, dest_plate_list, total_lanes, be
     #Index 0 is number, index 1 is Letter
     wellIndex = [1, 1]
     destNo = 0
+    pool_max = 200
     
     with open(name, 'w') as csvfile:
         writer = csv.writer(csvfile)
         for key, value in best_sample_struct.items():
-            try:
-                dest_plate_list[destNo]
-            except IndexError:
-                dest_plate_list.append ('dp_{}'.format(str(destNo+1)))
-                #print "Critical error; not enough destination plates provided"
-            
-            #TODO DOUBLECHECK THIS
-            #Ugly constants
-            maxDupes = 200/final_pool_sizes[key]
-            dupes = int(total_lanes[key])
-            
-            if dupes > maxDupes:
-                raise Exception("Error: A pool has been requested that can't be fit into a single well!")
-
-            for instance in xrange(1, len(value)):
-                #<source plate ID>,<source well>,<volume>,<destination plate ID>,<destination well>
-                sample = best_sample_struct[key][instance]
-                position = '{}:{}'.format(wells[wellIndex[1]], str(wellIndex[0]))
+            #If a structure is unused, don't include it in the csv
+            if not final_pool_sizes[key] == 0:
                 try:
-                    out_pool = round(rounded_ratios[key][instance]*final_pool_sizes[key],2)
-                    output = location[sample][0],location[sample][1],str(out_pool),str(dest_plate_list[destNo]),position
-                except KeyError:
-                    print "Error: Samples incorrectly parsed into database, thus causing sample name conflicts!"
+                    dest_plate_list[destNo]
+                except IndexError:
+                    dest_plate_list.append ('dp_{}'.format(str(destNo+1)))
+                    #print "Critical error; not enough destination plates provided"
+                
+                maxDupes = pool_max/final_pool_sizes[key]
+                dupes = int(total_lanes[key])
+                
+                if dupes > maxDupes:
+                    raise Exception("Error: A pool has been requested that can't be fit into a single well!")
+    
+                for instance in xrange(1, len(value)):
+                    #<source plate ID>,<source well>,<volume>,<destination plate ID>,<destination well>
+                    sample = best_sample_struct[key][instance]
+                    position = '{}:{}'.format(wells[wellIndex[1]], str(wellIndex[0]))
+                    try:
+                        out_pool = round(rounded_ratios[key][instance]*final_pool_sizes[key],2)
+                        output = location[sample][0],location[sample][1],str(out_pool),str(dest_plate_list[destNo]),position
+                    except KeyError:
+                        print "Error: Samples incorrectly parsed into database, thus causing sample name conflicts!"
+                    if not rounded_ratios[key][instance] == 0:
+                        writer.writerow(output)
+                #Increment wellsindex
                 if not rounded_ratios[key][instance] == 0:
-                    writer.writerow(output)
-            #Increment wellsindex
-            if not rounded_ratios[key][instance] == 0:
-                if not wellIndex[1] >= 8:
-                    wellIndex[1] += 1
-                else:
-                    wellIndex[1] = 1
-                    if not wellIndex[0] >= 12:
-                        wellIndex[0] += 1
+                    if not wellIndex[1] >= 8:
+                        wellIndex[1] += 1
                     else:
-                        wellIndex[0] = 1
-                        destNo += 1
+                        wellIndex[1] = 1
+                        if not wellIndex[0] >= 12:
+                            wellIndex[0] += 1
+                        else:
+                            wellIndex[0] = 1
+                            destNo += 1
                       
 @click.command()
 @click.option('--project_id', required=True,help='ID of project to repool. \nExamples: P2652, P1312 etc.')
@@ -522,9 +529,7 @@ def generate_csv(projName, timestamp, location, dest_plate_list, total_lanes, be
 def main(target_clusters, clusters_per_lane, project_id, dest_plate_list, lane_volume, pool_excess, min_pipette):
     """Application that calculates samples under threshold for a project, then calculate the optimal composition for reaching the threshold
     without altering concentrations nor the structure of the pools. Outputs both a summary as well as a functional csv file."""  
-    print("WARNING: Output from repooler is experimental. Remember to review all numbers before re-sequencing.")
-    print("WARNING: Repooler relies on the assumption that all sample had equal volume within a lane.")
-    print("Q: Massive integrate_conc_diff TODO. Check it out !!")
+    print("\nWARNING: Output from repooler is experimental. Remember to review all numbers before re-sequencing.\n")
     
     couch = connection()
     structure = proj_struct(couch, project_id, target_clusters)
