@@ -432,13 +432,19 @@ def generate_summary(projName, best_sample_struct, timestamp, project_id, dest_p
         if OPT > 1.5:
             print("\nWarning, OPT exceeds 1.5x! Generated solution is so poor a better one can likely be done by hand!")
             
+        nonzero_pool_types = 0
+        for key, value in total_lanes.items():
+            if value > 0:
+                nonzero_pool_types = nonzero_pool_types +1 
+            
         output = 'Target clusters per sample: {}, Expected clusters per lane: {}\n'.format(str(target_clusters), str(clusters_per_lane))  
         output = output + 'Lane volume: {} microliter(s), Pool excess: {} microliter(s)\n'.format(lane_volume, pool_excess) 
         output = output + 'Project ID: {}, Destination plate name list: {}\n'.format(project_id, str(dest_plate_list))
         output = (output + 'Ideal lanes (same schema): {}, Total lanes: {}, Expression over theoretical ideal (OPT): {}x\n'
                   .format(str(round(sum(req_lanes.values()),3)), str(sum(total_lanes.values())), str(round(OPT,3))))
         output = output + 'Lanes added due to pipette limitations: {} (this can be mitigated with bigger pools).\n'.format(sum(extra_lanes.values()))
-        output = output + 'Unique pools: {}, Average pool duplication: {}\n'.format(str(len(total_lanes.keys())), str(round(sum(total_lanes.values())/float(len(total_lanes.keys())),3)))
+        output = output + 'Unique pools: {}, Average pool duplication (ignores empty): {}\n'.format(str(len(total_lanes.keys())), 
+                                                                                                    str(round(sum(total_lanes.values())/float(nonzero_pool_types),3)))
         summary.write( output )
         
         bin = 0
