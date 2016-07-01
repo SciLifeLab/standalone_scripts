@@ -1,18 +1,19 @@
 #!/usr/bin/env python2.7
 
-import couchdb
 import re
 import math
-from collections import defaultdict, Counter, OrderedDict
-import numpy
 import unicodedata
 import csv
 import copy
-import click
 import sys
 import os
 import yaml
 
+import couchdb
+import numpy
+import click
+
+from collections import defaultdict, Counter, OrderedDict
 from time import time
 from datetime import datetime
 
@@ -307,7 +308,7 @@ def integrate_conc_diff(lane_maps, desired_ratios):
         if not sum(volume_ratios[key]) == 0:
             volume_ratios[key] = volume_ratios[key]/sum(volume_ratios[key])
         else: 
-            # Should fix NAN bug
+            # If lane struct 'is done', force array to contain a list of zeros
             volume_ratios[key] = numpy.zeros(len(volume_ratios[key]))
     return volume_ratios, conc_factor
 
@@ -493,10 +494,7 @@ def generate_csv(projName, timestamp, location, dest_plate_list, total_lanes, be
                     dest_plate_list.append ('dp_{}'.format(str(destNo+1)))
                     #print "Critical error; not enough destination plates provided"
                 
-                maxDupes = pool_max/final_pool_sizes[key]
-                dupes = int(total_lanes[key])
-                
-                if dupes > maxDupes:
+                if pool_max < final_pool_sizes[key]:
                     raise Exception("Error: A pool has been requested that can't be fit into a single well!")
     
                 for instance in xrange(1, len(value)):
