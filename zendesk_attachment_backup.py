@@ -19,7 +19,12 @@ def collect_urls(xml_path, print_urls, **kwargs):
    url_prefix = 'https://ngisweden.zendesk.com/attachments/token/[^>]+'
    re_patterns = [
       '_sample_summary.pdf',
-      '_project_summary.pdf'
+      '_sample_summary.html',
+      '_project_summary.pdf',
+      '_project_summary.html',
+      '_lanes_info.txt',
+      '_sample_info.txt',
+      '_library_info.txt',
    ]
 
    # Load XML file
