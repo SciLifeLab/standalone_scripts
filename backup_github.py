@@ -8,7 +8,7 @@ import logbook
 from subprocess import check_call
 from subprocess import CalledProcessError
 
-import pygithub3
+from pygithub3 import Github
 
 LOG = logbook.Logger('GitHub Backup')
 
@@ -35,11 +35,11 @@ class cd(object):
         os.chdir(self.original_dir)
 
 
-def backup(user, dest):
+def backup(user, password, dest):
     """Performs a backup of all the public repos in user's GitHub account on dest
     """
-    gh = pygithub3.Github()
-    repos = gh.repos.list(user=user, type='all')
+    gh = Github(login=user, user=user, password=password)
+    repos = gh.repos.list(type='all')
     for repo in repos.all():
         repo_path = os.path.join(dest, repo.name)
         LOG.info("Backing up repository {}".format(repo.name))
@@ -72,11 +72,13 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Clones all the public " \
             "repositories from a GitHub account")
     parser.add_argument("user", type=str, help="GitHub username")
+    parser.add_argument("password", type=str, help="GitHub password")
     parser.add_argument("-d", type=str, help="Destination of the copy")
     args = parser.parse_args()
 
     user = args.user
+    password = args.password
     dest = os.getcwd() if not args.d else args.d
 
     print user, dest
-    backup(user, dest)
+    backup(user, password, dest)
