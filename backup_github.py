@@ -75,8 +75,9 @@ def backup(user, password, dest):
                 pass
 
 if __name__=="__main__":
-    parser = argparse.ArgumentParser(description="Clones all the public " \
-            "repositories from a GitHub account")
+    parser = argparse.ArgumentParser(description="Clones all the " \
+            "repositories from a GitHub account. " \
+            "Restricted to public ones if no password is given")
     parser.add_argument("user", type=str, help="GitHub username")
     parser.add_argument("password", nargs='?', type=str, help="GitHub password")
     parser.add_argument("-d", type=str, help="Destination of the copy")
