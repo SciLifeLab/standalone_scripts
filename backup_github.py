@@ -38,8 +38,6 @@ class cd(object):
 def backup(user, password, dest):
     """Performs a backup of all the public repos in user's GitHub account on dest
     """
-    import pdb
-    pdb.set_trace()
     if not password is None:
         gh = Github(login=user, user=user, password=password)
         repos = gh.repos.list(type='all')
