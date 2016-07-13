@@ -259,11 +259,16 @@ def sample_distributor(sample_struct, clusters_rem, clusters_per_lane):
     for s_key, s_val in sample_struct.items():
         #Calculate lane total (sum)
         lane_total = 0
+        corrected_total = 0
         for entry in sample_struct[s_key]:
-            if clusters_rem[entry] > 0 and entry != "Undetermined":
+            if clusters_rem[entry] > 0:
                 lane_total += clusters_rem[entry] 
+                if entry != "Undetermined": 
+                    corrected_total += clusters_rem[entry] 
                 
-        ideal_lanes[s_key] = lane_total/float(clusters_per_lane)  
+        #Ignores Undetermined in clusters remaining. Idealy this would be ignored everywher
+        #but the calculations are complex.
+        ideal_lanes[s_key] = corrected_total/float(clusters_per_lane)  
         needed_lanes[s_key] = math.ceil(ideal_lanes[s_key])  
         
         #Populate output sample rates
@@ -271,7 +276,7 @@ def sample_distributor(sample_struct, clusters_rem, clusters_per_lane):
         for entry in sample_struct[s_key]:
             if lane_total == 0:
                 desired_ratios[s_key].append(0)
-            elif clusters_rem[entry] > 0 and entry != "Undetermined":
+            elif clusters_rem[entry] > 0:
                 desired_ratios[s_key].append(clusters_rem[entry]/float(lane_total))
             else: 
                 desired_ratios[s_key].append(0/float(lane_total))
