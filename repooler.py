@@ -50,6 +50,7 @@ def connection():
         couch.version()
     except:
         sys.exit("Can't connect to couch server. Username & Password is incorrect, or network is inaccessible.")
+    print "Connected!"
     return couch
 
 
@@ -259,7 +260,7 @@ def sample_distributor(sample_struct, clusters_rem, clusters_per_lane):
         #Calculate lane total (sum)
         lane_total = 0
         for entry in sample_struct[s_key]:
-            if clusters_rem[entry] > 0:
+            if clusters_rem[entry] > 0 and entry != "Undetermined":
                 lane_total += clusters_rem[entry] 
                 
         ideal_lanes[s_key] = lane_total/float(clusters_per_lane)  
@@ -270,11 +271,11 @@ def sample_distributor(sample_struct, clusters_rem, clusters_per_lane):
         for entry in sample_struct[s_key]:
             if lane_total == 0:
                 desired_ratios[s_key].append(0)
-            elif clusters_rem[entry] > 0:
+            elif clusters_rem[entry] > 0 and entry != "Undetermined":
                 desired_ratios[s_key].append(clusters_rem[entry]/float(lane_total))
             else: 
                 desired_ratios[s_key].append(0/float(lane_total))
-    
+
     #desired ratios = desired clusters per lane (for given sample) / clusters per lane
     return [desired_ratios, needed_lanes, ideal_lanes]
 
@@ -418,6 +419,7 @@ def generate_output(project_id, dest_plate_list, best_sample_struct,total_lanes,
     generate_summary(projName, best_sample_struct, timestamp, project_id, dest_plate_list, total_lanes, req_lanes, 
                      lane_maps, rounded_ratios, target_clusters, clusters_per_lane, extra_lanes, volume_ratios, desired_ratios, lane_volume, pool_excess)
     generate_csv(projName, timestamp, location, dest_plate_list, total_lanes, best_sample_struct, rounded_ratios, lane_volume, pool_excess, final_pool_sizes)
+    generate_dumpfile(projName, timestamp, location, dest_plate_list, total_lanes, best_sample_struct, rounded_ratios, lane_volume, pool_excess, final_pool_sizes)
     
 def generate_summary(projName, best_sample_struct, timestamp, project_id, dest_plate_list, total_lanes, req_lanes, lane_maps, rounded_ratios, 
                      target_clusters, clusters_per_lane, extra_lanes, volume_ratios, desired_ratios, lane_volume, pool_excess):                
@@ -504,6 +506,54 @@ def generate_csv(projName, timestamp, location, dest_plate_list, total_lanes, be
                     try:
                         out_pool = round(rounded_ratios[key][instance]*final_pool_sizes[key],2)
                         output = location[sample][0],location[sample][1],str(out_pool),str(dest_plate_list[destNo]),position
+                    except KeyError:
+                        print "Error: Samples incorrectly parsed into database, thus causing sample name conflicts!"
+                    if not rounded_ratios[key][instance] == 0:
+                        writer.writerow(output)
+                #Increment wellsindex
+                if not rounded_ratios[key][instance] == 0:
+                    if not wellIndex[1] >= 8:
+                        wellIndex[1] += 1
+                    else:
+                        wellIndex[1] = 1
+                        if not wellIndex[0] >= 12:
+                            wellIndex[0] += 1
+                        else:
+                            wellIndex[0] = 1
+                            destNo += 1
+def generate_dumpfile(projName, timestamp, location, dest_plate_list, total_lanes, best_sample_struct, rounded_ratios, lane_volume, pool_excess, final_pool_sizes):
+    """Dumps output to a crappy csvfile. Because I'm awesome like that"""
+    
+    name = '{}_dumpfile_{}.csv'.format(projName, timestamp)
+    wells = ['Empty','A','B','C','D','E','F','G','H']
+    #Index 0 is number, index 1 is Letter
+    wellIndex = [1, 1]
+    destNo = 0
+    pool_max = 200
+    
+    with open(name, 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        headers = "<samplename>","<source plate ID>","<source well>","<volume>","<destination plate ID>","<destination well>"
+        writer.writerow(headers)
+        for key, value in best_sample_struct.items():
+            #If a structure is unused, don't include it in the csv
+            if not final_pool_sizes[key] == 0:
+                try:
+                    dest_plate_list[destNo]
+                except IndexError:
+                    dest_plate_list.append ('dp_{}'.format(str(destNo+1)))
+                    #print "Critical error; not enough destination plates provided"
+                
+                if pool_max < final_pool_sizes[key]:
+                    raise Exception("Error: A pool has been requested that can't be fit into a single well!")
+    
+                for instance in xrange(1, len(value)):
+                    #samplename,<source plate ID>,<source well>,<volume>,<destination plate ID>,<destination well>
+                    sample = best_sample_struct[key][instance]
+                    position = '{}:{}'.format(wells[wellIndex[1]], str(wellIndex[0]))
+                    try:
+                        out_pool = round(rounded_ratios[key][instance]*final_pool_sizes[key],2)
+                        output = sample,location[sample][0],location[sample][1],str(out_pool),str(dest_plate_list[destNo]),position
                     except KeyError:
                         print "Error: Samples incorrectly parsed into database, thus causing sample name conflicts!"
                     if not rounded_ratios[key][instance] == 0:
