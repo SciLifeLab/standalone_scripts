@@ -18,47 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 
-def list_applications():
-    couch        = setupServer(CONFIG)
-    projects_db  = couch['projects']
-    applications = {}
-    for project_id in projects_db:
-        if "creation_time" not in projects_db[project_id]:
-            continue
-        application  = "unkonwn"
-        if "application" in projects_db[project_id]:
-            application = projects_db[project_id]["application"]
-        if application in applications:
-            applications[application] += 1
-        else:
-            applications[application] = 1
-    for application in applications:
-        print "{} {}".format(application, applications[application])
-
-def list_LibraryMethods(method_of_interest=None):
-    couch        = setupServer(CONFIG)
-    projects_db  = couch['projects']
-    libraryMethods = {}
-    for project_id in projects_db:
-        if "creation_time" not in projects_db[project_id]:
-            continue
-        library  = "unkonwn"
-        if "details" in projects_db[project_id]:
-            if "library_construction_method" in projects_db[project_id]["details"]:
-                method = projects_db[project_id]["details"]["library_construction_method"]
-        if method in libraryMethods:
-            libraryMethods[method] += 1
-        else:
-            libraryMethods[method] = 1
-    methods_of_interest = []
-    for method in libraryMethods:
-        print "{} {}".format(method, libraryMethods[method])
-        if method_of_interest is not None:
-            if method_of_interest in method:
-                methods_of_interest.append(method)
-    return methods_of_interest
-
-
 
 
 
@@ -242,8 +201,9 @@ def check_index(configuration_file, INDEXES, index):
     for date in sorted(time_line):
         print "{} {}".format(date, time_line[date])
 
-def undermined_stats(configuration_file):
-    load_yaml_config(configuration_file)
+
+
+def find_undetermined_index_over_time(index_to_be_searched, instrument_type):
     couch=setupServer(CONFIG)
     flowcell_db = couch["x_flowcells"]
     flowcell_docs = {}
@@ -266,23 +226,27 @@ def undermined_stats(configuration_file):
             FC_type = "MiSeq"
         else:
             FC_type = "HiSeq2500"
-
+        #if a instrument type is specifed process only FCs run on that instrument
+        if instrument_type is not None:
+            if instrument_type != FC_type:
+                continue
         undetermined = flowcell_db[fc_doc]["Undetermined"]
         lanes_undet = [FCid, []]
         for lane in ['1','2','3','4','5','6','7','8']:
             if lane not in undetermined:
                 continue
-            undet_CTTGTAAT = 0
+            index_to_be_searched_count = 0
             for undetermined_index in undetermined[lane]:
-                if 'CTTGTAAT' in undetermined_index:
-                    undet_CTTGTAAT = undetermined[lane][undetermined_index]
-                    lanes_undet[1].append([lane, undet_CTTGTAAT])
+                if index_to_be_searched in undetermined_index:
+                    index_to_be_searched_count = undetermined[lane][undetermined_index]
+            lanes_undet[1].append([lane, index_to_be_searched_count])
         if len(lanes_undet[1]) > 0:
             time_line.append(lanes_undet)
+
     for FC in time_line:
         FCid = FC[0]
         for lane in FC[1]:
-            print "{} {} {}".format(FCid, lane[0], lane[1])
+            print "{}_{} {}".format(FCid, lane[0], lane[1])
 
 
 
@@ -377,25 +341,18 @@ def fetch_undermined_stats(configuration_file, INDEXES):
 
 
 
-
-
-
+##indexes_file = args.indexes
+##INDEXES = Indexes(indexes_file)
 
 
 def main(args):
     configuration_file = args.config
-    indexes_file = args.indexes
-    INDEXES = Indexes(indexes_file)
-    #INDEXES.check_left_shift_conflicts()
-    
     load_yaml_config(configuration_file)
-    couch=setupServer(CONFIG)
-
-    #import pdb
-    #pdb.set_trace()
-    #NeoPrep_LibMethods = list_LibraryMethods("Neo")
-
-    undermined_stats(configuration_file)
+    
+    if args.mode == 'check_undet_index':
+        if args.index is None:
+            sys.exit("in this mode --index must be specified")
+        find_undetermined_index_over_time(args.index, args.instrument_type)
     #fetch_undermined_stats(configuration_file, INDEXES)
     #check_index(configuration_file, INDEXES, "CTTGTAAT")
 
@@ -404,9 +361,18 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs""")
+    parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
+    The following operations are supported:
+        - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+        """)
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
-    parser.add_argument('--indexes', help="yamls file containing indexes we want to analyse", type=str, required=True)
+    parser.add_argument('--indexes', help="yamls file containing indexes we want to analyse", type=str)
+    
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'undet'))
+    
+    
+    parser.add_argument('--index', help="a specifc index (e.g., CTTGTAAT) to be searched across lanes and FCs", type=str)
+    parser.add_argument('--instrument-type', help="type of instrument", type=str, default=None, choices=('HiSeqX', 'MiSeq', 'HiSeq2500'))
     args = parser.parse_args()
     main(args)
 
