@@ -135,6 +135,16 @@ class Indexes:
 
 
 
+def get_FC_type(FCid):
+    FC_type = ""
+    if "ST-" in FCid:
+        FC_type = "HiSeqX"
+    elif "000000000-" in FCid:
+        FC_type = "MiSeq"
+    else:
+        FC_type = "HiSeq2500"
+    return FC_type
+
 
 def check_index(configuration_file, INDEXES, index):
     load_yaml_config(configuration_file)
@@ -219,13 +229,7 @@ def find_undetermined_index_over_time(index_to_be_searched, instrument_type):
     for FCid in sorted(flowcell_docs):
         # first check that I have all necessary info to extract information
         fc_doc = flowcell_docs[FCid]
-        FC_type = ""
-        if "ST-" in FCid:
-            FC_type = "HiSeqX"
-        elif "000000000-" in FCid:
-            FC_type = "MiSeq"
-        else:
-            FC_type = "HiSeq2500"
+        FC_type = get_FC_type(FCid)
         #if a instrument type is specifed process only FCs run on that instrument
         if instrument_type is not None:
             if instrument_type != FC_type:
@@ -253,29 +257,27 @@ def find_undetermined_index_over_time(index_to_be_searched, instrument_type):
 
 
 
-def fetch_undermined_stats(configuration_file, INDEXES):
-    load_yaml_config(configuration_file)
+def fetch_undermined_stats():
+    #initialise
     couch=setupServer(CONFIG)
     flowcell_db = couch["x_flowcells"]
-    
+    #initialise counters for all FCs
     MostOccurringUndetIndexes = {}
     FC_num = 0
     lanes_num = 0
     MostOccurringUndetIndexes["Total"] = {}
-
+    #for HiSeqX FCs
     FC_XTen_num = 0
     lanes_Xten_num = 0
     MostOccurringUndetIndexes["HiSeqX"] = {}
-
+    #for MiSeq FCs
     FC_MiSeq_num = 0
     lanes_MiSeq_num = 0
     MostOccurringUndetIndexes["MiSeq"] = {}
-
+    #for HiSeq2500 FCs
     FC_HiSeq_num = 0
     lanes_HiSeq_num = 0
     MostOccurringUndetIndexes["HiSeq2500"] = {}
-
-    #if "ST-" in flowcell_db[fc_doc]["RunInfo"]["Id"]: XTEN specific check
     for fc_doc in sorted(flowcell_db):
         # first check that I have all necessary info to extract information
         try:
@@ -283,32 +285,27 @@ def fetch_undermined_stats(configuration_file, INDEXES):
         except KeyError:
             continue
         FCid = flowcell_db[fc_doc]["RunInfo"]["Id"]
-        FC_type = ""
-        if "ST-" in FCid:
-            FC_XTen_num += 1
-            FC_type = "HiSeqX"
-        elif "000000000-" in FCid:
-            FC_MiSeq_num += 1
-            FC_type = "MiSeq"
-        else:
-            FC_HiSeq_num += 1
-            FC_type = "HiSeq2500"
+        FC_type = get_FC_type(FCid)
         FC_num += 1
+        if FC_type == "HiSeqX":
+            FC_XTen_num += 1
+        elif FC_type == "HiSeq2500":
+            FC_HiSeq_num += 1
+        elif FC_type == "MiSeq":
+            FC_MiSeq_num += 1
         #we can use the illumina Demultiplex_Stats Barcode_lane_statistics to fetch info about indexes
-        #to do: most commonly occurring undet index
-       
         for lane in undetermined:
-        #for each lane
+            #for each lane
             if len(undetermined[lane]) > 1: # if there are elements (there is the NoIndex case)
                 if 'TOTAL' in undetermined[lane]:
                     del undetermined[lane]['TOTAL']
                 most_occuring_undet = sorted(undetermined[lane].items(), key=operator.itemgetter(1), reverse=True)[0]
                 lanes_num += 1
-                if FC_type is "HiSeqX":
+                if FC_type == "HiSeqX":
                     lanes_Xten_num += 1
-                elif FC_type is "HiSeq2500":
+                elif FC_type == "HiSeq2500":
                     lanes_HiSeq_num += 1
-                elif FC_type is "MiSeq":
+                elif FC_type == "MiSeq":
                     lanes_MiSeq_num += 1
                 
                 if most_occuring_undet[0] not in MostOccurringUndetIndexes[FC_type]:
@@ -320,10 +317,10 @@ def fetch_undermined_stats(configuration_file, INDEXES):
 
 
 
-    print "Flowcells: {}".format(FC_num)
-    print "HiSeqX: {}".format(FC_XTen_num)
-    print "HiSeq2500: {}".format(FC_HiSeq_num)
-    print "MiSeq: {}".format(FC_MiSeq_num)
+    print "Flowcells (lanes): {} ({})".format(FC_num, lanes_num)
+    print "HiSeqX (lanes): {} ({})".format(FC_XTen_num, lanes_Xten_num)
+    print "HiSeq2500 (lanes): {} ({})".format(FC_HiSeq_num, lanes_HiSeq_num)
+    print "MiSeq (lanes): {} ({})".format(FC_MiSeq_num, lanes_MiSeq_num)
 
     print "Most occuring undetermined (seen in #lanes)"
     print "All Flowcells:"
@@ -349,10 +346,15 @@ def main(args):
     configuration_file = args.config
     load_yaml_config(configuration_file)
     
+    if args.mode == 'most_undet':
+        fetch_undermined_stats()
+    
     if args.mode == 'check_undet_index':
         if args.index is None:
             sys.exit("in this mode --index must be specified")
         find_undetermined_index_over_time(args.index, args.instrument_type)
+
+
     #fetch_undermined_stats(configuration_file, INDEXES)
     #check_index(configuration_file, INDEXES, "CTTGTAAT")
 
@@ -364,11 +366,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
     The following operations are supported:
         - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+        - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
         """)
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
     parser.add_argument('--indexes', help="yamls file containing indexes we want to analyse", type=str)
     
-    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'undet'))
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet'))
     
     
     parser.add_argument('--index', help="a specifc index (e.g., CTTGTAAT) to be searched across lanes and FCs", type=str)
