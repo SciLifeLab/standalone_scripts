@@ -119,8 +119,6 @@ class Indexes:
             kits.append(kit_type)
         return kits
 
-
-
     #still to be defined
     def check_left_shift_conflicts(self):
         #checks if indexes from the same library after a left shift are conflicting
@@ -145,9 +143,10 @@ def get_FC_type(FCid):
         FC_type = "HiSeq2500"
     return FC_type
 
+import time
+from datetime import  date
 
-def check_index(configuration_file, INDEXES, index):
-    load_yaml_config(configuration_file)
+def check_single_sample_lanes(instrument_type):
     couch=setupServer(CONFIG)
     flowcell_db = couch["x_flowcells"]
     flowcell_docs = {}
@@ -158,58 +157,78 @@ def check_index(configuration_file, INDEXES, index):
         except KeyError:
             continue
         flowcell_docs[flowcell_db[fc_doc]["RunInfo"]["Id"]] = fc_doc
-    time_line = {}
-    projects  = {}
-    projects["M_Nister_16_01"] = {}
-    projects["U_Gyllensten_16_01"] = {}
-    projects["K_Kindberg_15_01"] = {}
-    projects["A_Wedell_16_01"] = {}
-    projects["M_Lundberg_16_01"] = {}
-    projects["L_Raberg_16_01"] = {}
-    projects["L_Aaltonen_16_01"] = {}
     
+    undet_stats = {}
+    indexes = {}
+    date_limit = date(16,3,1)
     for FCid in sorted(flowcell_docs):
         # first check that I have all necessary info to extract information
         fc_doc = flowcell_docs[FCid]
+        FC_type = get_FC_type(FCid)
+        #if a instrument type is specifed process only FCs run on that instrument
+        if instrument_type is not None:
+            if instrument_type != FC_type:
+                continue
+        instrument_name = flowcell_db[fc_doc]['RunInfo']['Instrument']
+        if instrument_name not in undet_stats:
+            undet_stats[instrument_name] = {}
+        #this is working only HiSeqX
+        #only recent runs
 
-        
-        FC_type = ""
-        if "ST-" in FCid:
-            FC_type = "HiSeqX"
-        elif "000000000-" in FCid:
-            FC_type = "MiSeq"
-        else:
-            FC_type = "HiSeq2500"
-        if FC_type is "HiSeqX":
-            date = FCid.split("_")[0]
-            date_nice = "{}/{}/{}".format(date[0:2],date[2:4],date[4:6])
-            if date_nice not in time_line:
-                time_line[date_nice] = 0
-            undetermined = flowcell_db[fc_doc]["Undetermined"]
-            for lane in undetermined:
-                projects_in_lane =  [sample["Project"] for sample in flowcell_db[fc_doc]["samplesheet_csv"] if sample["Lane"]== lane]
-                for project in projects_in_lane:
-                    if project in projects:
-                        projects[project][FCid] = 0 #initialiase
-            for lane in undetermined:
-                if 'TOTAL' in undetermined[lane]:
-                    del undetermined[lane]['TOTAL']
-                for undet_sequence in undetermined[lane]:
-                    index_cont = index
-                    if len(undet_sequence) < len(index):
-                        index_cont = index[0:len(index)]
-                    index_to_check = undet_sequence
-                    if len(undet_sequence) > len(index):
-                        index_to_check = index[0:len(undet_sequence)]
-                    if index_to_check == index_cont:
-                        time_line[date_nice] += 1
-                        projects_in_lane =  [sample["Project"] for sample in flowcell_db[fc_doc]["samplesheet_csv"] if sample["Lane"]== lane]
-                        for project in projects_in_lane:
-                            if project in projects:
-                                projects[project][FCid] = 1
-                            
-    for date in sorted(time_line):
-        print "{} {}".format(date, time_line[date])
+        start_date_string = flowcell_db[fc_doc]['RunInfo']['Date']
+        year = start_date_string[0:2]
+        month = start_date_string[2:4]
+        day = start_date_string[4:6]
+        fc_date = date(int(year), int(month), int(day))
+        if fc_date < date_limit:
+            continue
+        #understand which ones are the FCs with a single sample per lane
+        single_sample_lanes = []
+        lanes = {}
+        if 'samplesheet_csv' not in flowcell_db[fc_doc]:
+            continue
+        for sample in flowcell_db[fc_doc]['samplesheet_csv']:
+            if sample['Lane'] not in lanes:
+                lanes[sample['Lane']] = []
+            lanes[sample['Lane']].append(sample['index'])
+        for lane in lanes:
+            #if only one sample per lane
+            if len(lanes[lane]) == 1:
+                single_sample_lanes.append([lane, lanes[lane][0]])
+        #now I know what are the lanes with a single index
+        #now collect stats
+        for lane_index in single_sample_lanes:
+            lane = lane_index[0]
+            index = lane_index[1]
+            #get percentage of undetermined
+            if lane not in flowcell_db[fc_doc]["Undetermined"]:
+                continue #it means this lane has no undetermined
+            pc_undet = [sample['% of thelane'] for sample in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics'] if sample['Lane']==lane and sample['Barcode sequence']=='unknown'][0]
+            try:
+                pc_undet = float(pc_undet)
+            except ValueError: #sometimes it is empty
+                continue
+            if pc_undet > 10:
+                if index not in undet_stats[instrument_name]:
+                    undet_stats[instrument_name][index] = 0 #initialiaze this
+                    indexes[index] = 0 #mark this as seen
+                undet_stats[instrument_name][index] += 1 # seen a lane with high amount of undetermined
+    
+    print ",",
+    for index in indexes:
+        print "{},".format(index),
+    print ""
+    for instrument in undet_stats:
+        print "{},".format(instrument),
+        for index in indexes:
+            if index in undet_stats[instrument]:
+                print "{},".format(undet_stats[instrument][index]),
+            else:
+                print "0,",
+        print ""
+    print ""
+
+
 
 
 
@@ -354,6 +373,9 @@ def main(args):
             sys.exit("in this mode --index must be specified")
         find_undetermined_index_over_time(args.index, args.instrument_type)
 
+    if args.mode == 'single_sample_lanes':
+        check_single_sample_lanes("HiSeqX")
+
 
     #fetch_undermined_stats(configuration_file, INDEXES)
     #check_index(configuration_file, INDEXES, "CTTGTAAT")
@@ -367,11 +389,12 @@ if __name__ == '__main__':
     The following operations are supported:
         - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
         - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
+        - single_sample_lanes:
         """)
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
     parser.add_argument('--indexes', help="yamls file containing indexes we want to analyse", type=str)
     
-    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet'))
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet', 'single_sample_lanes'))
     
     
     parser.add_argument('--index', help="a specifc index (e.g., CTTGTAAT) to be searched across lanes and FCs", type=str)
