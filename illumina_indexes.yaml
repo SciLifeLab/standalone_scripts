@@ -1,0 +1,387 @@
+##yaml file describing indexes for each lib prepr
+##libprepr:
+##  index_name: index_seq
+## DOES NOT INCLUDE:
+#      TruSight RNA Pan-Cancer Panel
+
+TruSight_Amplicon_Panels:
+    i7_Index1:
+        A701: ATCACGAC
+        A702: ACAGTGGT
+        A703: CAGATCCA
+        A704: ACAAACGG
+        A705: ACCCAGCA
+        A706: AACCCCTC
+        A707: CCCAACCT
+        A708: CACCACAC
+        A709: GAAACCCA
+        A710: TGTGACCA
+        A711: AGGGTCAA
+        A712: AGGAGTGG
+    i5_Index2:
+        A501: TGAACCTT
+        A502: TGCTAAGT
+        A503: TGTTCTCT
+        A504: TAAGACAC
+        A505: CTAATCGA
+        A506: CTAGAACA
+        A507: TAAGTTCC
+        A508: TAGACCTA
+TruSight_Cardio:
+    i7_Index1:
+        N701: TAAGGCGA
+        N702: CGTACTAG
+        N703: AGGCAGAA
+        N704: TCCTGAGC
+        N705: GGACTCCT
+        N706: TAGGCATG
+        N707: CTCTCTAC
+        N708: CAGAGAGG
+        N709: GCTACGCT
+        N710: CGAGGCTG
+        N711: AAGAGGCA
+        N712: GTAGAGGA
+    i5_Index2:
+        E505: GTAAGGAG
+TruSight_One:
+    i7_Index1:
+        N701: TAAGGCGA
+        N702: CGTACTAG
+        N703: AGGCAGAA
+        N704: TCCTGAGC
+        N705: GGACTCCT
+        N706: TAGGCATG
+        N707: CTCTCTAC
+        N708: CAGAGAGG
+        N709: GCTACGCT
+        N710: CGAGGCTG
+        N711: AAGAGGCA
+        N712: GTAGAGGA
+    i5_Index2:
+        E502: CTCTCTAT
+        E503: TATCCTCT
+        E504: AGAGTAGA
+        E505: GTAAGGAG
+TruSight_Rapid_Capture:
+    i7_Index1:
+        N701: TAAGGCGA
+        N702: CGTACTAG
+        N703: AGGCAGAA
+        N704: TCCTGAGC
+        N705: GGACTCCT
+        N706: TAGGCATG
+        N707: CTCTCTAC
+        N708: CAGAGAGG
+        N709: GCTACGCT
+        N710: CGAGGCTG
+        N711: AAGAGGCA
+        N712: GTAGAGGA
+    i5_Index2:
+        E502: CTCTCTAT
+        E505: GTAAGGAG
+        E506: ACTGCATA
+        E517: GCGTAAGA
+TruSight_Tumor_15:
+    i7_Index1:
+        R701: ATCACG
+        R702: CGATGT
+        R703: TTAGGC
+        R704: TGACCA
+        R705: ACAGTG
+        R706: GCCAAT
+        R707: CAGATC
+        R708: ACTTGA
+        R709: GATCAG
+        R711: GGCTAC
+        R712: CTTGTA
+        R725: ACTGAT
+        R726: ATGAGC
+        R727: ATTCCT
+        R728: CAAAAG
+        R729: CAACTA
+        R730: CACCGG
+        R731: CACGAT
+        R732: CACTCA
+        R733: CAGGCG
+        R734: CATGGC
+        R735: CATTTT
+        R736: CCAACA
+        R749: GATGCT
+    i5_Index2:
+        A501: TGAACCTT
+        A502: TGCTAAGT
+Illumina_Nextera_v1:
+    i7_Index1:
+        N701: TAAGGCGA
+        N702: CGTACTAG
+        N703: AGGCAGAA
+        N704: TCCTGAGC
+        N705: GGACTCCT
+        N706: TAGGCATG
+        N707: CTCTCTAC
+        N708: CAGAGAGG
+        N709: GCTACGCT
+        N710: CGAGGCTG
+        N711: AAGAGGCA
+        N712: GTAGAGGA
+    i5_Index2:
+        NSE501501: TAGATCGC
+        NSE501502: CTCTCTAT
+        NSE501503: TATCCTCT
+        NSE501504: AGAGTAGA
+        NSE501505: GTAAGGAG
+        NSE501506: ACTGCATA
+        NSE501507: AAGGAGTA
+        NSE501508: CTAAGCCT
+        NSE501517: GCGTAAGA
+Illumina_Nextera_v2:
+    i7_Index1:
+        N701: TAAGGCGA
+        N702: CGTACTAG
+        N703: AGGCAGAA
+        N704: TCCTGAGC
+        N705: GGACTCCT
+        N706: TAGGCATG
+        N707: CTCTCTAC
+        N710: CGAGGCTG
+        N711: AAGAGGCA
+        N712: GTAGAGGA
+        N714: GCTCATGA
+        N715: ATCTCAGG
+        N716: ACTCGCTA
+        N718: GGAGCTAC
+        N719: GCGTAGTA
+        N720: CGGAGCCT
+        N721: TACGCTGC
+        N722: ATGCGCAG
+        N723: TAGCGCTC
+        N724: ACTGAGCG
+        N726: CCTAAGAC
+        N727: CGATCAGT
+        N728: TGCAGCTA
+        N729: TCGACGTC
+    i5_Index2:
+        S502: CTCTCTAT
+        S503: TATCCTCT
+        S505: GTAAGGAG
+        S506: ACTGCATA
+        S507: AAGGAGTA
+        S508: CTAAGCCT
+        S510: CGTCTAAT
+        S511: TCTCTCCG
+        S513: TCGACTAG
+        S515: TTCTAGCT
+        S516: CCTAGAGT
+        S517: GCGTAAGA
+        S518: CTATTAAG
+        S520: AAGGCTAT
+        S521: GAGCCTTA
+        S522: TTATGCGA
+TruSeq_Amplicon:
+    i7_Index1:
+        A701: ATCACGAC
+        A702: ACAGTGGT
+        A703: CAGATCCA
+        A704: ACAAACGG
+        A705: ACCCAGCA
+        A706: AACCCCTC
+        A707: CCCAACCT
+        A708: CACCACAC
+        A709: GAAACCCA
+        A710: TGTGACCA
+        A711: AGGGTCAA
+        A712: AGGAGTGG
+    i5_Index2:
+        A501: TGAACCTT
+        A502: TGCTAAGT
+        A503: TGTTCTCT
+        A504: TAAGACAC
+        A505: CTAATCGA
+        A506: CTAGAACA
+        A507: TAAGTTCC
+        A508: TAGACCTA
+TruSeq_DNA_Methylation:
+    i7_Index1:
+        Index1: ATCACG
+        Index2: CGATGT
+        Index3: TTAGGC
+        Index4: TGACCA
+        Index5: ACAGTG
+        Index6: GCCAAT
+        Index7: CAGATC
+        Index8: ACTTGA
+        Index9: GATCAG
+        Index10: TAGCTT
+        Index11: GGCTAC
+        Index12: CTTGTA
+TruSeq_HT_Kits:
+    i7_Index1:
+        D701: ATTACTCG
+        D702: TCCGGAGA
+        D703: CGCTCATT
+        D704: GAGATTCC
+        D705: ATTCAGAA
+        D706: GAATTCGT
+        D707: CTGAAGCT
+        D708: TAATGCGC
+        D709: CGGCTATG
+        D710: TCCGCGAA
+        D711: TCTCGCGC
+        D712: AGCGATAG
+    i5_Index2:
+        D501: TATAGCCT
+        D502: ATAGAGGC
+        D503: CCTATCCT
+        D504: GGCTCTGA
+        D505: AGGCGAAG
+        D506: TAATCTTA
+        D507: CAGGACGT
+        D508: GTACTGAC
+TruSeq_LT_Kits_and_TruSeq_v1_v2:
+    i7_Index1:
+        Index1: ATCACG
+        Index2: CGATGT
+        Index3: TTAGGC
+        Index4: TGACCA
+        Index5: ACAGTG
+        Index6: GCCAAT
+        Index7: CAGATC
+        Index8: ACTTGA
+        Index9: GATCAG
+        Index10: TAGCTT
+        Index11: GGCTAC
+        Index12: CTTGTA
+        Index13: AGTCAA
+        Index14: AGTTCC
+        Index15: ATGTCA
+        Index16: CCGTCC
+        Index18: GTCCGC
+        Index19: GTGAAA
+        Index20: GTGGCC
+        Index21: GTTTCG
+        Index22: CGTACG
+        Index23: GAGTGG
+        Index25: ACTGAT
+        Index27: ATTCCT
+TruSeq_Ribo_Profile:
+    i7_Index1:
+        A001: ATCACG
+        A002: CGATGT
+        A003: TTAGGC
+        A004: TGACCA
+        A005: ACAGTG
+        A006: GCCAAT
+        A007: CAGATC
+        A008: ACTTGA
+        A009: GATCAG
+        A010: TAGCTT
+        A011: GGCTAC
+        A012: CTTGTA
+TruSeq_Small_RNA:
+    i7_Index1:
+        RPI1: CGTGAT
+        RPI2: ACATCG
+        RPI3: GCCTAA
+        RPI4: TGGTCA
+        RPI5: CACTGT
+        RPI6: ATTGGC
+        RPI7: GATCTG
+        RPI8: TCAAGT
+        RPI9: CTGATC
+        RPI10: AAGCTA
+        RPI11: GTAGCC
+        RPI12: TACAAG
+        RPI13: TTGACT
+        RPI14: GGAACT
+        RPI15: TGACAT
+        RPI16: GGACGG
+        RPI17: CTCTAC
+        RPI18: GCGGAC
+        RPI19: TTTCAC
+        RPI20: GGCCAC
+        RPI21: CGAAAC
+        RPI22: CGTACG
+        RPI23: CCACTC
+        RPI24: GCTACC
+        RPI25: ATCAGT
+        RPI26: GCTCAT
+        RPI27: AGGAAT
+        RPI28: CTTTTG
+        RPI29: TAGTTG
+        RPI30: CCGGTG
+        RPI31: ATCGTG
+        RPI32: TGAGTG
+        RPI33: CGCCTG
+        RPI34: GCCATG
+        RPI35: AAAATG
+        RPI36: TGTTGG
+        RPI37: ATTCCG
+        RPI38: AGCTAG
+        RPI39: GTATAG
+        RPI40: TCTGAG
+        RPI41: GTCGTC
+        RPI42: CGATTA
+        RPI43: GCTGTA
+        RPI44: ATTATA
+        RPI45: GAATGA
+        RPI46: TCGGGA
+        RPI47: CTTCGA
+TruSeq_Targeted_RNA_Expression:
+    i7_Index1:
+        R701: ATCACG
+        R702: CGATGT
+        R703: TTAGGC
+        R704: TGACCA
+        R705: ACAGTG
+        R706: GCCAAT
+        R707: CAGATC
+        R708: ACTTGA
+        R709: GATCAG
+        R710: TAGCTT
+        R711: GGCTAC
+        R712: CTTGTA
+        R713: AGTCAA
+        R714: AGTTCC
+        R715: ATGTCA
+        R716: CCGTCC
+        R717: GTAGAG
+        R718: GTCCGC
+        R719: GTGAAA
+        R720: GTGGCC
+        R721: GTTTCG
+        R722: CGTACG
+        R723: GAGTGG
+        R724: GGTAGC
+        R725: ACTGAT
+        R726: ATGAGC
+        R727: ATTCCT
+        R728: CAAAAG
+        R729: CAACTA
+        R730: CACCGG
+        R731: CACGAT
+        R732: CACTCA
+        R733: CAGGCG
+        R734: CATGGC
+        R735: CATTTT
+        R736: CCAACA
+        R737: CGGAAT
+        R738: CTAGCT
+        R739: CTATAC
+        R740: CTCAGA
+        R741: GACGAC
+        R742: TAATCG
+        R743: TACAGC
+        R744: TATAAT
+        R745: TCATTC
+        R746: TCCCGA
+        R747: TCGAAG
+        R748: TCGGCA
+    i5_Index2:
+        A501: TGAACCTT
+        A502: TGCTAAGT
+        A503: TGTTCTCT
+        A504: TAAGACAC
+        A505: CTAATCGA
+        A506: CTAGAACA
+        A507: TAAGTTCC
+        A508: TAGACCTA
