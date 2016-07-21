@@ -1,11 +1,14 @@
-# -*- coding: utf-8 -*-
 
 """ Calls up the genologics LIMS directly in order to more quickly
     set a bioinformatics responsible. Script can easily be altered
     to be used to set other values."""
     
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
 from genologics.lims import Lims
 from genologics.config import BASEURI, USERNAME, PASSWORD
+from genologics.entities import Udfconfig
 
 def namesetter(PID):
 
@@ -36,26 +39,38 @@ def namesetter(PID):
             response = process[0].udf["Bioinfo responsible"]
         else:
             response = "Unassigned"
-        print "Existing Bioinfo responsible for project {} aka {}: {}".format(limsproject, PID, response.encode('utf-8'))
-        newname = raw_input("Enter name of new Bioinfo responsible, or C to cancel: ")
-        if newname != 'c' and newname != 'C':
-            confirmation = raw_input("Project {} aka {} will have {} as new Bioinfo responsible, is this correct (Y/N)? ".format(limsproject, PID, newname))
-            if confirmation == 'Y' or confirmation == 'y':
-                try:
-                    process[0].udf["Bioinfo responsible"] = newname
-                    process[0].put()
-                    print "Project {} aka {} assigned to {}".format(limsproject, PID, newname)
-                    return None
-                except UnicodeDecodeError:
-                    #Weird solution due to put function
-                    process[0].udf["Bioinfo responsible"] = response
-                    print "You tried to use a special character didn't you. Don't do that. New standards and stuff..."
-            elif confirmation == 'N' or confirmation == 'n':
-                loop = False
+        print "Existing Bioinfo responsible for project {} aka {} is: {}".format(limsproject, PID, response.encode('utf-8'))
+        
+        #Checks for valid name
+        in_responsibles = False
+        config_responsibles =Udfconfig(lims, id="1128")
+        while not in_responsibles:
+            newname = raw_input("Enter name of new Bioinfo responsible: ")
+            for names in config_responsibles.presets:
+                if newname in names:
+                    in_responsibles = True
+                    newname = names
+            if not in_responsibles:
+                print "Subset {} not found in accepted Bioinfo responsible list.".format(newname)
             else:
-                print "Invalid answer."
+                print "Suggested name is {}".format(newname)
+        
+        confirmation = raw_input("Project {} aka {} will have {} as new Bioinfo responsible, is this correct (Y/N)? ".format(limsproject, PID, newname))
+        if confirmation == 'Y' or confirmation == 'y':
+            try:
+                newname.decode('ascii')
+                process[0].udf["Bioinfo responsible"] = unicode(newname)
+                process[0].put()
+                print "Project {} aka {} assigned to {}".format(limsproject, PID, newname)
+                return None
+            except UnicodeDecodeError:
+                #Weird solution due to put function
+                process[0].udf["Bioinfo responsible"] = response
+                print "ERROR: You tried to use a special character, didn't you? Don't do that. New standards and stuff..."
+        elif confirmation == 'N' or confirmation == 'n':
+            loop = False
         else:
-            return None
+            print "Invalid answer."
 
 looping = True
 print "---- Bioinformatical (re)assignment application ----"
