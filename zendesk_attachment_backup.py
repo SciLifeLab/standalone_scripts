@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 zendesk_attachment_backup.py
 Takes an XML ticket dump from ZenDesk and parses out URLs
