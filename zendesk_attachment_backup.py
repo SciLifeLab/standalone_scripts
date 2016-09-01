@@ -32,7 +32,7 @@ def collect_urls(input_files, print_urls, **kwargs):
    
    # Go through each supplied file
    for fn in input_files:
-      
+      print("Loading {}".format(fn))
       # Load the XML file
       tickets_xml = None
       if fn.endswith('.zip'):
@@ -53,13 +53,13 @@ def collect_urls(input_files, print_urls, **kwargs):
       if tickets_xml is not None:
          for pattern in re_patterns:
             urls.update(re.findall(url_prefix + pattern, tickets_xml))
+      
+      print("  Found {} unique URLs so far..".format(len(urls)))
    
    # Check we have some URLs
    if len(urls) == 0:
       print("Error - no URLs found")
       sys.exit(1)
-   else:
-      print("Found {} URLs".format(len(urls)))
    
    # Make nice filenames
    downloads = dict()
@@ -72,6 +72,7 @@ def collect_urls(input_files, print_urls, **kwargs):
       with open('attachment_urls.txt', "w") as fh:
          for url in urls:
             fh.write("{}\n".format(url))
+      print("Printed results to attachment_urls.txt")
 
    return downloads
 
