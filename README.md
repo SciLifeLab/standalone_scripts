@@ -59,6 +59,37 @@ Alternatively, run directly on `tickets.xml`:
 zendesk_attachment_backup.py -i ngisweden-yyyymmdd/tickets.xml
 ```
 
+###### Usage
+If you're using this on `tools` for the first time, you'll need to set up conda.
+`tools` only has v2.6 of Python installed by default, which is old and not
+compatible with this script
+
+These instructions get a copy of Python 2.7 for you. You only need to do this once:
+
+1. Download & install Miniconda
+```
+wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+```
+2. Tell the installer to prepend itself to your `.bashrc` file
+3. Log out and log in again, check that `conda` is in your path
+4. Create an environment for Python 2.7
+```
+conda create --name tools_py2.7 python pip
+```
+5. Add it to your `.bashrc` file so it always loads
+```
+echo source activate tools_py2.7 >> .bashrc
+```
+
+Now Python 2.7 is installed, the zendesk attachment backup script should work.
+You can run it by going to the Zendesk backup directory and running it on
+any new downloads:
+```
+zendesk_attachment_backup.py <latest_backup>.zip
+```
+
+
 ###### Dependencies
 * argparse
 * os
