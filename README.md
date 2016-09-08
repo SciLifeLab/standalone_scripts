@@ -108,3 +108,9 @@ sample doesn't reach the required threshold due to mismeasurements in concentrat
 * click
 * Genologics: lims, config, entities
 
+#### set_bioinforesponsible.py
+Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
+
+*Dependencies*
+
+* Genologics: lims, config
