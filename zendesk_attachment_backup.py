@@ -32,7 +32,8 @@ def collect_urls(input_files, print_urls, **kwargs):
    
    # Go through each supplied file
    for fn in input_files:
-      print("Loading {}".format(fn))
+      if not kwargs.get('quiet'):
+          print("Loading {}".format(fn))
       # Load the XML file
       tickets_xml = None
       if fn.endswith('.zip'):
@@ -47,14 +48,17 @@ def collect_urls(input_files, print_urls, **kwargs):
                   tickets_xml = fh.read().decode('utf8')
       
       else:
-         tickets_xml = open(fn).read()
+         with open(fn,'r') as f_h:
+             tickets_xml = f_h.read()
 
       # Get matches
       if tickets_xml is not None:
          for pattern in re_patterns:
             urls.update(re.findall(url_prefix + pattern, tickets_xml))
       
-      print("  Found {} unique URLs so far..".format(len(urls)))
+      if not kwargs..get('quiet'):
+          print("  Found {} unique URLs so far..".format(len(urls)))
+      
    
    # Check we have some URLs
    if len(urls) == 0:
@@ -69,37 +73,51 @@ def collect_urls(input_files, print_urls, **kwargs):
 
    # Print URLs to file if requested
    if print_urls:
-      with open('attachment_urls.txt', "w") as fh:
+      target_file=os.path.join(kwargs.get("output_dir"), 'attachment_urls.txt')
+      with open(target_file, "w") as fh:
          for url in urls:
             fh.write("{}\n".format(url))
-      print("Printed results to attachment_urls.txt")
+      if not kwargs..get('quiet'):
+          print("Printed results to {}.txt".format(target_file))
 
    return downloads
 
-def download_files(downloads, output_dir='downloads', force_overwrite=False, **kwargs):
-   """ Save files to disk. Input: Dict with desired filename as key, URL as value.
-   """
-   # Make the directory if we need to
-   if not os.path.exists(output_dir):
-      os.makedirs(output_dir)
+def download_files(downloads, output_dir, force_overwrite, **kwargs):
+    """ Save files to disk. Input: Dict with desired filename as key, URL as value.
+    """
+    # Make the directory if we need to
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
    
-   # Check if any files exist and skip them if so
-   num_dls = len(downloads)
-   if not force_overwrite:
-      downloads = {fn:url for fn,url in downloads.iteritems() if not os.path.exists(os.path.join(output_dir, fn))}
-      if num_dls != len(downloads):
-         print("Skipping {} files as already downloaded.".format(num_dls - len(downloads)))
+    # Check if any files exist and skip them if so
+    num_dls = len(downloads)
+    if not force_overwrite:
+        downloads = {fn:url for fn,url in downloads.iteritems() if not os.path.exists(os.path.join(output_dir, fn))}
+        if num_dls != len(downloads) and not kwargs.get('quiet'):
+            print("Skipping {} files as already downloaded.".format(num_dls - len(downloads)))
 
    # Loop through the downloads and get them one at a time
-   num_dls = len(downloads)
-   i = 1
-   for fn, url in downloads.iteritems():
-      path = os.path.join(output_dir, fn)
-      print("Downloading {} of {} - {}".format(i, num_dls, fn))
-      dl = urllib2.urlopen(url)
-      with open(path, 'wb') as fh:
-         fh.write(dl.read())
-      i += 1
+    num_dls = len(downloads)
+    i = 1
+    for fn, url in downloads.iteritems():
+        path = os.path.join(output_dir, fn)
+        if not kwargs.get('quiet'):
+            print("Downloading {} of {} - {}".format(i, num_dls, fn))
+    try:
+        dl = urllib2.urlopen(url)
+        with open(path, 'wb') as fh:
+            fh.write(dl.read())
+    except urllib2.URLError:
+        try:
+            dl = urllib2.urlopen(url)
+            with open(path, 'wb') as fh:
+                fh.write(dl.read())
+        except urllib2.URLError:
+            print("Error downloading {}".format(url))
+            sys.exit(1)
+
+     dl.close()
+     i += 1
 
 
 if __name__ == "__main__":
@@ -111,6 +129,8 @@ if __name__ == "__main__":
                         help="Save URLs to file 'attachment_urls.txt' instead of downloading")
    parser.add_argument("-f", "--force_overwrite", dest="force_overwrite", action='store_true',
                         help="Overwrite existing files. Default: Don't download if file exists.")
+   parser.add_argument("-q", "--quiet", dest="quiet", action='store_true',
+                        help="Keep quiet like the good cronjob you are.")
    parser.add_argument('input_files', nargs='+',
                         help="Path to ZenDesk tickets.xml export.")
    kwargs = vars(parser.parse_args())
