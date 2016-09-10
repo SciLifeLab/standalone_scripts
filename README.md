@@ -114,3 +114,31 @@ Calls up the genologics LIMS directly in order to more quickly set a bioinformat
 *Dependencies*
 
 * Genologics: lims, config
+
+## Backup Zendesk Tickets 
+### backup_zendesk_tickets.py
+Retirives tickets from Zendesk via Zendesk API and saves it on the filesystem as json file.
+
+###### Dependencies
+* click
+* zendesk
+* yaml
+
+### Requires config file!!
+Config file should be in `yaml` format and should contain the following mandatory parameters:
+```
+url: https://organization.zendesk.com
+username: name.last_name@organization.com
+token: token_which_you_generate_via_zendesk_web_interface
+output_path: /home/user/zendesk_backup
+```
+
+### Usage
+```
+Usage: backup_zendesk_tickets.py [OPTIONS]
+
+Options:
+  --config-file PATH  Path to the config file  [required]
+  --days INTEGER      Since how many days ago to backup tickets
+  --help              Show this message and exit.
+```
