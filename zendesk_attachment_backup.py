@@ -56,7 +56,7 @@ def collect_urls(input_files, print_urls, **kwargs):
          for pattern in re_patterns:
             urls.update(re.findall(url_prefix + pattern, tickets_xml))
       
-      if not kwargs..get('quiet'):
+      if not kwargs.get('quiet'):
           print("  Found {} unique URLs so far..".format(len(urls)))
       
    
@@ -73,7 +73,7 @@ def collect_urls(input_files, print_urls, **kwargs):
 
    # Print URLs to file if requested
    if print_urls:
-      target_file=os.path.join(kwargs.get("output_dir"), 'attachment_urls.txt')
+      target_file=os.path.join(kwargs.get("output_dir"),'attachment_urls.txt')
       with open(target_file, "w") as fh:
          for url in urls:
             fh.write("{}\n".format(url))
@@ -103,20 +103,17 @@ def download_files(downloads, output_dir, force_overwrite, **kwargs):
         path = os.path.join(output_dir, fn)
         if not kwargs.get('quiet'):
             print("Downloading {} of {} - {}".format(i, num_dls, fn))
-    try:
-        dl = urllib2.urlopen(url)
-        with open(path, 'wb') as fh:
-            fh.write(dl.read())
-    except urllib2.URLError:
+    for _try in xrange(3):
         try:
             dl = urllib2.urlopen(url)
             with open(path, 'wb') as fh:
                 fh.write(dl.read())
+            break
         except urllib2.URLError:
-            print("Error downloading {}".format(url))
+            print("Error downloading {} on try {}".format(url,_try))
             sys.exit(1)
 
-     dl.close()
+        dl.close()
      i += 1
 
 
