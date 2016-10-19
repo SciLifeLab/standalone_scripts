@@ -42,7 +42,7 @@ def backup(user, password, dest):
         gh = Github()
         repos = gh.repos.list(type='all', user=user)
     for repo in repos.all():
-        if not password is None and repo.private is True:
+        if password is not None and repo.private is True:
             source = repo.clone_url.replace("https://", "https://{}:{}@".format(user, password))
         else:
             source = repo.clone_url
