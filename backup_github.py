@@ -7,6 +7,7 @@ import logging
 import datetime
 import tarfile
 import shutil
+import yaml
 
 from subprocess import CalledProcessError, PIPE, STDOUT, check_call
 from pygithub3 import Github
@@ -30,15 +31,23 @@ class cd(object):
 
     def __exit__(self, type, value, tb):
         os.chdir(self.original_dir)
+        
+def credentials():
+    config_file = os.path.join(os.environ.get("HOME"), ".githubbackup_creds.yaml")
+    if not os.path.exists(config_file):
+        config_file = os.path.join(os.environ.get("GITHUBBACKUP_CREDS"))
+    with open(config_file) as f:
+        conf = yaml.load(f)
+    return conf
 
 def backup(user, password, dest):
     """Performs a backup of all the public repos in user's GitHub account on dest
     """
-    #logfile = open(logfile, "w")
     if not password is None:
         gh = Github(login=user, user=user, password=password)
         repos = gh.repos.list(type='all')
     else:
+        logging.info("No valid github credentials provided. Private repos will not be copied!")
         gh = Github()
         repos = gh.repos.list(type='all', user=user)
     for repo in repos.all():
@@ -106,19 +115,25 @@ if __name__=="__main__":
     logfile = 'githubbackup.log'
     parser = argparse.ArgumentParser(description="Clones all the " \
             "repositories from a GitHub account." \
-            "Restricted to public ones if no password is given")
-    parser.add_argument("user", type=str, help="GitHub username")
+            "Restricted to public ones if no password is given" \
+            "uses config file .githubbackup_config.yaml if no user/pw is provided.")
+    parser.add_argument("user", nargs='?', type=str, help="GitHub username")
     parser.add_argument("password", nargs='?', type=str, help="GitHub password")
     parser.add_argument("-d", type=str, help="Destination of the copy")
     args = parser.parse_args()
-
+    
+    #Command line flags take priority. Else use config
     user = args.user
     password = args.password
+    config = credentials()
+    if user is None or password is None:
+        user = config.get("github_username")
+        password = config.get("github_password")
+        
     dest = os.getcwd() if not args.d else args.d
     
     logging.basicConfig(filename=logfile, level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logging.info("Pulling backup into {} by using credentials for {}".format(dest, user))
-
+    
     backup(user, password, dest)
     compressAndMove(dest)
-
