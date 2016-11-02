@@ -10,12 +10,45 @@ Performs a backup of all the repositories in user's GitHub account.
 * logbook
 * pygithub3
 
+## couchdb_replication.py
+handles the replication of the couchdb instance
+
+###### Dependencies
+
+* couchdb
+* logbook
+* pycrypto
+* yaml
+
 ## data_to_ftp.py
 Used to transfer data to user's ftp server maintaing the directory tree structure. Main intention
 is to get the data to user outside Sweden.
 
 ## db_sync.sh
 Script used to mirror (completely) Clarity LIMS database from production to staging server
+
+## index_suggester.py 
+Given a list of adapters, tries to find the ones that cause the smallest collisions.
+Primarily looks at what adapters cause the collision latest, secondarily picks the adapter set
+where the most frequent nucleotide has the least presence.
+Currently hardcoded to work from https://docs.google.com/spreadsheets/d/1jMM8062GxMh9FZdy7oi8WFVv3AYyCRPdOG6jwej0mOo/edit#gid=0 ; but can easily be adapted to read a
+text file instead.
+
+###### Dependencies
+
+* json
+* gspread
+* oauth2client
+
+## repooler.py
+Calculates a decent way to re-pool samples in the case that the amount of clusters from each
+sample doesn't reach the required threshold due to mismeasurements in concentration.
+
+###### Dependencies
+
+* couchdb
+* click
+* Genologics: lims, config, entities
 
 ## quota_log.py
 > **DO NOT USE THIS SCRIPT!**
@@ -29,15 +62,12 @@ Returns a summary of quota usage in Uppmax
 * couchdb
 * pprint
 
-## couchdb_replication.py
-handles the replication of the couchdb instance
+## set_bioinforesponsible.py
+Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
 
-*Dependencies*
+###### Dependencies
 
-* couchdb
-* logbook
-* pycrypto
-* yaml
+* Genologics: lims, config
 
 ## ZenDesk Attachments Backup
 Takes a ZenDesk XML dump backup file and searches for attachment
@@ -89,7 +119,6 @@ any new downloads:
 zendesk_attachment_backup.py <latest_backup>.zip
 ```
 
-
 ###### Dependencies
 * argparse
 * os
@@ -98,19 +127,3 @@ zendesk_attachment_backup.py <latest_backup>.zip
 * sys
 * zipfile
 
-## repooler.py
-Calculates a decent way to re-pool samples in the case that the amount of clusters from each
-sample doesn't reach the required threshold due to mismeasurements in concentration.
-
-###### Dependencies
-
-* couchdb
-* click
-* Genologics: lims, config, entities
-
-#### set_bioinforesponsible.py
-Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
-
-*Dependencies*
-
-* Genologics: lims, config
