@@ -114,3 +114,9 @@ Calls up the genologics LIMS directly in order to more quickly set a bioinformat
 *Dependencies*
 
 * Genologics: lims, config
+
+
+## get_sample_names.py
+Prints a list of analyzed samples with user_id and ngi_id
+### Usage:
+`get_sample_names.py P1234`
