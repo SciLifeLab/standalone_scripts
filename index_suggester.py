@@ -11,7 +11,12 @@ import json
 import gspread
 import sys
 from oauth2client.client import SignedJwtAssertionCredentials as GCredentials
+import operator
+from operator import itemgetter
+from decimal import *
+import math
 
+getcontext().prec = 2
 sys.setrecursionlimit(1500)
 
 """Read sequence and adapters name from
@@ -29,7 +34,8 @@ def setup_gdocs(document, sheet):
     
     return worksheet
 
-def extract_info(worksheet):
+def extract_info(worksheet, num_samples):
+    #Extract info
     adapters = list()
     names = list()
     alpha_names = worksheet.range('G1:G100')
@@ -43,9 +49,124 @@ def extract_info(worksheet):
             name_index = alpha_adapters.index(cell)
             names.append(alpha_names[name_index].value)
             
-    return [adapters, names]
+    #Massage output
+    sets = len(adapters) - num_samples + 1
+    setinfo = dict()        
+    for thisset in range(0, sets):
+        #Store set info. Adaptable.
+        setinfo['Set {}'.format(thisset+1)] = dict()
+        setinfo['Set {}'.format(thisset+1)]['names'] = names[thisset:thisset+num_samples]
+        setinfo['Set {}'.format(thisset+1)]['adapters'] = adapters[thisset:thisset+num_samples]
+            
+    return setinfo  
 
-def max_distance(num_samples, adapters, names):
+"""Takes in setinfo (dict with subdicts 'names' and 'adapters')
+    Calculates each A T C G % per base position for each set.
+    returns stucture spread[setname][position]
+"""
+def nucleotide_spread(setinfo):
+    spread = dict()
+    
+    for key, value in setinfo.items():
+        spread[key] = list()
+        
+        sett = setinfo[key]['adapters']
+        adapter_len = len(sett[0])
+        
+        for n in range(0, adapter_len):
+            templist = list()
+            
+            #All nucleotides in that position
+            currpos = map(itemgetter(n), sett)
+            for bases in ['A','T','C','G']:
+                templist.append(currpos.count(bases)/Decimal(len(currpos)))
+            spread[key].append(templist)
+    return spread
+
+"""Finds the most equal nucleotide spread and returns the set.
+    Depending on input inequalities in the index are weighted differently.
+    Returns dict with scores. Lower score is better
+"""
+def scorer(spread):
+    #ONLY SCORES PAST THE ROOF!
+    scores = dict()
+
+    #Roof inf. low
+    
+    #HOW SHOULD SCORES BE SET???
+    #This function never checks the second worst (needs roof for that).
+    for key, value in spread.items():
+        setscore = 0
+        for nucvalue in value:
+            setscore = setscore + max(nucvalue)
+        scores[key] = setscore
+        
+    sorted_scores = sorted(scores.items(), key=operator.itemgetter(1))
+    
+    #Horizontal roof
+    
+    #Echelon left roof
+    
+    #Logarithmic roof
+    
+    return sorted_scores
+
+#We assume that adapters have sufficient sequence dissimilarily
+
+def outputter(setinfo, scored_sets):
+    print "\n-------------------------------------------"
+    print "Sets ordered by score:"
+    print "-------------------------------------------\n"
+    for key, value in scored_sets:
+        samples = len(setinfo[key]['names'])
+        taljare = math.ceil(samples/float(4)) 
+        #min score 
+        #Review ideal score once proper score functions come into play
+        print "{}: Score {}. Ideal score: ({}/{})*{} = {}".format(key, value, int(taljare) , samples, samples, taljare/samples*samples)
+        print "{}".format(', '.join(setinfo[key]['names']))
+        print "Indexes:"
+        print "{}\n".format('\n'.join(setinfo[key]['adapters']))
+    import pdb
+    pdb.set_trace()
+    
+        
+#____________________MAIN__________________________________________
+
+doc = "Adapters for NeoPrep"
+sheet = "Sheet1"
+samplelist = list()
+
+print "--- Index Suggester ---"
+pools = input("Enter number of pools (1+): ")
+if pools == 1:
+    num_samples = input("Enter number of samples to assign indexes to (2+): ")
+    samplelist.append(num_samples)
+else:
+    for poolindex in range(0, pools):
+        num_samples = input("Enter number of samples for pool number {} (2+): ".format(poolindex))
+        samplelist.append(num_samples)
+        
+print "Fetching information from sheet '{}' of document '{}'.".format(sheet, doc)
+
+worksheet = setup_gdocs(doc, sheet)
+setinfo = extract_info(worksheet, num_samples)
+spread = nucleotide_spread(setinfo)
+scored_sets = scorer(spread)
+outputter(setinfo, scored_sets)
+
+
+#Output set
+#Output metrics
+
+###LEGACY CODE 
+"""#Calculate set with optimal distance from eachother
+[ideal_set, setinfo] = max_distance(num_samples, adapters, names)
+results_out(ideal_set, setinfo)"""
+
+""" Finds the most abundant nucleotide at each position for a set.
+    returns the set with the lowest string of "most abundant nucleotide" (e.g. 0123553)
+"""
+"""def max_distance(num_samples, adapters, names):
     setinfo = dict()
     collision_weights=dict()
     sets = len(adapters) - num_samples + 1
@@ -105,22 +226,4 @@ def results_out(ideal_set, setinfo):
             adapters += "'" + adapter + "' "
         #Writing output
         print "Suggesting {} consisting of: \nNames: {} \nIndexes: {}\n" \
-        .format(thisset, names, adapters)
-  
-        
-#_MAIN__________________________________________
-
-doc = "Adapters for NeoPrep"
-sheet = "Sheet1"
-print "--- Index Suggester ---"
-num_samples = input("Enter number of samples to assign indexes to (2+): ")
-print "Fetching information from sheet '{}' of document '{}'.".format(sheet, doc)
-
-worksheet = setup_gdocs(doc, sheet)
-[adapters, names] = extract_info(worksheet)
-#Calculate set with optimal distance from eachother
-[ideal_set, setinfo] = max_distance(num_samples, adapters, names)
-results_out(ideal_set, setinfo)
-
-#Output set
-#Output metrics
+        .format(thisset, names, adapters)"""
