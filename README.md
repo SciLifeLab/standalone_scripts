@@ -127,3 +127,26 @@ zendesk_attachment_backup.py <latest_backup>.zip
 * sys
 * zipfile
 
+=======
+## repooler.py
+Calculates a decent way to re-pool samples in the case that the amount of clusters from each
+sample doesn't reach the required threshold due to mismeasurements in concentration.
+
+###### Dependencies
+
+* couchdb
+* click
+* Genologics: lims, config, entities
+
+#### set_bioinforesponsible.py
+Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
+
+*Dependencies*
+
+* Genologics: lims, config
+
+
+## get_sample_names.py
+Prints a list of analyzed samples with user_id and ngi_id
+### Usage:
+`get_sample_names.py P1234`

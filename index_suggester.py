@@ -3,6 +3,8 @@ Determination is done by finding the set with the latest, and least impactful co
 Impact is determined by most frequent base pair
 Note: Currently only checks the most freq nuc for a given BP and disregards the secondnd most freq (etc)
 
+REQUIRES A JSON KEY FOR THE GOOGLE DOCUMENT FETCH TO WORK
+
 By: Isak Sylvin 
 Email: isak.sylvin@scilifelab.se"""
 
@@ -34,7 +36,10 @@ def setup_gdocs(document, sheet):
     
     return worksheet
 
-def extract_info(worksheet, num_samples):
+"""Takes in a worksheet and a list of numbers.
+    Returns a list of dicts where each dict contains pools equal to the number in the list
+"""
+def extract_info(worksheet, samplelist):
     #Extract info
     adapters = list()
     names = list()
@@ -49,59 +54,67 @@ def extract_info(worksheet, num_samples):
             name_index = alpha_adapters.index(cell)
             names.append(alpha_names[name_index].value)
             
-    #Massage output
-    sets = len(adapters) - num_samples + 1
-    setinfo = dict()        
-    for thisset in range(0, sets):
-        #Store set info. Adaptable.
-        setinfo['Set {}'.format(thisset+1)] = dict()
-        setinfo['Set {}'.format(thisset+1)]['names'] = names[thisset:thisset+num_samples]
-        setinfo['Set {}'.format(thisset+1)]['adapters'] = adapters[thisset:thisset+num_samples]
-            
+    #Forms the output
+    #Can be optimized by copying pools of equal size
+    setinfo = list()
+    for samples_in_pool in samplelist:
+        sets = len(adapters) - samples_in_pool + 1
+        poolinfo = dict()        
+        for thisset in range(0, sets):
+            #Store set info. Adaptable.
+            poolinfo['Set {}'.format(thisset+1)] = dict()
+            poolinfo['Set {}'.format(thisset+1)]['names'] = names[thisset:thisset + samples_in_pool]
+            poolinfo['Set {}'.format(thisset+1)]['adapters'] = adapters[thisset:thisset + samples_in_pool]
+        setinfo.append(poolinfo)
     return setinfo  
 
 """Takes in setinfo (dict with subdicts 'names' and 'adapters')
     Calculates each A T C G % per base position for each set.
-    returns stucture spread[setname][position]
+    returns stucture spreadlist[index][setname][position]
 """
 def nucleotide_spread(setinfo):
-    spread = dict()
-    
-    for key, value in setinfo.items():
-        spread[key] = list()
-        
-        sett = setinfo[key]['adapters']
-        adapter_len = len(sett[0])
-        
-        for n in range(0, adapter_len):
-            templist = list()
+    spreadlist = list()
+    for pool in setinfo:
+        spread = dict()
+        for key, value in pool.items():
+            spread[key] = list()
             
-            #All nucleotides in that position
-            currpos = map(itemgetter(n), sett)
-            for bases in ['A','T','C','G']:
-                templist.append(currpos.count(bases)/Decimal(len(currpos)))
-            spread[key].append(templist)
-    return spread
+            sett = pool[key]['adapters']
+            adapter_len = len(sett[0])
+            
+            for n in range(0, adapter_len):
+                templist = list()
+                
+                #All nucleotides in that position
+                currpos = map(itemgetter(n), sett)
+                for bases in ['A','T','C','G']:
+                    templist.append(currpos.count(bases)/Decimal(len(currpos)))
+                spread[key].append(templist)
+        spreadlist.append(spread)
+    return spreadlist
 
 """Finds the most equal nucleotide spread and returns the set.
     Depending on input inequalities in the index are weighted differently.
     Returns dict with scores. Lower score is better
 """
-def scorer(spread):
+def scorer(spreadlist):
     #ONLY SCORES PAST THE ROOF!
-    scores = dict()
+    
+    sorted_scorelist=list()
 
     #Roof inf. low
     
     #HOW SHOULD SCORES BE SET???
     #This function never checks the second worst (needs roof for that).
-    for key, value in spread.items():
-        setscore = 0
-        for nucvalue in value:
-            setscore = setscore + max(nucvalue)
-        scores[key] = setscore
-        
-    sorted_scores = sorted(scores.items(), key=operator.itemgetter(1))
+    for spread in spreadlist:
+        scores = dict()
+        for key, value in spread.items():
+            setscore = 0
+            for nucvalue in value:
+                setscore = setscore + max(nucvalue)
+            scores[key] = setscore  
+        sorted_scores = sorted(scores.items(), key=operator.itemgetter(1))
+        sorted_scorelist.append(sorted_scores)
     
     #Horizontal roof
     
@@ -109,18 +122,40 @@ def scorer(spread):
     
     #Logarithmic roof
     
-    return sorted_scores
+    return sorted_scorelist
 
 #We assume that adapters have sufficient sequence dissimilarily
 
+def filter_and_combine(setinfo, scorelist):
+    namesets = list()
+    viablesets = list()
+    
+    import pdb
+    pdb.set_trace()
+    for pool in setinfo.items():
+        print "pop"
+    
+    
+    #Create setlists
+    ##for pool in scorelist:
+     #   for key, value in pool:
+     #       #Set 1
+     #       namesets.append( setinfo[scorelist.index(pool)][key]['names'] )
+     #       import pdb
+     #       pdb.set_trace()
+    
+    #return combinefiltered
+
 def outputter(setinfo, scored_sets):
+    import pdb
+    pdb.set_trace() 
+    #Minimal score is ideal
     print "\n-------------------------------------------"
     print "Sets ordered by score:"
     print "-------------------------------------------\n"
     for key, value in scored_sets:
         samples = len(setinfo[key]['names'])
         taljare = math.ceil(samples/float(4)) 
-        #min score 
         #Review ideal score once proper score functions come into play
         print "{}: Score {}. Ideal score: ({}/{})*{} = {}".format(key, value, int(taljare) , samples, samples, taljare/samples*samples)
         print "{}".format(', '.join(setinfo[key]['names']))
@@ -142,16 +177,17 @@ if pools == 1:
     num_samples = input("Enter number of samples to assign indexes to (2+): ")
     samplelist.append(num_samples)
 else:
-    for poolindex in range(0, pools):
+    for poolindex in range(1, pools + 1):
         num_samples = input("Enter number of samples for pool number {} (2+): ".format(poolindex))
         samplelist.append(num_samples)
         
 print "Fetching information from sheet '{}' of document '{}'.".format(sheet, doc)
 
 worksheet = setup_gdocs(doc, sheet)
-setinfo = extract_info(worksheet, num_samples)
+setinfo = extract_info(worksheet, samplelist)
 spread = nucleotide_spread(setinfo)
 scored_sets = scorer(spread)
+filtered_scores = filter_and_combine(setinfo, scored_sets)
 outputter(setinfo, scored_sets)
 
 
