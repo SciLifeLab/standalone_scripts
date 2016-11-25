@@ -2,7 +2,7 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
-## backup_github.py
+### backup_github.py
 Performs a backup of all the repositories in user's GitHub account.
 
 ###### Dependencies
@@ -10,7 +10,7 @@ Performs a backup of all the repositories in user's GitHub account.
 * logbook
 * pygithub3
 
-## couchdb_replication.py
+### couchdb_replication.py
 handles the replication of the couchdb instance
 
 ###### Dependencies
@@ -20,14 +20,19 @@ handles the replication of the couchdb instance
 * pycrypto
 * yaml
 
-## data_to_ftp.py
+### data_to_ftp.py
 Used to transfer data to user's ftp server maintaing the directory tree structure. Main intention
 is to get the data to user outside Sweden.
 
-## db_sync.sh
+### db_sync.sh
 Script used to mirror (completely) Clarity LIMS database from production to staging server
 
-## index_fixer.py 
+### get_sample_names.py
+Prints a list of analyzed samples with user_id and ngi_id
+#### Usage:
+`get_sample_names.py P1234`
+
+### index_fixer.py 
 Takes in a SampleSheet.csv and generates a new one with swapped or reverse complimented indexes.
 
 ###### Dependencies
@@ -35,7 +40,7 @@ Takes in a SampleSheet.csv and generates a new one with swapped or reverse compl
 * click
 * Flowcell_Parser: SampleSheetParser
 
-## index_suggester.py 
+### index_suggester.py 
 Given a list of adapters, tries to find the ones that cause the smallest collisions.
 Primarily looks at what adapters cause the collision latest, secondarily picks the adapter set
 where the most frequent nucleotide has the least presence.
@@ -48,7 +53,7 @@ text file instead.
 * gspread
 * oauth2client
 
-## repooler.py
+### repooler.py
 Calculates a decent way to re-pool samples in the case that the amount of clusters from each
 sample doesn't reach the required threshold due to mismeasurements in concentration.
 
@@ -58,7 +63,7 @@ sample doesn't reach the required threshold due to mismeasurements in concentrat
 * click
 * Genologics: lims, config, entities
 
-## quota_log.py
+### quota_log.py
 > **DO NOT USE THIS SCRIPT!**
 >
 > Use `taca server_status uppmax` instead!
@@ -70,14 +75,14 @@ Returns a summary of quota usage in Uppmax
 * couchdb
 * pprint
 
-## set_bioinforesponsible.py
+### set_bioinforesponsible.py
 Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
 
 ###### Dependencies
 
 * Genologics: lims, config
 
-## ZenDesk Attachments Backup
+### ZenDesk Attachments Backup
 Takes a ZenDesk XML dump backup file and searches for attachment
 URLs that match specified filename patterns. These are then
 downloaded to a local directory.
@@ -134,27 +139,3 @@ zendesk_attachment_backup.py <latest_backup>.zip
 * re
 * sys
 * zipfile
-
-=======
-## repooler.py
-Calculates a decent way to re-pool samples in the case that the amount of clusters from each
-sample doesn't reach the required threshold due to mismeasurements in concentration.
-
-###### Dependencies
-
-* couchdb
-* click
-* Genologics: lims, config, entities
-
-#### set_bioinforesponsible.py
-Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
-
-*Dependencies*
-
-* Genologics: lims, config
-
-
-## get_sample_names.py
-Prints a list of analyzed samples with user_id and ngi_id
-### Usage:
-`get_sample_names.py P1234`
