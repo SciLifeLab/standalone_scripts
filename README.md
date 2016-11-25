@@ -27,6 +27,14 @@ is to get the data to user outside Sweden.
 ## db_sync.sh
 Script used to mirror (completely) Clarity LIMS database from production to staging server
 
+## index_fixer.py 
+Takes in a SampleSheet.csv and generates a new one with swapped or reverse complimented indexes.
+
+###### Dependencies
+
+* click
+* Flowcell_Parser: SampleSheetParser
+
 ## index_suggester.py 
 Given a list of adapters, tries to find the ones that cause the smallest collisions.
 Primarily looks at what adapters cause the collision latest, secondarily picks the adapter set
