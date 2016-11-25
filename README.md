@@ -30,7 +30,9 @@ Script used to mirror (completely) Clarity LIMS database from production to stag
 ### get_sample_names.py
 Prints a list of analyzed samples with user_id and ngi_id
 #### Usage:
-`get_sample_names.py P1234`
+```
+get_sample_names.py P1234
+``
 
 ### index_fixer.py 
 Takes in a SampleSheet.csv and generates a new one with swapped or reverse complimented indexes.
@@ -39,19 +41,6 @@ Takes in a SampleSheet.csv and generates a new one with swapped or reverse compl
 
 * click
 * Flowcell_Parser: SampleSheetParser
-
-### index_suggester.py 
-Given a list of adapters, tries to find the ones that cause the smallest collisions.
-Primarily looks at what adapters cause the collision latest, secondarily picks the adapter set
-where the most frequent nucleotide has the least presence.
-Currently hardcoded to work from https://docs.google.com/spreadsheets/d/1jMM8062GxMh9FZdy7oi8WFVv3AYyCRPdOG6jwej0mOo/edit#gid=0 ; but can easily be adapted to read a
-text file instead.
-
-###### Dependencies
-
-* json
-* gspread
-* oauth2client
 
 ### repooler.py
 Calculates a decent way to re-pool samples in the case that the amount of clusters from each
