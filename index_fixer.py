@@ -1,8 +1,37 @@
 import sys
 import re
+import os
 
 import click
 from flowcell_parser.classes import SampleSheetParser
+
+def generate_samplesheet(ss_reader):
+    """Will generate a 'clean' samplesheet, : the given fields will be removed. if rename_samples is True, samples prepended with 'Sample_'
+    are renamed to match the sample name"""
+    output=""
+    #Header
+    output+="[Header]{}".format(os.linesep)
+    for field in ss_reader.header:
+        output+="{},{}".format(field.rstrip(), ss_reader.header[field].rstrip())
+        output+=os.linesep
+    #Data
+    output+="[Data]{}".format(os.linesep)
+    datafields=[]
+    for field in ss_reader.datafields:
+        datafields.append(field)
+    output+=",".join(datafields)
+    output+=os.linesep
+    for line in ss_reader.data:
+        line_ar=[]
+        for field in datafields:
+            value = line[field]
+            line_ar.append(value)
+
+        output+=",".join(line_ar)
+        output+=os.linesep
+    return output
+
+
         
 def nuc_compliment(nuc):
     if nuc == 'A':
@@ -106,7 +135,8 @@ def main(path, swap, rc1, rc2, platform, ss):
         #Need to catch all samples in a list prior to writing, then dump them in corrected order
         sys.exit("Sample Swap isn't implemented yet.")     
                 
-    redemux_ss = ss_reader.generate_clean_samplesheet()
+    #redemux_ss = ss_reader.generate_clean_samplesheet()
+    redemux_ss = generate_samplesheet(ss_reader)
     if platform == "hiseq" or platform == "hiseqx":
         filename = re.search('\/(\w+).csv$', path).group(1)
     else:
