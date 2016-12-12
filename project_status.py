@@ -137,9 +137,6 @@ def parse_bamtools_markdup(picard_duplication_metrics, sample):
                 sample['%Dup']           = PERCENT_DUPLICATION
 
 
-
-
-
 def parse_qualimap(genome_results_file, sample):
     reference_size         = 0
     number_of_reads        = 0
@@ -179,7 +176,6 @@ def parse_qualimap(genome_results_file, sample):
                 insertSize_section = False
                 continue
 
-
             if reference_section:
                 line = line.strip()
                 if "number of bases" in line:
@@ -215,149 +211,34 @@ def parse_qualimap(genome_results_file, sample):
     sample['MedianInsertSize'] = MedianInsertSize
     sample['AutosomalCoverage'] = autosomal_cov_bases / autosomal_cov_length
 
-
-def main(args):
-    uppmax_id    = args.uppmax_project
-    stockholm    = args.stockholm
-    raw_data     = "/proj/{}/nobackup/NGI/DATA/".format(uppmax_id)
-    analysis_dir = "/proj/{}/nobackup/NGI/ANALYSIS/".format(uppmax_id)
-    delivery_dir = "/proj/{}/nobackup/NGI/DELIVERY/".format(uppmax_id)
-    archive      = ("/proj/{}/archive/".format(uppmax_id), "/proj/{}/incoming/".format(uppmax_id))
+def find_results_from_francesco(uppmax_project, stockholm, project):
+    raw_data_dir = "/proj/{}/nobackup/NGI/DATA/".format(uppmax_project)
+    analysis_dir = "/proj/{}/nobackup/NGI/ANALYSIS/".format(uppmax_project)
+    delivery_dir = "/proj/{}/nobackup/NGI/DELIVERY/".format(uppmax_project)
+    archive_dir  = ("/proj/{}/archive/".format(uppmax_project), "/proj/{}/incoming/".format(uppmax_project))
     samples      = {}
 
+    find_samples_from_archive(archive_dir, project, samples, stockholm)
+    find_sample_from_DATA(raw_data_dir, project, samples)
+    find_sample_from_ANALYSIS(analysis_dir, project, samples)
+    find_sample_from_DELIVERY(delivery_dir, project, samples)
 
-    projects     = args.projects #[item for sublist in args.projects for item in sublist]
+    return samples
 
-    if args.project_status:
-        if len(projects) != 1:
-            print "WARNING: only one project when project-status specified\n"
-            return
-
-    for project in projects:
-        #find all samples sequenced for a project present in archive -- this assumes that fastq files will be deleted but not the folder structure
-        find_samples_from_archive(archive, project, samples, stockholm)
-        #now find samples that are stored in DATA
-        find_sample_from_DATA(raw_data, project, samples)
-        find_sample_from_ANALYSIS(analysis_dir, project, samples)
-        find_sample_from_DELIVERY(delivery_dir, project, samples)
-
-    if args.project_status:
-        sequenced_samples = 0
-        delivered_samples = 0
-        print "SAMPLE\tARCHIVE_SEQ_RUN\tDATA_SEQ_RUN\tANALYSIS_SEQ_RUN"
-        for sample, sample_entry in samples.items():
-            sequenced_samples +=1
-            if  sample_entry['Delivered']:
-                delivered_samples += 1
-            print "{}\t{}\t{}\t{}".format(
-                sample,
-                sample_entry['#Archived_runs'],
-                sample_entry['#Data_runs'],
-                sample_entry['#Analysis_runs']
-            )
-        print "PROJECT SUMMARY:"
-        print "  SAMPLES_SEQUENCED: {}".format(sequenced_samples)
-        print "  SAMPLES_DELIVERED: {}".format(delivered_samples)
-
-
-    else:
-        for sample, sample_entry in samples.items():
-            skip_print = 0;
-            if sample_entry['#Archived_runs'] != sample_entry['#Data_runs']:
-                skip_print = 0
-            if sample_entry['#Archived_runs'] != sample_entry['#Analysis_runs']:
-                skip_print = 0
-            if sample_entry['#Analysis_runs'] == 0:
-                skip_print = 1 # no problem here as might have demux runs
-
-            if skip_print == 1:
-                print "WARNING: Sample {} has incoherent numbers of runs: ({} {} {})".format(sample,
-                                                sample_entry['#Archived_runs'],
-                                                sample_entry['#Data_runs'],
-                                                sample_entry['#Analysis_runs']
-                                                )
-            samples[sample]["skip print"] = skip_print
-
-        if not args.skip_header:
-            print "sample_name\t#Reads\tRaw_coverage\t#Aligned_reads\t%Aligned_reads\tAlign_cov\tAutosomalCoverage\t%Dup\tMedianInsertSize"
-
-        for sample, sample_entry in samples.items():
-            if sample_entry["skip print"] == 0:
-                print "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                    sample,
-                    sample_entry['#Reads'],
-                    sample_entry['RowCov'],
-                    sample_entry['#AlignedReads'],
-                    sample_entry['%AlignedReads'],
-                    sample_entry['AlignCov'],
-                    sample_entry['AutosomalCoverage'],
-                    sample_entry['%Dup'],
-                    sample_entry['MedianInsertSize']
-                )
-
-def get_low_coverage(project):
-    # run same script again, to parse the output
-    # because all the functions above don't return anything, but just print the result
-    script_path = os.path.realpath(__file__)
-    command = """python {} {} | awk -v x=28.5 '$7<x' | awk '{{ print $1 " " $7}}' """.format(script_path, project)
-    try:
-        p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    except Exception, e:
-        print "Command failed: {}".format(command)
-        raise e
-    output = p.communicate()[0]
-
+def get_low_coverage(project, results_francesco):
     result = {}
-    for line in output.split('\n'):
+
+    for sample, sample_data in results_francesco.items():
+        coverage = sample_data.get('AutosomalCoverage')
         try:
-            sample, coverage = line.split()
+            coverage = float(coverage)
+            if coverage < 28.5:
+                result[sample] = coverage
         except:
-            continue
-        else:
+            # not printing error message
+            # if coverage is a string something like '29,1111' - comma will fail
+            # and we will never figure out what happens
             result[sample] = coverage
-    return result
-
-def get_project_status(project):
-    # run same script again, to parse the output
-    # because all the functions above don't return anything, but just print the result
-    script_path = os.path.realpath(__file__)
-    command = """python {} {} --project-status --skip-header""".format(script_path, project)
-    try:
-        p = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except Exception, e:
-        print "Command failed: {}".format(command)
-        raise e
-    output, error = p.communicate()
-    if error:
-        print error
-        exit(1)
-
-    result = {
-        'sequenced': [],
-        'resequenced': [],
-        'organized': [],
-        'not_organized': [],
-        'analyzed': [],
-        'to_analyze': [],
-    }
-
-    for line in output.split('\n'):
-        try:
-            sample, sequenced, organized, analysed = line.split()
-            if project not in sample:
-                continue
-        except Exception,e: continue
-        result['sequenced'].append(sample)
-        if sequenced > '1':
-            result['resequenced'].append(sample)
-        if organized != '0':
-            result['organized'].append(sample)
-        if organized < sequenced:
-            result['not_organized'].append(sample)
-        if analysed != '0':
-            result['analyzed'].append(sample)
-        if analysed < sequenced:
-            result['to_analyze'].append(sample)
     return result
 
 def get_samples_with_undetermined(data_dir, project):
@@ -444,35 +325,88 @@ def get_samples_with_failed_analysis(project, analysis_dir):
                     result[sample] = 'Exit code: {}'.format(exit_code)
     return result
 
-def get_incoherent_samples(project):
-
-    # run same script again, to parse the output
-    # because all the functions above don't return anything, but just print the result
-    script_path = os.path.realpath(__file__)
-    command = """python {} {} --project-status --skip-header""".format(script_path, project)
-    try:
-        p = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except Exception, e:
-        print "Command failed: {}".format(command)
-        raise e
-    output, error = p.communicate()
-    if error:
-        print error
-        exit(1)
+def get_incoherent_samples(results_francesco):
     result = {}
-    for line in output.split('\n'):
+    for sample_id, sample in results_francesco.items():
+        sequenced = sample.get('#Archived_runs', '')
+        organized = sample.get('#Data_runs', '')
+        analyzed = sample.get('#Analysis_runs', '')
         try:
-            sample, sequenced, organized, analyzed = line.split()
-        except Exception, e:
-            continue
-        # skipping header
-        if sample == "SAMPLE":
-            continue
-        if sequenced != organized or organized != analyzed:
-            result[sample] = [sequenced, organized, analyzed]
+            sequenced = int(sequenced)
+            organized = int(organized)
+            analyzed = int(analyzed)
+        # if not int or something strange in the results, print it too (just in case)
+        except ValueError, e:
+            result[sample_id] = {'sequenced': sequenced, 'organized': organized, 'analyzed': analyzed}
+        else:
+            if not(sequenced == organized == analyzed):
+                result[sample_id] = {'sequenced': sequenced, 'organized': organized, 'analyzed': analyzed}
     return result
 
 
+def get_sequenced(project):
+    incoming = "/proj/ngi2016003/incoming"
+    project_flowcells = {}
+    for fc in os.listdir(incoming):
+        sample_sheet = os.path.join(incoming, fc, 'SampleSheet.csv')
+        command = 'grep {} {}'.format(project, sample_sheet)
+        try:
+            p = subprocess.Popen(command, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except Exception, e:
+            print 'Command failed: {}'.format(command)
+            raise e
+        output = p.communicate()[0]
+        if output:
+            for line in output.split('\n'):
+                # if not an empty line
+                if line:
+                    try:
+                        sample = line.split(',')[2]
+                    except Exception, e:
+                        print line
+                        print 'Skipping line: {} from sample sheet: {}'.format(line, sample_sheet)
+                        # if something went wrong
+                        continue
+                    else:
+                        if sample not in project_flowcells:
+                            project_flowcells[sample] = [fc]
+                        else:
+                            project_flowcells[sample].append(fc)
+    return project_flowcells
+
+def get_organized(project):
+    sequenced = get_sequenced(project)
+    project_path = os.path.join('/proj/ngi2016003/nobackup/NGI/DATA', project)
+    organized = {}
+    for sample in sequenced:
+        for fc in sequenced[sample]:
+            # '*'' is libprep, can be 'A', 'B', etc
+            path = os.path.join(project_path, sample, '*', fc)
+            if glob.glob(path): # list of files
+                if sample not in organized:
+                    organized[sample] = [fc]
+                elif fc not in organized[sample]:
+                    organized[sample].append(fc)
+                # else: skip -> we don't want duplicates
+    return organized
+
+def get_reprepped(project):
+    pass
+
+def get_not_organized(project):
+    flowcells_samples = get_sequenced(project)
+    project_path = os.path.join('/proj/ngi2016003/nobackup/NGI/DATA', project)
+    not_organized = {}
+    for sample in flowcells_samples:
+        for fc in flowcells_samples[sample]:
+            # '*'' is libprep, can be 'A', 'B', etc
+            path = os.path.join(project_path, sample, '*', fc)
+            if not glob.glob(path):
+                if sample not in not_organized:
+                    not_organized[sample] = [fc]
+                else:
+                    not_organized[sample].append(fc)
+    return not_organized
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("""Process one or more project and report basic statistiscs for it """)
@@ -487,7 +421,7 @@ if __name__ == '__main__':
     parser.add_argument('--sequenced', help="List of all the sequenced samples", action="store_true")
     parser.add_argument('--low-coverage', help="List of analyzed samples with coverage below 28.5X", action="store_true")
     parser.add_argument('--organized', help="List of all the organized flowcells", action="store_true")
-    parser.add_argument('--not-organized', help="List of all the not-organized flowcells", action="store_true")
+    parser.add_argument('--to-organize', help="List of all the not-organized flowcells", action="store_true")
     parser.add_argument('--analyzed', help="List of all the analysed samples", action="store_true")
     parser.add_argument('--resequenced', help="List of samples that have been sequenced more than once", action="store_true")
     parser.add_argument('--undetermined', help="List of the samples which use undetermined", action="store_true")
@@ -495,17 +429,17 @@ if __name__ == '__main__':
     parser.add_argument('--to-analyze', help="List of samples that are ready to be analyzed", action="store_true")
     parser.add_argument('--under-qc', help="List of samples under qc. Use only for projects without BP", action="store_true")
     parser.add_argument('--analysis-failed', help="List of all the samples with failed analysis", action="store_true")
-    parser.add_argument('--short', help="Project-status but only for samples which have incoherent number of sequenced/organized/analyzed", action="store_true")
-
+    parser.add_argument('--incoherent', help="Project-status but only for samples which have incoherent number of sequenced/organized/analyzed", action="store_true")
+    parser.add_argument('--low-mapping', help="List of all the samples with mapping below 97 percent", action="store_true")
+    parser.add_argument('--flowcells', help="List of flowcells where each sample has been sequenced", action="store_true")
     # todo
-    parser.add_argument('--all-samples', help="List of all the samples of project (sequenced and not sequenced). Not implemented yet", action="store_true")
-    parser.add_argument('--not-sequenced', help="List of the samples that are not sequenced AT ALL on ANY flowcells or lanes. Not implemented yet", action="store_true")
+    parser.add_argument('--to-sequence', help="List of the samples that are not sequenced AT ALL on ANY flowcells or lanes. Not implemented yet", action="store_true")
     parser.add_argument('--qc-done', help="List of samples with completed QC. Not implemented yet", action="store_true")
     parser.add_argument('--sample', '-s', help="Statistics for the specified sample. Not implemented yet", type=str)
 
     args = parser.parse_args()
     if not args.projects:
-        print "ERROR: projects must be specified"
+        print "ERROR: project must be specified"
         sys.exit()
 
     # parse arguments
@@ -514,9 +448,11 @@ if __name__ == '__main__':
     data_dir = "/proj/{}/nobackup/NGI/DATA/".format(uppmax_id)
     analysis_dir = "/proj/{}/nobackup/NGI/ANALYSIS/".format(uppmax_id)
 
+
     # output the result
     if args.low_coverage:
-        samples = get_low_coverage(project)
+        all_results = find_results_from_francesco(uppmax_id, args.stockholm, project)
+        samples = get_low_coverage(project, all_results)
         if samples:
             if not args.skip_header:
                 print "Coverage below 28.5X:"
@@ -525,58 +461,77 @@ if __name__ == '__main__':
         else:
             print 'All samples are above 28.5X'
 
-    elif args.resequenced:
-        samples = get_project_status(project)
-        if samples['resequenced']:
-            if not args.skip_header:
-                print 'Resequenced samples:' # todo: add flowcells
-            for sample in sorted(samples['resequenced']):
-                print sample
-        else:
-            print 'No resequenced samples'
-
     elif args.sequenced:
-        samples = get_project_status(project)
-        if samples['sequenced']:
+        flowcells_samples = get_sequenced(project) # from incoming
+        if flowcells_samples:
             if not args.skip_header:
-                print 'Sequenced samples:'
-            for sample in sorted(samples['sequenced']):
-                print sample
+                print 'Sequenced samples'
+            for sample, flowcells in flowcells_samples.items():
+                print "{}: {}".format(sample, ' '.join(sorted(flowcells)))
         else:
-            print 'No sequenced samples'
+            print 'No samples sequenced'
+
+    elif args.resequenced:
+        sequenced = get_sequenced(project)
+        resequenced = {}
+        for sample, flowcells in sequenced.items():
+            if len(flowcells) > 1:
+                resequenced[sample] = flowcells
+        if resequenced:
+            if not args.skip_header:
+                print 'Resequenced samples'
+            for sample, flowcells in sorted(resequenced.items(), key=lambda x:x[0]):
+                print "{}: {}".format(sample, ' '.join(sorted(flowcells)))
 
     elif args.organized:
-        samples = get_project_status(project)
-        if samples['organized']:
+        # todo: print by flowcell, not by sample
+        organized = get_organized(project)
+        if organized:
             if not args.skip_header:
-                print 'Organized samples:'
-            for sample in sorted(samples['organized']):
-                print sample
+                print 'Organized flowcells/samples:'
+            for sample, flowcells in sorted(organized.items(), key=lambda x:x[0]):
+                print "{}: {}".format(sample, ' '.join(sorted(flowcells)))
         else:
             print 'No organized samples'
 
-    elif args.not_organized:
-        samples = get_project_status(project)
-        if samples['not_organized']:
+    elif args.to_organize:
+        result = get_not_organized(project)
+        if result:
             if not args.skip_header:
-                print 'Not organized samples:'
-            for sample in sorted(samples['not_organized']):
-                print sample # todo: add flowcell list
+                print 'Samples to be organized:'
+            for sample, flowcells in result.items():
+                print "{}: {}".format(sample, ' '.join(flowcells))
         else:
             print 'All samples organized'
 
     elif args.analyzed:
-        samples = get_project_status(project)
-        if samples['analyzed']:
+        samples = find_results_from_francesco(uppmax_id, args.stockholm, project)
+        analyzed_samples = []
+        sequenced_samples = []
+        for sample_id, sample in samples.items():
+            sequenced = sample.get('#Archived_runs', '')
+            organized = sample.get('#Data_runs', '')
+            analyzed = sample.get('#Analysis_runs', '')
+            if sequenced and organized and analyzed:
+                if sequenced == organized == analyzed:
+                    analyzed_samples.append(sample_id)
+            if sample_id not in sequenced_samples:
+                sequenced_samples.append(sample_id)
+
+        if set(analyzed_samples) == set(sequenced_samples) != set([]):
+            print 'All {} samples analyzed'.format(len(analyzed_samples))
+        elif analyzed_samples:
             if not args.skip_header:
                 print 'Analyzed samples:'
-            for sample in sorted(samples['analyzed']):
+            for sample in sorted(analyzed_samples):
                 print sample
+            if not args.skip_header:
+                print '{}/{} (analyzed/sequenced) samples have been analyzed.'.format(len(analyzed_samples), len(sequenced_samples))
+                print 'Check --to-analyze, --to-organize'
         else:
             print 'No analyzed samples'
 
     elif args.undetermined:
-        samples = get_project_status(project)
         result = get_samples_with_undetermined(data_dir, project)
         if result:
             if not args.skip_header:
@@ -594,25 +549,24 @@ if __name__ == '__main__':
             for sample in sorted(result):
                 print sample
         else:
-            'No samples are being analyzed'
+            print 'No samples are being analyzed'
 
     elif args.to_analyze:
-        samples = get_project_status(project)
-        to_analyze = samples['to_analyze']
-        if to_analyze:
-            print 'something'
+        samples = find_results_from_francesco(uppmax_id, args.stockholm, project)
+        samples_to_analyze = []
+        for sample_id, sample in samples.items():
+            organized = sample.get('#Data_runs', '')
+            analyzed = sample.get('#Analysis_runs', '')
+            if organized > analyzed:
+                samples_to_analyze.append(sample_id)
+
+        if samples_to_analyze:
             if not args.skip_header:
                 print 'Samples ready to be analyzed:'
-            for sample in sorted(to_analyze):
+            for sample in sorted(samples_to_analyze):
                 print sample
         else:
-            print 'No samples ready to be analyzed'
-
-    elif args.all_samples:
-        print "--all-samples has not been implemented yet"
-
-    elif args.not_sequenced:
-        print "--not-sequenced has not been implemented yet"
+            print 'No samples ready to be analyzed. Check --to-organize or --analyzed'
 
     elif args.under_qc:
         result = get_samples_under_qc(project)
@@ -634,16 +588,72 @@ if __name__ == '__main__':
         else:
             print 'No analysis failed'
 
-    elif args.short:
-        result = get_incoherent_samples(project)
+    elif args.incoherent:
+        results_francesco = find_results_from_francesco(uppmax_id, args.stockholm, project)
+        result = get_incoherent_samples(results_francesco)
         if result:
             if not args.skip_header:
                 print "Samples with incoherent runs:"
             for sample in sorted(result.keys()):
                 numbers = result[sample]
-                print "{}\t{}\t{}\t{}".format(sample, numbers[0], numbers[1], numbers[2])
+                print "{}\t{}\t{}\t{}".format(sample, numbers['sequenced'], numbers['organized'], numbers['analyzed'])
         else:
-            print "No samples with incoherent runs"
+            print "All samples should be fine."
 
+    elif args.low_mapping:
+        result = find_results_from_francesco(uppmax_id, args.stockholm, project)
+
+        low_mapping = {}
+        for sample_id, sample in result.items():
+            mapping = sample.get('%AlignedReads', '')
+            try:
+                mapping = float(mapping)
+            # add strange values as well (if something is wrong, we can see it)
+            except ValueError, e:
+                low_mapping[sample_id] = mapping
+            else:
+                if mapping < 97.0:
+                    low_mapping[sample_id] = mapping
+
+        if low_mapping:
+            if not args.skip_header:
+                print "Samples with low mapping (<97%):"
+            for sample, mapping in sorted(low_mapping.items(), key=lambda x:x[1], reverse=True):
+                print sample, low_mapping[sample]
+        else:
+            print 'All samples mapped more than 97%'
+
+    elif args.flowcells:
+        result = get_sequenced(project)
+        if result:
+            for sample in sorted(result.keys()):
+                print '{} {}'.format(sample, ' '.join(result[sample]))
+        else:
+            print 'Something was wrong? No flowcells in the result'
+
+    elif args.to_sequence:
+        print "--to-sequence has not been implemented yet"
+
+    elif args.sample:
+        # todo sequenced on flowcells, organized on flowcells, undetermined, coverage, under analysis, analysis failed
+        # stats from Francesco's script
+        # + sequenced on flowcells
+        # + organized on flowcells
+        # undetermined
+        print 'Not implemented yet'
     else:
-        main(args)
+        result = find_results_from_francesco(uppmax_id, args.stockholm, project)
+        if not args.skip_header:
+            print "sample_name\t#Reads\tRaw_coverage\t#Aligned_reads\t%Aligned_reads\tAlign_cov\tAutosomalCoverage\t%Dup\tMedianInsertSize"
+        for sample, sample_entry in result.items():
+            print "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                    sample,
+                    sample_entry.get('#Reads'),
+                    sample_entry.get('RowCov'),
+                    sample_entry.get('#AlignedReads'),
+                    sample_entry.get('%AlignedReads'),
+                    sample_entry.get('AlignCov'),
+                    sample_entry.get('AutosomalCoverage'),
+                    sample_entry.get('%Dup'),
+                    sample_entry.get('MedianInsertSize')
+                )
