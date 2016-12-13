@@ -2,6 +2,40 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
+## project_status_extended.py
+Collects information about specified project from the filesystem of irma. 
+Without any arguments prints statistics for each sample, such as:
+* Number of reads
+* Coverage
+* Duplication rate
+* Mapping rate
+
+#### Usage
+`python project_status_extended.py P4601`
+
+To remove headers from the output, use option `--skip-header`
+
+The script can take additional arguments:
+```
+  --sequenced           List of all the sequenced samples
+  --resequenced         List of samples that have been sequenced more than
+                        once, and flowcells
+  --organized           List of all the organized flowcells
+  --to-organize         List of all the not-organized flowcells
+  --analyzed            List of all the analysed samples
+  --to-analyze          List of samples that are ready to be analyzed
+  --analysis-failed     List of all the samples with failed analysis
+  --under-analysis      List of the samples under analysis
+  --under-qc            List of samples under qc. Use for projects
+                        without BP
+  --incoherent          Project-status but only for samples which have
+                        incoherent number of sequenced/organized/analyzed
+  --low-coverage        List of analyzed samples with coverage below 28.5X
+  --undetermined        List of the samples which use undetermined  
+  --low-mapping         List of all the samples with mapping below 97 percent
+  --flowcells           List of flowcells where each sample has been sequenced
+```
+
 ## backup_github.py
 Performs a backup of all the repositories in user's GitHub account.
 
