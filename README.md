@@ -2,7 +2,7 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
-## backup_github.py
+### backup_github.py
 Performs a backup of all the repositories in user's GitHub account.
 
 ###### Dependencies
@@ -32,7 +32,7 @@ Prints a list of analyzed samples with user_id and ngi_id
 #### Usage:
 ```
 get_sample_names.py P1234
-``
+```
 
 ### index_fixer.py 
 Takes in a SampleSheet.csv and generates a new one with swapped or reverse complimented indexes.
@@ -42,7 +42,7 @@ Takes in a SampleSheet.csv and generates a new one with swapped or reverse compl
 * click
 * Flowcell_Parser: SampleSheetParser
 
-## project_status_extended.py
+### project_status_extended.py
 Collects information about specified project from the filesystem of irma. 
 Without any arguments prints statistics for each sample, such as:
 * Number of reads
