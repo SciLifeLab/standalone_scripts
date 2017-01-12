@@ -2,7 +2,47 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
-## project_status_extended.py
+### backup_github.py
+Performs a backup of all the repositories in user's GitHub account.
+
+###### Dependencies
+
+* logbook
+* pygithub3
+
+### couchdb_replication.py
+handles the replication of the couchdb instance
+
+###### Dependencies
+
+* couchdb
+* logbook
+* pycrypto
+* yaml
+
+### data_to_ftp.py
+Used to transfer data to user's ftp server maintaing the directory tree structure. Main intention
+is to get the data to user outside Sweden.
+
+### db_sync.sh
+Script used to mirror (completely) Clarity LIMS database from production to staging server
+
+### get_sample_names.py
+Prints a list of analyzed samples with user_id and ngi_id
+#### Usage:
+```
+get_sample_names.py P1234
+```
+
+### index_fixer.py 
+Takes in a SampleSheet.csv and generates a new one with swapped or reverse complimented indexes.
+
+###### Dependencies
+
+* click
+* Flowcell_Parser: SampleSheetParser
+
+### project_status_extended.py
 Collects information about specified project from the filesystem of irma. 
 Without any arguments prints statistics for each sample, such as:
 * Number of reads
@@ -17,41 +57,36 @@ To remove headers from the output, use option `--skip-header`
 
 The script can take additional arguments:
 ```
-  --sequenced           List of all the sequenced samples
-  --resequenced         List of samples that have been sequenced more than
-                        once, and flowcells
-  --organized           List of all the organized flowcells
-  --to-organize         List of all the not-organized flowcells
-  --analyzed            List of all the analysed samples
-  --to-analyze          List of samples that are ready to be analyzed
-  --analysis-failed     List of all the samples with failed analysis
-  --under-analysis      List of the samples under analysis
-  --under-qc            List of samples under qc. Use for projects
-                        without BP
-  --incoherent          Project-status but only for samples which have
-                        incoherent number of sequenced/organized/analyzed
-  --low-coverage        List of analyzed samples with coverage below 28.5X
-  --undetermined        List of the samples which use undetermined  
-  --low-mapping         List of all the samples with mapping below 97 percent
-  --flowcells           List of flowcells where each sample has been sequenced
+--sequenced           List of all the sequenced samples
+--resequenced         List of samples that have been sequenced more than
+once, and flowcells
+--organized           List of all the organized flowcells
+--to-organize         List of all the not-organized flowcells
+--analyzed            List of all the analysed samples
+--to-analyze          List of samples that are ready to be analyzed
+--analysis-failed     List of all the samples with failed analysis
+--under-analysis      List of the samples under analysis
+--under-qc            List of samples under qc. Use for projects
+without BP
+--incoherent          Project-status but only for samples which have
+incoherent number of sequenced/organized/analyzed
+--low-coverage        List of analyzed samples with coverage below 28.5X
+--undetermined        List of the samples which use undetermined  
+--low-mapping         List of all the samples with mapping below 97 percent
+--flowcells           List of flowcells where each sample has been sequenced
 ```
 
-## backup_github.py
-Performs a backup of all the repositories in user's GitHub account.
+### repooler.py
+Calculates a decent way to re-pool samples in the case that the amount of clusters from each
+sample doesn't reach the required threshold due to mismeasurements in concentration.
 
 ###### Dependencies
 
-* logbook
-* pygithub3
+* couchdb
+* click
+* Genologics: lims, config, entities
 
-## data_to_ftp.py
-Used to transfer data to user's ftp server maintaing the directory tree structure. Main intention
-is to get the data to user outside Sweden.
-
-## db_sync.sh
-Script used to mirror (completely) Clarity LIMS database from production to staging server
-
-## quota_log.py
+### quota_log.py
 > **DO NOT USE THIS SCRIPT!**
 >
 > Use `taca server_status uppmax` instead!
@@ -63,17 +98,14 @@ Returns a summary of quota usage in Uppmax
 * couchdb
 * pprint
 
-## couchdb_replication.py
-handles the replication of the couchdb instance
+### set_bioinforesponsible.py
+Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
 
-*Dependencies*
+###### Dependencies
 
-* couchdb
-* logbook
-* pycrypto
-* yaml
+* Genologics: lims, config
 
-## ZenDesk Attachments Backup
+### ZenDesk Attachments Backup
 Takes a ZenDesk XML dump backup file and searches for attachment
 URLs that match specified filename patterns. These are then
 downloaded to a local directory.
@@ -123,7 +155,6 @@ any new downloads:
 zendesk_attachment_backup.py <latest_backup>.zip
 ```
 
-
 ###### Dependencies
 * argparse
 * os
@@ -131,26 +162,3 @@ zendesk_attachment_backup.py <latest_backup>.zip
 * re
 * sys
 * zipfile
-
-## repooler.py
-Calculates a decent way to re-pool samples in the case that the amount of clusters from each
-sample doesn't reach the required threshold due to mismeasurements in concentration.
-
-###### Dependencies
-
-* couchdb
-* click
-* Genologics: lims, config, entities
-
-#### set_bioinforesponsible.py
-Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
-
-*Dependencies*
-
-* Genologics: lims, config
-
-
-## get_sample_names.py
-Prints a list of analyzed samples with user_id and ngi_id
-### Usage:
-`get_sample_names.py P1234`
