@@ -1,6 +1,37 @@
 # Standalone scripts
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
+## backup_zendesk_tickets.py
+Used to automatically back up tickets from zendesk
+
+#### Usage
+Example: `backup_zendesk_tickets.py --config-file ~/config_files/backup_zendesk_tickets.yaml --days 30`
+
+```
+Usage: backup_zendesk_tickets.py [OPTIONS]
+
+Options:
+  --config-file PATH  Path to the config file  [required]
+  --days INTEGER      Since how many days ago to backup tickets
+  --help              Show this message and exit.
+  
+```
+  
+#### Dependencies
+* zendesk
+* click 
+* yaml
+
+#### Configuration
+Requires a config file:
+
+```
+url: https://ngisweden.zendesk.com
+username: mattias.ormestad@scilifelab.se
+token: <ask Mattias to get token>
+output_path: /Users/kate/Dropbox/dropbox_work/zendesk/output
+```
+
 
 ## backup_github.py
 Performs a backup of all the repositories in user's GitHub account.
