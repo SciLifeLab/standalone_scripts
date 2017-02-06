@@ -1,15 +1,6 @@
 # Standalone scripts
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
-## use_undetermined.sh
-Creates softlinks of undetermined for specified flowcell and lane to be used in the analysis. 
-To be run on irma.
-### Usage
-Usage: `use_undetermined.sh  <flowcell> <lane> <sample>`  
-Example:  `use_undetermined.sh 160901_ST-E00214_0087_BH33GHALXX 1 P4601_273`
-### Important
-After running the script, don't forget to (re-)**ORGANIZE FLOWCELL**. 
-And then analysis can be started.
 
 ## backup_zendesk_tickets.py
 Used to automatically back up tickets from zendesk
@@ -145,6 +136,16 @@ Calls up the genologics LIMS directly in order to more quickly set a bioinformat
 ###### Dependencies
 
 * Genologics: lims, config
+
+## use_undetermined.sh
+Creates softlinks of undetermined for specified flowcell and lane to be used in the analysis. 
+To be run on irma.
+### Usage
+Usage: `use_undetermined.sh  <flowcell> <lane> <sample>`  
+Example:  `use_undetermined.sh 160901_ST-E00214_0087_BH33GHALXX 1 P4601_273`
+### Important
+After running the script, don't forget to (re-)**ORGANIZE FLOWCELL**. 
+And then analysis can be started.
 
 ### ZenDesk Attachments Backup
 Takes a ZenDesk XML dump backup file and searches for attachment
