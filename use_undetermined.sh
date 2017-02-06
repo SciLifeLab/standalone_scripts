@@ -33,8 +33,8 @@ cd $sample_dir
 undetermined="../../"$sample"_Undetermined_L01"$lane"_R*.fastq.gz"
 for i in $undetermined; do ln -s $i .; done
 
-# project=$(echo $sample | tr '_' '\n')
-# echo $project
-# # not tested
-# ngi_pipeline_start.py organize flowcell /proj/ngi2016003/incoming/$flowcell -p $project
-# ngi_pipeline_start.py analyze project $project -f
+
+project=$(echo $sample | cut -f1 -d '_')
+echo "To (re-)organize flowcell and start analysis run the following commands:"
+echo "  ngi_pipeline_start.py organize flowcell /proj/ngi2016003/incoming/$flowcell -p $project"
+echo "  ngi_pipeline_start.py analyze project $project -f"
