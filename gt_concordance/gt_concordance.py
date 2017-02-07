@@ -152,6 +152,9 @@ def parse_xl_files(context):
         else:
             archived.append(xl_file)
     click.echo('{} .xlsx files have been archived in {}'.format(len(archived), XL_FILES_ARCHIVED))
+    # todo:
+    # for each sample.gt update charon
+    # sample.genotype_status = 'AVAILABLE'
 
 def parse_maf_snps_file(config):
     SNPS_FILE = config.get('SNPS_FILE')
@@ -214,7 +217,13 @@ def genotype_sample(context, sample):
             to_run_gatk = True
         # run gatk if needed
         if to_run_gatk:
-            run_gatk(sample, config)
+            vcf_file = run_gatk(sample, config)
+            if vcf_file is None:
+                click.echo('GATK completed with ERROR!')
+                click.echo('Terminating')
+                # todo: update Charon
+                # todo: sample.genotype_status = 'FAILED'
+                exit(0)
 
         # check concordance
         vcf_data = parse_vcf_file(sample, config)
@@ -232,6 +241,8 @@ def genotype_sample(context, sample):
         click.echo('Files created:')
         click.echo(' Concordance results: {}'.format(os.path.join(output_path, '{}.conc'.format(sample))))
         click.echo(' Header: {}'.format(os.path.join(output_path, '{}.conc.header'.format(sample))))
+        # todo: update Charon
+        # todo: sample.genotype_status = 'DONE'
 
 @click.pass_context
 def is_config_file_ok(context):
@@ -415,8 +426,7 @@ def run_gatk(sample, config):
     bamfile = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/05_processed_alignments/{}.clean.dedup.bam'.format(sample))
     if not os.path.exists(bamfile):
         click.echo('bamfile does not exist! {}'.format(bamfile))
-        click.echo('Terminating')
-        exit(0)
+        return None
     project = sample.split('_')[0]
     # the path has been already checked
     output_file = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance', "{sample}.vcf".format(sample=sample))
@@ -427,7 +437,13 @@ def run_gatk(sample, config):
             gatk_ref_file=config.get('GATK_REF_FILE'),
             gatk_var_file=config.get('GATK_VAR_FILE'))
     full_command = 'java -Xmx6g -jar {} {}'.format(config.get('GATK_PATH'), options)
-    subprocess.call(full_command.split())
+    try:
+        subprocess.call(full_command.split())
+    except:
+        return None
+    else:
+        return output_file
+
 
 @cli.command()
 @click.argument('project')
@@ -462,7 +478,12 @@ def genotype_project(context, project, force):
                 click.echo('No {}.vcf file found. Running GATK'.format(sample))
                 to_run_gatk = True
             if to_run_gatk:
-                run_gatk(sample, config)
+                vcf_file = run_gatk(sample, config)
+                # todo: UPDATE CHARON
+                if vcf_file is None:
+                    click.echo('GATK failed. Continue with the next sample')
+                    # todo: sample.genotype_status = 'FAILED'
+                    continue
 
             # check concordance
             click.echo('Checking sample {}'.format(sample))
@@ -478,6 +499,8 @@ def genotype_project(context, project, force):
                 click.echo('CHECK RESULTS!! Numbers are incoherent. Total number: {}, matches: {}, mismatches: {}'.format(len(vcf_data), len(matches), len(mismatches)))
 
             conc_files.append(os.path.join(output_path, '{}.conc'.format(sample)))
+            # todo: Update Charon
+            # todo: sample.genotype_status = 'DONE'
         click.echo('{} files have been created in {}'.format(len(conc_files), output_path))
 
 if __name__ == '__main__':
