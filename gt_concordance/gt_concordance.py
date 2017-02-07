@@ -7,7 +7,9 @@ import shutil
 import click
 import yaml
 import vcf
-# import pyexcel_xlsx
+import pyexcel_xlsx
+
+from ngi_pipeline.database.classes import CharonSession, CharonError
 
 
 CONFIG = "/lupus/ngi/production/v1.5/conf//irma_ngi_config_sthlm.yaml"
@@ -141,6 +143,10 @@ def parse_xl_files(context):
             output_files.append(filename)
     click.echo('{} files have been created in {}/<project>/piper_ngi/03_genotype_concordance'.format(len(output_files), ANALYSIS_PATH))
 
+    # Updating Charon
+    for sample in genotype_data:
+        update_charon(sample=sample, status='AVAILABLE')
+
     # archiving files
     archived = []
     for xl_file in xl_files:
@@ -152,9 +158,7 @@ def parse_xl_files(context):
         else:
             archived.append(xl_file)
     click.echo('{} .xlsx files have been archived in {}'.format(len(archived), XL_FILES_ARCHIVED))
-    # todo:
-    # for each sample.gt update charon
-    # sample.genotype_status = 'AVAILABLE'
+
 
 def parse_maf_snps_file(config):
     SNPS_FILE = config.get('SNPS_FILE')
@@ -221,8 +225,8 @@ def genotype_sample(context, sample):
             if vcf_file is None:
                 click.echo('GATK completed with ERROR!')
                 click.echo('Terminating')
-                # todo: update Charon
-                # todo: sample.genotype_status = 'FAILED'
+                # update charon
+                update_charon(sample=sample, status='FAILED')
                 exit(0)
 
         # check concordance
@@ -230,19 +234,16 @@ def genotype_sample(context, sample):
         gt_data = parse_gt_file(sample, config)
         if len(vcf_data) != len(gt_data):
             click.echo('VCF file and GT file contain differenct number of positions!! ({}, {})'.format(len(vcf_data), len(gt_data)))
-        matches, mismatches = check_concordance(sample, vcf_data, gt_data, config)
-        click.echo('Matches: {}'.format(len(matches)))
-        click.echo('Mismatches: {}'.format(len(mismatches)))
-
-        if len(matches) + len(mismatches) != len(vcf_data):
-            click.echo('CHECK RESULTS!! Numbers are incoherent. Total number: {}, matches: {}, mismatches: {}'.format(len(vcf_data), len(matches), len(mismatches)))
+        concordance = check_concordance(sample, vcf_data, gt_data, config)
 
         # output the results
         click.echo('Files created:')
         click.echo(' Concordance results: {}'.format(os.path.join(output_path, '{}.conc'.format(sample))))
         click.echo(' Header: {}'.format(os.path.join(output_path, '{}.conc.header'.format(sample))))
-        # todo: update Charon
-        # todo: sample.genotype_status = 'DONE'
+
+        click.echo('Concordance: {} %'.format(concordance))
+        # update Charon
+        update_charon(sample, 'DONE', concordance)
 
 @click.pass_context
 def is_config_file_ok(context):
@@ -418,7 +419,10 @@ def check_concordance(sample, vcf_data, gt_data, config):
     with open(os.path.join(output_path, '{}.conc.header'.format(sample)), 'w+') as header_file:
         header_file.write(header)
 
-    return matches, mismatches
+    if len(matches) + len(mismatches) != len(vcf_data):
+        click.echo('CHECK RESULTS!! Numbers are incoherent. Total number: {}, matches: {}, mismatches: {}'.format(len(vcf_data), len(matches), len(mismatches)))
+
+    return percent_matches
 
 
 def run_gatk(sample, config):
@@ -443,6 +447,16 @@ def run_gatk(sample, config):
         return None
     else:
         return output_file
+
+def update_charon(sample, status, concordance=None):
+    charon_session = CharonSession()
+    project_id = sample.split('_')[0]
+    try:
+        charon_session.sample_update(projectid=project_id, sampleid=sample,genotype_status=status, genotype_concordance=concordance)
+    except CharonError as e:
+        print("Problem updating Charon: error says '{}'".format(e))
+        exit()
+
 
 
 @cli.command()
@@ -482,7 +496,7 @@ def genotype_project(context, project, force):
                 # todo: UPDATE CHARON
                 if vcf_file is None:
                     click.echo('GATK failed. Continue with the next sample')
-                    # todo: sample.genotype_status = 'FAILED'
+                    update_charon(sample, 'FAILED')
                     continue
 
             # check concordance
@@ -492,16 +506,14 @@ def genotype_project(context, project, force):
             if len(vcf_data) != len(gt_data):
                 click.echo('VCF file and GT file contain differenct number of positions!! ({}, {})'.format(len(vcf_data), len(gt_data)))
             #  will write the results
-            matches, mismatches = check_concordance(sample, vcf_data, gt_data, config)
-            click.echo('matches: {}, mismatches: {}'.format(len(matches), len(mismatches)))
-
-            if len(matches) + len(mismatches) != len(vcf_data):
-                click.echo('CHECK RESULTS!! Numbers are incoherent. Total number: {}, matches: {}, mismatches: {}'.format(len(vcf_data), len(matches), len(mismatches)))
+            concordance = check_concordance(sample, vcf_data, gt_data, config)
+            click.echo('Sample: {}, concordance: {} %'.format(sample, concordance))
+            # update charon
+            update_charon(sample=sample, status='DONE', concordance=concordance)
 
             conc_files.append(os.path.join(output_path, '{}.conc'.format(sample)))
-            # todo: Update Charon
-            # todo: sample.genotype_status = 'DONE'
         click.echo('{} files have been created in {}'.format(len(conc_files), output_path))
+
 
 if __name__ == '__main__':
     cli()
