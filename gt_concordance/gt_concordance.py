@@ -33,18 +33,113 @@ def cli(context, config):
 @click.pass_context
 def parse_xl_files(context):
     config = context.obj
+    if is_xl_config_ok(config):
+        files_to_archive = []
+        samples_to_update = []
+
+        # parsing snps file
+        snps_data = parse_maf_snps_file(config)
+
+        # checking xl files
+        XL_FILES_PATH = config.get('XL_FILES_PATH')
+        click.echo('Looking for .xlsx files in {}'.format(XL_FILES_PATH))
+        xl_files = [os.path.join(XL_FILES_PATH, filename) for filename in os.listdir(XL_FILES_PATH)]
+        click.echo('{} files found'.format(len(xl_files)))
+
+        # parsing xl files
+        for xl_file in xl_files:
+            click.echo("Parsing file: {}".format(os.path.basename(xl_file)))
+            xl_file_data = parse_xl_file(config, xl_file)
+            # returns sample name for each created gt file
+            gt_samples = create_gt_files(config, xl_file_data, snps_data, os.path.basename(xl_file))
+            samples_to_update += gt_samples
+            click.echo('{} files have been created in {}/<project>/piper_ngi/03_genotype_concordance'.format(len(gt_samples), config.get('ANALYSIS_PATH')))
+
+            # if ALL gt files were created, archive xl_file
+            if len(gt_samples) == len(xl_file_data):
+                files_to_archive.append(xl_file)
+            # otherwise we keep xl_file in incoming
+            else:
+                click.echo('File will not be archived: {}'.format(xl_file))
+
+        # archive files
+        archived = []
+        XL_FILES_ARCHIVED = config.get('XL_FILES_ARCHIVED')
+        for xl_file in files_to_archive:
+            try:
+                shutil.move(xl_file, XL_FILES_ARCHIVED)
+            except Exception, e:
+                click.echo('Cannot move file {} to {}'.format(xl_file, XL_FILES_ARCHIVED))
+                click.echo(str(e))
+            else:
+                archived.append(xl_file)
+        click.echo('{} files have been archived'.format(len(archived)))
+
+        # update charon
+        for sample in samples_to_update:
+            update_charon(sample, 'AVAILABLE')
+
+def create_gt_files(config, xl_file_data, snps_data, xl_file_name):
+    gt_samples = []
+    for sample_id in xl_file_data:
+        project_id = sample_id.split('_')[0]
+        # create .gt file for each sample
+        output_path = os.path.join(config.get('ANALYSIS_PATH'), project_id, 'piper_ngi/03_genotype_concordance')
+        if not os.path.exists(output_path):
+            click.echo('Output path does not exist! {}'.format(output_path))
+            click.echo('File {}.gt will not be created!'.format(sample_id))
+            continue
+
+        filename = os.path.join(output_path, '{}.gt'.format(sample_id))
+        if os.path.exists(filename):
+            click.echo('File {} already exists. Skipping'.format(filename))
+            continue
+        with open(filename, 'w+') as output_file:
+            output_file.write('# {}'.format(xl_file_name))
+            for rs, alleles in xl_file_data[sample_id].items():
+                # checking if snps_data contains such position:
+                if rs not in snps_data:
+                    click.echo('rs_position {} not found in snps_file!!'.format(rs))
+                    click.echo('Skipping')
+                    continue
+                chromosome, position, rs_position, reference, alternative = snps_data.get(rs)
+                output_file.write("{} {} {} {} {} {} {}\n".format(chromosome, position, rs, reference, alternative, alleles[0], alleles[1]))
+            gt_samples.append(sample_id)
+    return gt_samples
+
+
+def parse_xl_file(config, xl_file):
+    genotype_data = {}
+    data = pyexcel_xlsx.get_data(xl_file)
+    data = data.get('HaploView_ped_0') # sheet name
+    # getting list of lists
+    header = data[0]
+    data = data[1:]
+    for row in data:
+        # row[1] is always sample name. If doesn't match NGI format - skip.
+        if not re.match(r"^ID\d+-P\d+_\d+", row[1]):
+            continue
+        # sample has format ID22-P2655_176
+        sample_id = row[1].split('-')[-1]
+        # if the same sample occurs twice in the same file, will be overwriten
+        if sample_id not in genotype_data:
+            genotype_data[sample_id] = {}
+        else:
+            click.echo('Sample {} has been already parsed from another (or this) file. Overwriting'.format(sample_id))
+        # rs positions start from 9 element. hopefully the format won't change
+        for rs_id in header[9:]:
+            rs_index = header.index(rs_id)
+            allele1, allele2 = row[rs_index].split()
+            genotype_data[sample_id][rs_id] = [allele1, allele2]
+    return genotype_data
+
+def is_xl_config_ok(config):
     # checking config
     XL_FILES_PATH = config.get('XL_FILES_PATH')
     if XL_FILES_PATH is None:
         click.echo("config file missing XL_FILES_PATH argument")
-        click.echo('Do you want to enter path to excel files? Y/n')
-        to_enter = raw_input()
-        if to_enter.lower() == 'y':
-            click.echo('Please enter path to excel files')
-            XL_FILES_PATH = raw_input()
-        else:
-            click.echo('No XL_FILES_PATH given. Terminating')
-            exit(0)
+        click.echo('Terminating')
+        exit(0)
     if not os.path.exists(XL_FILES_PATH):
         click.echo("Path to excel files does not exist! Path: {}".format(XL_FILES_PATH))
         click.echo('Terminating')
@@ -53,128 +148,35 @@ def parse_xl_files(context):
     ANALYSIS_PATH = config.get('ANALYSIS_PATH')
     if ANALYSIS_PATH is None:
         click.echo("config file missing ANALYSIS_PATH")
-        click.echo('Do you want to enter analysis path? Y/n')
-        to_enter = raw_input()
-        if to_enter.lower() == 'y':
-            click.echo('Please enter the output path')
-            ANALYSIS_PATH = raw_input()
-        else:
-            exit(0)
+        exit(0)
     if not os.path.exists(ANALYSIS_PATH):
         click.echo('Analysis path does not exist! Path: {}'.format(ANALYSIS_PATH))
-        click.echo('Terminating')
         exit(0)
 
     XL_FILES_ARCHIVED = config.get('XL_FILES_ARCHIVED')
     if XL_FILES_ARCHIVED is None:
         click.echo('config file missing XL_FILES_ARCHIVED')
-        click.echo('Do you want to enter path where to archive excel files? Y/n')
-        to_enter = raw_input()
-        if to_enter.lower() == 'y':
-            XL_FILES_ARCHIVED = raw_input()
-        else:
-            click.echo('Please enter where to archive excel files')
-            XL_FILES_ARCHIVED = raw_input()
     if not os.path.exists(XL_FILES_ARCHIVED):
         click.echo('Path does not exist! Path: {}'.format(XL_FILES_ARCHIVED))
-        click.echo('Terminating')
         exit(0)
 
-    click.echo('Looking for .xlsx files in {}'.format(XL_FILES_PATH))
+    SNPS_FILE = config.get('SNPS_FILE')
+    if SNPS_FILE is None:
+        click.echo('config file missing SNPS_FILE')
+        exit(0)
+    if not os.path.exists(SNPS_FILE):
+        click.echo('SNPS file does not exist! Path: {}'.format(SNPS_FILE))
+        exit(0)
+
     xl_files = [os.path.join(XL_FILES_PATH, filename) for filename in os.listdir(XL_FILES_PATH) if '.xlsx' in filename]
     if not xl_files:
         click.echo('No .xlsx files found! Terminating')
         exit(0)
 
-    click.echo('Following files are found: {}'.format(', '.join([os.path.basename(xl_file) for xl_file in xl_files])))
-
-    # parsing snps file
-    snps_data = parse_maf_snps_file(config)
-
-    # parsing xl files
-    genotype_data = {}
-    for xl_file in xl_files:
-        click.echo("Parsing file: {}".format(os.path.basename(xl_file)))
-        data = pyexcel_xlsx.get_data(xl_file)
-        data = data.get('HaploView_ped_0') # sheet name
-        # getting list of lists
-        header = data[0]
-        data = data[1:]
-        for row in data:
-            # row[1] is always sample name. If doesn't match NGI format - skip.
-            if not re.match(r"^ID\d+-P\d+_\d+", row[1]):
-                continue
-            # sample has format ID22-P2655_176
-            sample_id = row[1].split('-')[-1]
-            # if the same sample occurs twice in the same file, will be overwriten
-            if sample_id not in genotype_data:
-                genotype_data[sample_id] = {}
-            else:
-                click.echo('Sample {} has been already parsed from another (or this) file. Overwriting'.format(sample_id))
-            # rs positions start from 9 element. hopefully the format won't change
-            for rs_id in header[9:]:
-                rs_index = header.index(rs_id)
-                allele1, allele2 = row[rs_index].split()
-                genotype_data[sample_id][rs_id] = [allele1, allele2]
-
-    output_files = []
-    for sample_id in genotype_data:
-        project_id = sample_id.split('_')[0]
-        # create .gt file for each sample
-        output_path = os.path.join(ANALYSIS_PATH, project_id, 'piper_ngi/03_genotype_concordance')
-        if not os.path.exists(output_path):
-            click.echo('Output path does not exist! Path will be created: {}'.format(output_path))
-            os.makedirs(output_path)
-        output_dir = os.path.join(output_path, sample_id)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        filename = os.path.join(output_dir, '{}.maf.gt'.format(sample_id))
-        if os.path.exists(filename):
-            click.echo('File {} already exists. Overwriting'.format(filename))
-        with open(filename, 'w+') as output_file:
-            for rs, alleles in genotype_data[sample_id].items():
-                # checking if snps_data contains such position:
-                if rs not in snps_data:
-                    click.echo('rs_position {} not found in snps_file!!'.format(rs))
-                    click.echo('Skipping')
-                    continue
-                chromosome, position, rs_position, reference, alternative = snps_data.get(rs)
-                output_file.write("{} {} {} {} {} {} {}\n".format(chromosome, position, rs, reference, alternative, alleles[0], alleles[1]))
-            output_files.append(filename)
-    click.echo('{} files have been created in {}/<project>/piper_ngi/03_genotype_concordance'.format(len(output_files), ANALYSIS_PATH))
-
-    # Updating Charon
-    for sample in genotype_data:
-        update_charon(sample=sample, status='AVAILABLE')
-
-    # archiving files
-    archived = []
-    for xl_file in xl_files:
-        try:
-            shutil.move(xl_file, XL_FILES_ARCHIVED)
-        except Exception, e:
-            click.echo('Cannot move file {} to {}'.format(xl_file, XL_FILES_ARCHIVED))
-            click.echo(str(e))
-        else:
-            archived.append(xl_file)
-    click.echo('{} .xlsx files have been archived in {}'.format(len(archived), XL_FILES_ARCHIVED))
-
+    return True
 
 def parse_maf_snps_file(config):
     SNPS_FILE = config.get('SNPS_FILE')
-    if SNPS_FILE is None:
-        click.echo('config file missing SNPS_FILE')
-        click.echo('Do you want to enter path to snps file? Y/n')
-        to_enter = raw_input()
-        if to_enter.lower() == 'y':
-            click.echo('Please enter the path to snps file')
-            SNPS_FILE = raw_input()
-        else:
-            exit(0)
-    if not os.path.exists(SNPS_FILE):
-        click.echo('SNPS file does not exist! Path: {}'.format(SNPS_FILE))
-        click.echo('Terminating')
-        exit(0)
     snps_data = {}
     with open(SNPS_FILE) as snps_file:
         lines = snps_file.readlines()
@@ -358,9 +360,11 @@ def parse_gt_file(sample, config):
     project = sample.split('_')[0]
     path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance', '{}.gt'.format(sample))
     gt_data = {}
+    # do not check if exists (it's already checked)
     with open(path, 'r') as gt_file:
         lines = gt_file.readlines()
-        for line in lines:
+        # skip first line (comment with xl filename)
+        for line in lines[1:]:
             chromosome, position, rs_position, reference, alternative, a1, a2 = line.strip().split()
             a1 = reference if a1.strip() == '0' else alternative
             a2 = reference if a2.strip() == '0' else alternative
@@ -452,12 +456,13 @@ def update_charon(sample, status, concordance=None):
     charon_session = CharonSession()
     project_id = sample.split('_')[0]
     try:
-        charon_session.sample_update(projectid=project_id, sampleid=sample,genotype_status=status, genotype_concordance=concordance)
+        if concordance is None:
+            charon_session.sample_update(projectid=project_id, sampleid=sample,genotype_status=status)
+        else:
+            charon_session.sample_update(projectid=project_id, sampleid=sample,genotype_status=status, genotype_concordance=concordance)
     except CharonError as e:
         print("Problem updating Charon: error says '{}'".format(e))
         exit()
-
-
 
 @cli.command()
 @click.argument('project')
