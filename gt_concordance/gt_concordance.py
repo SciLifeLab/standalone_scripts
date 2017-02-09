@@ -80,7 +80,7 @@ def parse_xl_files(context):
             update_charon(sample, 'AVAILABLE')
 
 def create_gt_files(config, xl_file_data, snps_data, xl_file_name):
-    gt_samples = []
+    processed_samples = []
     for sample_id in xl_file_data:
         project_id = sample_id.split('_')[0]
         # create .gt file for each sample
@@ -92,10 +92,17 @@ def create_gt_files(config, xl_file_data, snps_data, xl_file_name):
 
         filename = os.path.join(output_path, '{}.gt'.format(sample_id))
         if os.path.exists(filename):
-            click.echo('File {} already exists. Skipping'.format(filename))
-            continue
+            source_xl_file = open(filename, 'r').readlines()[0].replace('#', '').strip()
+            if source_xl_file == xl_file_name:
+                click.echo('File {} already exists. Skipping'.format(os.path.basename(filename)))
+                processed_samples.append(sample_id)
+                continue
+            else:
+                click.echo('COLLISION! Sample {} exists in 2 excel files: {} and {}'.format(sample_id, xl_file_name, source_xl_file))
+                click.echo('To continue, move existing .gt file and restart again')
+                exit(0)
         with open(filename, 'w+') as output_file:
-            output_file.write('# {}'.format(xl_file_name))
+            output_file.write('# {}\n'.format(xl_file_name))
             for rs, alleles in xl_file_data[sample_id].items():
                 # checking if snps_data contains such position:
                 if rs not in snps_data:
@@ -104,8 +111,8 @@ def create_gt_files(config, xl_file_data, snps_data, xl_file_name):
                     continue
                 chromosome, position, rs_position, reference, alternative = snps_data.get(rs)
                 output_file.write("{} {} {} {} {} {} {}\n".format(chromosome, position, rs, reference, alternative, alleles[0], alleles[1]))
-            gt_samples.append(sample_id)
-    return gt_samples
+            processed_samples.append(sample_id)
+    return processed_samples
 
 
 def parse_xl_file(config, xl_file):
