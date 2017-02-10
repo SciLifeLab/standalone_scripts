@@ -197,18 +197,16 @@ def parse_maf_snps_file(config):
 
 @cli.command()
 @click.argument('sample')
+@click.option('--force', '-f', is_flag=True, default=False, help='If not specified, will keep existing vcf files and use them to check concordance. Otherwise overwrite')
 @click.pass_context
-def genotype_sample(context, sample):
+def genotype_sample(context, sample, force):
     if is_config_file_ok():
-        concordance = run_genotype_sample(sample)
+        concordance = run_genotype_sample(sample, force)
         click.echo('Sample name\t % concordance')
         click.echo('{}:\t {}'.format(sample, concordance))
 
 @click.pass_context
 def run_genotype_sample(context, sample, force=None):
-
-    # if check fails, will throw a warning and terminate
-    # otherwise - continue here
     config = context.obj
     project = sample.split('_')[0]
     output_path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance')
@@ -220,13 +218,13 @@ def run_genotype_sample(context, sample, force=None):
         click.echo('To create .gt file run the command: gt_concordance parse_xl_files')
         exit(0)
 
-    # i don't know anymore what happens if path does not exist
+    # if we are here, the path has been already checked (most *likely*)
     if os.path.exists(output_path):
         # check if gatk needs to be run
         vcf_file = os.path.join(output_path, "{}.vcf".format(sample))
         to_run_gatk = False
         if os.path.exists(vcf_file):
-            click.echo('.vcf file already exists: {}'.format(vcf_file))
+            click.echo('.vcf file already exists: {}'.format(os.path.basename(vcf_file)))
             if force:
                 click.echo('Rerunning GATK because of --force option')
                 to_run_gatk = True
@@ -402,7 +400,7 @@ def check_concordance(sample, vcf_data, gt_data, config):
         vcf_a1 = vcf_data[chromosome_position]['a1']
         vcf_a2 = vcf_data[chromosome_position]['a2']
         if chromosome_position not in gt_data:
-            click.echo('{} NOT FOUND IN GT DATA!!!'.format(chromosome_position))
+            click.echo('POSITION {} NOT FOUND IN GT DATA!!!'.format(chromosome_position))
             continue
 
         gt_a1 = gt_data[chromosome_position]['a1']
@@ -446,29 +444,29 @@ def check_concordance(sample, vcf_data, gt_data, config):
 
 def run_gatk(sample, config):
     project = sample.split('_')[0]
-    bamfile = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/05_processed_alignments/{}.clean.dedup.bam'.format(sample))
-    if not os.path.exists(bamfile):
-        click.echo('bamfile does not exist! {}'.format(bamfile))
-        return None
-    project = sample.split('_')[0]
-    # the path has been already checked
-    output_file = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance', "{sample}.vcf".format(sample=sample))
-    options = """-T UnifiedGenotyper  -I {bamfile} -R {gatk_ref_file} -o {sample}  -D {gatk_var_file} -L {interval_file} -out_mode EMIT_ALL_SITES """.format(
-            bamfile=bamfile,
-            sample=output_file,
-            interval_file=config.get('INTERVAL_FILE'),
-            gatk_ref_file=config.get('GATK_REF_FILE'),
-            gatk_var_file=config.get('GATK_VAR_FILE'))
-    full_command = 'java -Xmx6g -jar {} {}'.format(config.get('GATK_PATH'), options)
-    try:
-        p = subprocess.Popen(full_command.split(), stderr=subprocess.PIPE, stdout=open(os.devnull, 'w+'))
-        output, error = p.communicate()
-        if error:
-            click.echo('GATK failed! Error: {}'.format(error))
+    ANALYSIS_PATH = config.get('ANALYSIS_PATH')
+    # the path has been already checked, but checking again
+    if os.path.exists(ANALYSIS_PATH):
+        bamfile = os.path.join(ANALYSIS_PATH, project, 'piper_ngi/05_processed_alignments/{}.clean.dedup.bam'.format(sample))
+        if not os.path.exists(bamfile):
+            click.echo('bamfile does not exist! {}'.format(bamfile))
+            return None
+        project = sample.split('_')[0]
+        # the path has been already checked
+        output_file = os.path.join(ANALYSIS_PATH, project, 'piper_ngi/03_genotype_concordance', "{sample}.vcf".format(sample=sample))
+        options = """-T UnifiedGenotyper  -I {bamfile} -R {gatk_ref_file} -o {sample}  -D {gatk_var_file} -L {interval_file} -out_mode EMIT_ALL_SITES """.format(
+                bamfile=bamfile,
+                sample=output_file,
+                interval_file=config.get('INTERVAL_FILE'),
+                gatk_ref_file=config.get('GATK_REF_FILE'),
+                gatk_var_file=config.get('GATK_VAR_FILE'))
+        full_command = 'java -Xmx6g -jar {} {}'.format(config.get('GATK_PATH'), options)
+        try:
+            subprocess.call(full_command.split())
+        except:
+            pass
         else:
             return output_file
-    except:
-        pass
 
 def update_charon(sample, status, concordance=None):
     project_id = sample.split('_')[0]
