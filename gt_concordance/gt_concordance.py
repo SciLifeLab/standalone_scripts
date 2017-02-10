@@ -11,7 +11,6 @@ import pyexcel_xlsx
 
 from ngi_pipeline.database.classes import CharonSession, CharonError
 
-
 CONFIG = "/lupus/ngi/production/v1.5/conf//irma_ngi_config_sthlm.yaml"
 
 @click.group()
@@ -100,7 +99,7 @@ def create_gt_files(config, xl_file_data, snps_data, xl_file_name):
             else:
                 click.echo('COLLISION! Sample {} exists in 2 excel files: {} and {}'.format(sample_id, xl_file_name, source_xl_file))
                 click.echo('To continue, move existing .gt file and restart again')
-                exit(0)
+                exit(1)
         # create file and write data
         with open(filename, 'w+') as output_file:
             output_file.write('# {}\n'.format(xl_file_name))
@@ -147,39 +146,39 @@ def is_xl_config_ok(config):
     if XL_FILES_PATH is None:
         click.echo("config file missing XL_FILES_PATH argument")
         click.echo('Terminating')
-        exit(0)
+        exit(1)
     if not os.path.exists(XL_FILES_PATH):
         click.echo("Path to excel files does not exist! Path: {}".format(XL_FILES_PATH))
         click.echo('Terminating')
-        exit(0)
+        exit(1)
     #
     ANALYSIS_PATH = config.get('ANALYSIS_PATH')
     if ANALYSIS_PATH is None:
         click.echo("config file missing ANALYSIS_PATH")
-        exit(0)
+        exit(1)
     if not os.path.exists(ANALYSIS_PATH):
         click.echo('Analysis path does not exist! Path: {}'.format(ANALYSIS_PATH))
-        exit(0)
+        exit(1)
 
     XL_FILES_ARCHIVED = config.get('XL_FILES_ARCHIVED')
     if XL_FILES_ARCHIVED is None:
         click.echo('config file missing XL_FILES_ARCHIVED')
     if not os.path.exists(XL_FILES_ARCHIVED):
         click.echo('Path does not exist! Path: {}'.format(XL_FILES_ARCHIVED))
-        exit(0)
+        exit(1)
 
     SNPS_FILE = config.get('SNPS_FILE')
     if SNPS_FILE is None:
         click.echo('config file missing SNPS_FILE')
-        exit(0)
+        exit(1)
     if not os.path.exists(SNPS_FILE):
         click.echo('SNPS file does not exist! Path: {}'.format(SNPS_FILE))
-        exit(0)
+        exit(1)
 
     xl_files = [os.path.join(XL_FILES_PATH, filename) for filename in os.listdir(XL_FILES_PATH) if '.xlsx' in filename]
     if not xl_files:
         click.echo('No .xlsx files found! Terminating')
-        exit(0)
+        exit(1)
 
     return True
 
@@ -198,7 +197,6 @@ def parse_maf_snps_file(config):
 @cli.command()
 @click.argument('sample')
 @click.option('--force', '-f', is_flag=True, default=False, help='If not specified, will keep existing vcf files and use them to check concordance. Otherwise overwrite')
-@click.pass_context
 def genotype_sample(context, sample, force):
     if is_config_file_ok():
         concordance = run_genotype_sample(sample, force)
@@ -216,7 +214,7 @@ def run_genotype_sample(context, sample, force=None):
     if not os.path.exists(gt_file):
         click.echo('gt file does not exist! Path: {}'.format(gt_file))
         click.echo('To create .gt file run the command: gt_concordance parse_xl_files')
-        exit(0)
+        exit(1)
 
     # if we are here, the path has been already checked (most *likely*)
     if os.path.exists(output_path):
@@ -242,7 +240,7 @@ def run_genotype_sample(context, sample, force=None):
                 click.echo('Terminating')
                 # update charon
                 update_charon(sample=sample, status='FAILED')
-                exit(0)
+                exit(1)
 
         # check concordance
         vcf_data = parse_vcf_file(sample, config)
@@ -268,11 +266,11 @@ def is_config_file_ok(context):
             click.echo('Please enter the analysis path')
             ANALYSIS_PATH = raw_input()
         else:
-            exit(0)
+            exit(1)
     if not os.path.exists(ANALYSIS_PATH):
         click.echo('Analysis path does not exist! Path: {}'.format(ANALYSIS_PATH))
         click.echo('Terminating')
-        exit(0)
+        exit(1)
     config.update({'ANALYSIS_PATH': ANALYSIS_PATH})
 
     GATK_PATH = config.get('GATK_PATH')
@@ -284,11 +282,11 @@ def is_config_file_ok(context):
             click.echo('Please enter path to GATK')
             GATK_PATH = raw_input()
         else:
-            exit(0)
+            exit(1)
     if not os.path.exists(GATK_PATH):
         click.echo('GATK file does not exist! Path: {}'.format(GATK_PATH))
         click.echo('Terminating')
-        exit(0)
+        exit(1)
     config.update({'GATK_PATH': GATK_PATH})
 
     GATK_REF_FILE = config.get('GATK_REF_FILE')
@@ -300,11 +298,11 @@ def is_config_file_ok(context):
             click.echo('Please enter path to reference file')
             GATK_REF_FILE = raw_input()
         else:
-            exit(0)
+            exit(1)
     if not os.path.exists(GATK_REF_FILE):
         click.echo('Reference file does not exist! Path: {}'.format(GATK_REF_FILE))
         click.echo('Terminating')
-        exit(0)
+        exit(1)
     config.update({'GATK_REF_FILE': GATK_REF_FILE})
 
     GATK_VAR_FILE = config.get('GATK_VAR_FILE')
@@ -316,11 +314,11 @@ def is_config_file_ok(context):
             click.echo('Please enter the path to GATK variant file')
             GATK_VAR_FILE = raw_input()
         else:
-            exit(0)
+            exit(1)
     if not os.path.exists(GATK_VAR_FILE):
         click.echo('GATK variant file does not exist! Path: {}'.format(GATK_VAR_FILE))
         click.echo('Terminating')
-        exit(0)
+        exit(1)
     config.update({'GATK_VAR_FILE': GATK_VAR_FILE})
 
     INTERVAL_FILE = config.get('INTERVAL_FILE')
@@ -332,11 +330,11 @@ def is_config_file_ok(context):
             click.echo('Please enter the path to interval file')
             INTERVAL_FILE = raw_input()
         else:
-            exit(0)
+            exit(1)
     if not os.path.exists(INTERVAL_FILE):
         click.echo('Interval file does not exist! Path: {}'.format(INTERVAL_FILE))
         click.echo('Terminating')
-        exit(0)
+        exit(1)
     config.update({'INTERVAL_FILE': INTERVAL_FILE})
 
     return True
@@ -478,7 +476,7 @@ def update_charon(sample, status, concordance=None):
             charon_session.sample_update(projectid=project_id, sampleid=sample,genotype_status=status, genotype_concordance=concordance)
     except CharonError as e:
         print("Problem updating Charon: error says '{}'".format(e))
-        exit()
+        exit(1)
 
 @cli.command()
 @click.argument('project')
@@ -490,12 +488,12 @@ def genotype_project(context, project, force):
         output_path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance')
         if not os.path.exists(output_path):
             click.echo('Path does not exist! {}'.format(output_path))
-            exit(0)
+            exit(1)
         list_of_gt_files = [file for file in os.listdir(output_path) if '.gt' in file]
         if not list_of_gt_files:
             click.echo('No .gt files found in {}'.format(output_path))
             click.echo('Generate .gt files first! Run the command: gt_concordance parse_xl_files')
-            exit(0)
+            exit(1)
         click.echo('{} .gt files found in {}'.format(len(list_of_gt_files), output_path))
 
         # genotype sample for each found gt_file
@@ -509,6 +507,39 @@ def genotype_project(context, project, force):
         click.echo('Sample name\t % concordance')
         for sample, concordance in results.items():
             click.echo('{}:\t {}'.format(sample, concordance))
+
+
+@cli.command()
+@click.argument('project')
+@click.option('--threshold', '-t', default=99, help='Threshold for concordance. Will print samples below this value', type=float)
+@click.option('--all', '-a', default=False, is_flag=True, help='If specified, will print ALL samples, both below and above the threshold')
+@click.pass_context
+def fetch_charon(context, project, threshold, all):
+    """
+    Will fetch samples of the specified project from Charon and print the concordance
+    """
+    try:
+    # get result from charon
+        charon_session = CharonSession()
+        result = charon_session.project_get_samples(project)
+        samples = {}
+        for sample in result.get('samples'):
+            sample_id = sample.get('sampleid')
+            concordance = float(sample.get('genotype_concordance'))
+            samples[sample_id] = concordance
+        # print output
+        if not all:
+            click.echo('Samples below threshold: {}%'.format(threshold))
+        for sample, concordance in samples.items():
+            # if --all, we don't care about threshold
+            if all or concordance < threshold:
+                # do not print 0%
+                if concordance != 0:
+                    click.echo('{}: \t {}%'.format(sample, concordance))
+    except Exception, e:
+        click.echo("Can't fetch Charon. Error says: {}".format(str(e)))
+
+
 
 if __name__ == '__main__':
     cli()
