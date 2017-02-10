@@ -9,7 +9,7 @@ import yaml
 import vcf
 import pyexcel_xlsx
 
-# from ngi_pipeline.database.classes import CharonSession, CharonError
+from ngi_pipeline.database.classes import CharonSession, CharonError
 
 
 CONFIG = "/lupus/ngi/production/v1.5/conf//irma_ngi_config_sthlm.yaml"
