@@ -7,7 +7,7 @@ import shutil
 import click
 import yaml
 import vcf
-import pyexcel_xlsx
+# import pyexcel_xlsx
 
 from ngi_pipeline.database.classes import CharonSession, CharonError
 
@@ -197,11 +197,17 @@ def parse_maf_snps_file(config):
 @cli.command()
 @click.argument('sample')
 @click.option('--force', '-f', is_flag=True, default=False, help='If not specified, will keep existing vcf files and use them to check concordance. Otherwise overwrite')
+@click.pass_context
 def genotype_sample(context, sample, force):
     if is_config_file_ok():
         concordance = run_genotype_sample(sample, force)
-        click.echo('Sample name\t % concordance')
-        click.echo('{}:\t {}'.format(sample, concordance))
+        if concordance is None:
+            click.echo('Failed to genotype sample: {}'.format(sample))
+            update_charon(sample, status='FAILED')
+        else:
+            update_charon(sample, status='DONE', concordance=concordance)
+            click.echo('Sample name\t % concordance')
+            click.echo('{}:\t {}'.format(sample, concordance))
 
 @click.pass_context
 def run_genotype_sample(context, sample, force=None):
@@ -214,7 +220,7 @@ def run_genotype_sample(context, sample, force=None):
     if not os.path.exists(gt_file):
         click.echo('gt file does not exist! Path: {}'.format(gt_file))
         click.echo('To create .gt file run the command: gt_concordance parse_xl_files')
-        exit(1)
+        return None
 
     # if we are here, the path has been already checked (most *likely*)
     if os.path.exists(output_path):
@@ -237,10 +243,7 @@ def run_genotype_sample(context, sample, force=None):
             vcf_file = run_gatk(sample, config)
             if vcf_file is None:
                 click.echo('GATK completed with ERROR!')
-                click.echo('Terminating')
-                # update charon
-                update_charon(sample=sample, status='FAILED')
-                exit(1)
+                return None
 
         # check concordance
         vcf_data = parse_vcf_file(sample, config)
@@ -248,10 +251,9 @@ def run_genotype_sample(context, sample, force=None):
         if len(vcf_data) != len(gt_data):
             click.echo('VCF file and GT file contain differenct number of positions!! ({}, {})'.format(len(vcf_data), len(gt_data)))
         concordance = check_concordance(sample, vcf_data, gt_data, config)
-
-        # update Charon
-        update_charon(sample, 'DONE', concordance)
         return concordance
+    else:
+        return None
 
 @click.pass_context
 def is_config_file_ok(context):
@@ -498,15 +500,26 @@ def genotype_project(context, project, force):
 
         # genotype sample for each found gt_file
         results = {}
+        failed = []
         for gt_file in list_of_gt_files:
             sample = gt_file.split('.')[0]
             concordance = run_genotype_sample(sample, force)
-            results[sample] = concordance
+            if concordance is None:
+                update_charon(sample, status='FAILED')
+                failed.append(sample)
+            else:
+                update_charon(sample, status='DONE', concordance=concordance)
+                results[sample] = concordance
 
         # print results
         click.echo('Sample name\t % concordance')
         for sample, concordance in results.items():
             click.echo('{}:\t {}'.format(sample, concordance))
+        # print failed
+        if failed:
+            click.echo('Failed to check concordance for samples: ')
+            for sample in failed:
+                click.echo(sample)
 
 
 @cli.command()
