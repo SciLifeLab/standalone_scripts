@@ -9,7 +9,7 @@ import yaml
 import vcf
 import pyexcel_xlsx
 
-from ngi_pipeline.database.classes import CharonSession, CharonError
+# from ngi_pipeline.database.classes import CharonSession, CharonError
 
 
 CONFIG = "/lupus/ngi/production/v1.5/conf//irma_ngi_config_sthlm.yaml"
@@ -101,6 +101,7 @@ def create_gt_files(config, xl_file_data, snps_data, xl_file_name):
                 click.echo('COLLISION! Sample {} exists in 2 excel files: {} and {}'.format(sample_id, xl_file_name, source_xl_file))
                 click.echo('To continue, move existing .gt file and restart again')
                 exit(0)
+        # create file and write data
         with open(filename, 'w+') as output_file:
             output_file.write('# {}\n'.format(xl_file_name))
             for rs, alleles in xl_file_data[sample_id].items():
@@ -185,11 +186,12 @@ def is_xl_config_ok(config):
 def parse_maf_snps_file(config):
     SNPS_FILE = config.get('SNPS_FILE')
     snps_data = {}
-    with open(SNPS_FILE) as snps_file:
-        lines = snps_file.readlines()
-        for line in lines:
-            chromosome, position, rs_position, reference, alternative = line.split()
-            snps_data[rs_position] = [chromosome, position, rs_position, reference, alternative]
+    if os.path.exists(SNPS_FILE):
+        with open(SNPS_FILE) as snps_file:
+            lines = snps_file.readlines()
+            for line in lines:
+                chromosome, position, rs_position, reference, alternative = line.split()
+                snps_data[rs_position] = [chromosome, position, rs_position, reference, alternative]
     return snps_data
 
 
@@ -197,37 +199,43 @@ def parse_maf_snps_file(config):
 @click.argument('sample')
 @click.pass_context
 def genotype_sample(context, sample):
-    # check that config file contains all required parameters
     if is_config_file_ok():
-        # if check fails, will throw a warning and terminate
-        # otherwise - continue here
-        config = context.obj
-        project = sample.split('_')[0]
-        output_path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance')
+        concordance = run_genotype_sample(sample)
+        click.echo('Sample name\t % concordance')
+        click.echo('{}:\t {}'.format(sample, concordance))
 
-        # check if gt file exists
-        gt_file = os.path.join(output_path, '{}.gt'.format(sample))
-        if not os.path.exists(gt_file):
-            click.echo('gt file does not exist! Path: {}'.format(gt_file))
-            click.echo('To create .gt file run the command: gt_concordance parse_xl_files')
-            exit(0)
+@click.pass_context
+def run_genotype_sample(context, sample, force=None):
 
-        # create output path if not exist
-        if not os.path.exists(output_path):
-            click.echo('Output path does not exist! Will be created. Path: {}'.format(output_path))
-            os.makedirs(output_path)
+    # if check fails, will throw a warning and terminate
+    # otherwise - continue here
+    config = context.obj
+    project = sample.split('_')[0]
+    output_path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance')
 
+    # check if gt file exists
+    gt_file = os.path.join(output_path, '{}.gt'.format(sample))
+    if not os.path.exists(gt_file):
+        click.echo('gt file does not exist! Path: {}'.format(gt_file))
+        click.echo('To create .gt file run the command: gt_concordance parse_xl_files')
+        exit(0)
+
+    # i don't know anymore what happens if path does not exist
+    if os.path.exists(output_path):
         # check if gatk needs to be run
         vcf_file = os.path.join(output_path, "{}.vcf".format(sample))
         to_run_gatk = False
         if os.path.exists(vcf_file):
             click.echo('.vcf file already exists: {}'.format(vcf_file))
-            click.echo('overwrite? Y/n')
-            overwrite = raw_input()
-            if overwrite.lower() == 'y':
+            if force:
+                click.echo('Rerunning GATK because of --force option')
                 to_run_gatk = True
+            else:
+                click.echo('Skipping GATK')
         else:
+            click.echo('Running GATK')
             to_run_gatk = True
+
         # run gatk if needed
         if to_run_gatk:
             vcf_file = run_gatk(sample, config)
@@ -245,14 +253,9 @@ def genotype_sample(context, sample):
             click.echo('VCF file and GT file contain differenct number of positions!! ({}, {})'.format(len(vcf_data), len(gt_data)))
         concordance = check_concordance(sample, vcf_data, gt_data, config)
 
-        # output the results
-        click.echo('Files created:')
-        click.echo(' Concordance results: {}'.format(os.path.join(output_path, '{}.conc'.format(sample))))
-        click.echo(' Header: {}'.format(os.path.join(output_path, '{}.conc.header'.format(sample))))
-
-        click.echo('Concordance: {} %'.format(concordance))
         # update Charon
         update_charon(sample, 'DONE', concordance)
+        return concordance
 
 @click.pass_context
 def is_config_file_ok(context):
@@ -344,49 +347,50 @@ def parse_vcf_file(sample, config):
     project = sample.split('_')[0]
     path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance', '{}.vcf'.format(sample))
     vcf_data = {}
-    vcf_file = vcf.Reader(open(path, 'r'))
-    for record in vcf_file:
-        reference = str(record.REF[0])
-        alternative = str(record.ALT[0])
-        chromosome = str(record.CHROM)
-        position = str(record.POS)
+    if os.path.exists(path):
+        vcf_file = vcf.Reader(open(path, 'r'))
+        for record in vcf_file:
+            reference = str(record.REF[0])
+            alternative = str(record.ALT[0])
+            chromosome = str(record.CHROM)
+            position = str(record.POS)
 
-        genotype = str(record.genotype(sample)['GT'])
-        a1, a2 = genotype.split('/')
-        # 0 means no variant (using reference), 1 means variant (using alternative)
-        a1 = reference if a1.strip() == '0' else alternative
-        a2 = reference if a2.strip() == '0' else alternative
-        vcf_data['{} {}'.format(chromosome, position)] = {
-            'chromosome': chromosome,
-            'position': position,
-            'a1': a1,
-            'a2': a2 }
+            genotype = str(record.genotype(sample)['GT'])
+            a1, a2 = genotype.split('/')
+            # 0 means no variant (using reference), 1 means variant (using alternative)
+            a1 = reference if a1.strip() == '0' else alternative
+            a2 = reference if a2.strip() == '0' else alternative
+            vcf_data['{} {}'.format(chromosome, position)] = {
+                'chromosome': chromosome,
+                'position': position,
+                'a1': a1,
+                'a2': a2 }
     return vcf_data
 
 def parse_gt_file(sample, config):
     project = sample.split('_')[0]
     path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance', '{}.gt'.format(sample))
     gt_data = {}
-    # do not check if exists (it's already checked)
-    with open(path, 'r') as gt_file:
-        lines = gt_file.readlines()
-        # skip first line (comment with xl filename)
-        for line in lines[1:]:
-            chromosome, position, rs_position, reference, alternative, a1, a2 = line.strip().split()
-            a1 = reference if a1.strip() == '0' else alternative
-            a2 = reference if a2.strip() == '0' else alternative
-            gt_data['{} {}'.format(chromosome, position)] = {
-                'chromosome': chromosome,
-                'position': position,
-                'a1': a1,
-                'a2': a2 }
-
+    if os.path.exists(path):
+        with open(path, 'r') as gt_file:
+            lines = gt_file.readlines()
+            # skip first line (comment with xl filename)
+            if lines[0].startswith('#'):
+                lines = lines[1:]
+            for line in lines:
+                chromosome, position, rs_position, reference, alternative, a1, a2 = line.strip().split()
+                a1 = reference if a1.strip() == '0' else alternative
+                a2 = reference if a2.strip() == '0' else alternative
+                gt_data['{} {}'.format(chromosome, position)] = {
+                    'chromosome': chromosome,
+                    'position': position,
+                    'a1': a1,
+                    'a2': a2 }
     return gt_data
 
 def check_concordance(sample, vcf_data, gt_data, config):
     project = sample.split('_')[0]
 
-    result = ''
     header = 'Sample Chrom Pos A1_seq A2_seq A1_maf A2_maf'
 
     matches = []
@@ -397,7 +401,9 @@ def check_concordance(sample, vcf_data, gt_data, config):
         chromosome, position = chromosome_position.split()
         vcf_a1 = vcf_data[chromosome_position]['a1']
         vcf_a2 = vcf_data[chromosome_position]['a2']
-
+        if chromosome_position not in gt_data:
+            click.echo('{} NOT FOUND IN GT DATA!!!'.format(chromosome_position))
+            continue
 
         gt_a1 = gt_data[chromosome_position]['a1']
         gt_a2 = gt_data[chromosome_position]['a2']
@@ -422,13 +428,15 @@ def check_concordance(sample, vcf_data, gt_data, config):
     result += 'Total number of matches: {} / {}\n'.format(len(matches), snps_number)
     result += 'Percent matches {}%\n'.format(percent_matches)
 
+    # path should exist (if we came to this point), but checking anyway
     output_path = os.path.join(config.get('ANALYSIS_PATH'), project, 'piper_ngi/03_genotype_concordance')
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    with open(os.path.join(output_path, '{}.conc'.format(sample)), 'w+') as conc_file:
-        conc_file.write(result)
-    with open(os.path.join(output_path, '{}.conc.header'.format(sample)), 'w+') as header_file:
-        header_file.write(header)
+    if os.path.exists(output_path):
+        # create .conc file
+        with open(os.path.join(output_path, '{}.conc'.format(sample)), 'w+') as conc_file:
+            conc_file.write(result)
+        # create .conc.header file
+        with open(os.path.join(output_path, '{}.conc.header'.format(sample)), 'w+') as header_file:
+            header_file.write(header)
 
     if len(matches) + len(mismatches) != len(vcf_data):
         click.echo('CHECK RESULTS!! Numbers are incoherent. Total number: {}, matches: {}, mismatches: {}'.format(len(vcf_data), len(matches), len(mismatches)))
@@ -453,16 +461,19 @@ def run_gatk(sample, config):
             gatk_var_file=config.get('GATK_VAR_FILE'))
     full_command = 'java -Xmx6g -jar {} {}'.format(config.get('GATK_PATH'), options)
     try:
-        subprocess.call(full_command.split())
+        p = subprocess.Popen(full_command.split(), stderr=subprocess.PIPE, stdout=open(os.devnull, 'w+'))
+        output, error = p.communicate()
+        if error:
+            click.echo('GATK failed! Error: {}'.format(error))
+        else:
+            return output_file
     except:
-        return None
-    else:
-        return output_file
+        pass
 
 def update_charon(sample, status, concordance=None):
-    charon_session = CharonSession()
     project_id = sample.split('_')[0]
     try:
+        charon_session = CharonSession()
         if concordance is None:
             charon_session.sample_update(projectid=project_id, sampleid=sample,genotype_status=status)
         else:
@@ -490,42 +501,16 @@ def genotype_project(context, project, force):
         click.echo('{} .gt files found in {}'.format(len(list_of_gt_files), output_path))
 
         # genotype sample for each found gt_file
-        conc_files = []
+        results = {}
         for gt_file in list_of_gt_files:
             sample = gt_file.split('.')[0]
+            concordance = run_genotype_sample(sample, force)
+            results[sample] = concordance
 
-            # run gatk if needed
-            to_run_gatk = False
-            vcf_file = os.path.join(output_path, "{}.vcf".format(sample))
-            if os.path.exists(vcf_file) and force:
-                click.echo('.vcf file will be overwriten: {}'.format(vcf_file))
-                to_run_gatk = True
-            elif not os.path.exists(vcf_file):
-                click.echo('No {}.vcf file found. Running GATK'.format(sample))
-                to_run_gatk = True
-            if to_run_gatk:
-                vcf_file = run_gatk(sample, config)
-                # todo: UPDATE CHARON
-                if vcf_file is None:
-                    click.echo('GATK failed. Continue with the next sample')
-                    update_charon(sample, 'FAILED')
-                    continue
-
-            # check concordance
-            click.echo('Checking sample {}'.format(sample))
-            vcf_data = parse_vcf_file(sample, config)
-            gt_data = parse_gt_file(sample, config)
-            if len(vcf_data) != len(gt_data):
-                click.echo('VCF file and GT file contain differenct number of positions!! ({}, {})'.format(len(vcf_data), len(gt_data)))
-            #  will write the results
-            concordance = check_concordance(sample, vcf_data, gt_data, config)
-            click.echo('Sample: {}, concordance: {} %'.format(sample, concordance))
-            # update charon
-            update_charon(sample=sample, status='DONE', concordance=concordance)
-
-            conc_files.append(os.path.join(output_path, '{}.conc'.format(sample)))
-        click.echo('{} files have been created in {}'.format(len(conc_files), output_path))
-
+        # print results
+        click.echo('Sample name\t % concordance')
+        for sample, concordance in results.items():
+            click.echo('{}:\t {}'.format(sample, concordance))
 
 if __name__ == '__main__':
     cli()
