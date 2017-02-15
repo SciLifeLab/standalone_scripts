@@ -52,7 +52,7 @@ def parse_xl_files(context):
             # returns sample name for each created gt file
             gt_samples = create_gt_files(config, xl_file_data, snps_data, os.path.basename(xl_file))
             samples_to_update += gt_samples
-            click.echo('{} files have been created in {}/<project>/piper_ngi/03_genotype_concordance'.format(len(gt_samples), config.get('ANALYSIS_PATH')))
+            click.echo('{} files have been created'.format(len(gt_samples)))
 
             # if ALL gt files were created, archive xl_file
             if len(gt_samples) == len(xl_file_data):
@@ -252,8 +252,6 @@ def run_genotype_sample(context, sample, force=None):
             click.echo('VCF file and GT file contain differenct number of positions!! ({}, {})'.format(len(vcf_data), len(gt_data)))
         concordance = check_concordance(sample, vcf_data, gt_data, config)
         return concordance
-    else:
-        return None
 
 @click.pass_context
 def is_config_file_ok(context):
@@ -377,8 +375,6 @@ def parse_gt_file(sample, config):
                 lines = lines[1:]
             for line in lines:
                 chromosome, position, rs_position, reference, alternative, a1, a2 = line.strip().split()
-                a1 = reference if a1.strip() == '0' else alternative
-                a2 = reference if a2.strip() == '0' else alternative
                 gt_data['{} {}'.format(chromosome, position)] = {
                     'chromosome': chromosome,
                     'position': position,
