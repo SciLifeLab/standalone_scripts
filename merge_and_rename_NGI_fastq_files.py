@@ -7,25 +7,26 @@ import re
 import os
 import sys
 import shutil
-import glob
 def merge_files(dest_dir, fastq_files):
+    #Match NGI sample number from flowcell
     sample_pattern=re.compile("^(.+)_S[0-9]+_.+_R([1-2])_")
-    #Below is used for BCBP above for Irma style projects.
-    #sample_pattern=re.compile("^[0-9]_[0-9]+_[A-Z0-9]+_(P[0-9]+_[0-9]+)_([1-2])")
     while fastq_files:
         tomerge=[]
-        first=fastq_files[0]
-        fq_bn=os.path.basename(first)
-        sample_name=sample_pattern.match(fq_bn).group(1)
-        read_nb=sample_pattern.match(fq_bn).group(2)
+        try:
+            first=fastq_files[0]
+            fq_bn=os.path.basename(first)
+            sample_name=sample_pattern.match(fq_bn).group(1)
+            read_nb=sample_pattern.match(fq_bn).group(2)
+        #Avoid crashing if no match
+        except AttributeError: 
+            continue
         for fq in fastq_files:
+            #If fq belongs to the same sample and read, add it to tomerge then remove from file list
             if sample_name in os.path.basename(fq) and "_R{}_".format(read_nb) in os.path.basename(fq):
                 tomerge.append(fq)
         for fq in tomerge:
             fastq_files.remove(fq)
-
-        import pdb
-        pdb.set_trace()
+        #Sing under Pname, i.e P001_001_R1.fastq.gz
         outfile=os.path.join(dest_dir, "{}_R{}.fastq.gz".format(sample_name, read_nb))
         with open(outfile, 'wb') as wfp:
             for fn in tomerge:
@@ -33,15 +34,16 @@ def merge_files(dest_dir, fastq_files):
                     shutil.copyfileobj(rfp, wfp)
 
 def main():
-    #os.path.abspath
    input_dir=sys.argv[1]
    destination_dir = sys.argv[2] 
     
    fastq_files=[]
-   
+   #gather all fastq files in inputdir and subdirs
    for subdir, dirs, files in os.walk(input_dir):
-       for x in files:
-           fastq_files.append(os.path.join(subdir, x))
+       for fastq in  files:
+           if fastq.endswith('.fastq.gz'):
+               fastq_files.append(os.path.join(subdir, fastq))
+   
    fastq_files.sort()
    merge_files(destination_dir,fastq_files)
 
