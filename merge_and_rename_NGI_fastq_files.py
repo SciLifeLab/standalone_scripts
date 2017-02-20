@@ -1,7 +1,7 @@
 #!/usr/bin/env/python
 # Merges all fastq_files from each samples into one file. 
 # ARGV 1 Base directory with files to be merged
-# ARGV 2 Destionation dir of the merged output files
+# ARGV 2 Destination dir of the merged output files
 
 import re
 import os
@@ -10,6 +10,17 @@ import shutil
 def merge_files(dest_dir, fastq_files):
     #Match NGI sample number from flowcell
     sample_pattern=re.compile("^(.+)_S[0-9]+_.+_R([1-2])_")
+    #Remove files that already have the right name (i.e have been merged already)
+    matches=[]
+    for fastq in fastq_files:
+        try:
+            match=sample_pattern.search(fastq).group(1)
+            if match:
+                matches.append(fastq)
+        except AttributeError: 
+            continue
+    fastq_files=matches
+    
     while fastq_files:
         tomerge=[]
         try:
@@ -26,7 +37,7 @@ def merge_files(dest_dir, fastq_files):
                 tomerge.append(fq)
         for fq in tomerge:
             fastq_files.remove(fq)
-        #Sing under Pname, i.e P001_001_R1.fastq.gz
+        #Save under Pname, i.e P001_001_R1.fastq.gz
         outfile=os.path.join(dest_dir, "{}_R{}.fastq.gz".format(sample_name, read_nb))
         with open(outfile, 'wb') as wfp:
             for fn in tomerge:
