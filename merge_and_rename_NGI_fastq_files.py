@@ -20,6 +20,13 @@ def merge_files(dest_dir, fastq_files):
         except AttributeError: 
             continue
     fastq_files=matches
+   
+    ## Sort on basename to avoid collison
+    basenames=[]
+    for sample in matches:
+        basenames.append(os.path.basename(sample))
+    basenames.sort()
+    fastq_files=[x for (y,x) in sorted(zip(basenames,fastq_files))]
     
     while fastq_files:
         tomerge=[]
@@ -55,7 +62,6 @@ def main():
            if fastq.endswith('.fastq.gz'):
                fastq_files.append(os.path.join(subdir, fastq))
    
-   fastq_files.sort()
    merge_files(destination_dir,fastq_files)
 
 if __name__ == "__main__":
