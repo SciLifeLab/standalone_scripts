@@ -74,6 +74,14 @@ Takes in a SampleSheet.csv and generates a new one with swapped or reverse compl
 * click
 * Flowcell_Parser: SampleSheetParser
 
+### merge_and_rename_NGI_fastq_files.py
+ Merges all fastq_files from a sample into one file.
+```
+merge_and_rename_NGI_fastq_files.py path/to/dir/with/inputfiles/ path/to/output/directory
+``` 
+
+
+
 ### project_status_extended.py
 Collects information about specified project from the filesystem of irma. 
 Without any arguments prints statistics for each sample, such as:
