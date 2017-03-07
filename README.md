@@ -141,7 +141,6 @@ Returns a summary of quota usage in Uppmax
 
 ### Samplesheet_converter_v1.0.py
 For the purpose of converting Illumina samplesheet that contains Chromium 10X indexes for demultiplexing. Headers and lines with ordinary indexes will be passed without any change. Lines with Chromium 10X indexes will be expanded into 4 lines, with 1 index in each line, and suffix 'Sx' will be added at the end of sample names.
-For details refer to https://github.com/chuan-wang/Samplesheet_converter
 #### Usage
 `python main.py -i <inputfile> -o <outputfile> -x <indexlibrary>`
 
