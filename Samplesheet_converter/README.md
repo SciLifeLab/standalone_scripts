@@ -1,6 +1,6 @@
 # Samplesheet_converter
-### v1.0
-### Written by Chuan Wang (chuan-wang@github), 2017-03-06
+### v1.1
+### Written by Chuan Wang (chuan-wang@github), 2017-03-08
 #### These scripts are for the purpose of converting Illumina samplesheet that contains Chromium 10X indexes for demultiplexing.
 #### Headers and lines with ordinary indexes will be passed without any change. Lines with Chromium 10X indexes will be expanded into 4 lines, with 1 index in each line, and suffix 'Sx' will be added at the end of sample names.
 ### Example:
