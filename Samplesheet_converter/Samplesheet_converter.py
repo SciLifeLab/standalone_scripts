@@ -32,13 +32,14 @@
 # 1,Sample_101_S4,101_S4,HGWT5ALXX,1:1,AACCGTAA,,Project_001,
 # ------------------------------------------------------------------------------------------------------
 
-# Samplesheet_convert_v1.0
-# Written by Chuan Wang (chuan-wang@github), 2017-03-06
+# Samplesheet_convert_v1.1
+# Written by Chuan Wang (chuan-wang@github), 2017-03-08
 
 #!/usr/bin/python
 
-import sys, getopt
+import sys
 import csv
+import argparse
 
 # Read index library
 def read_index_library(indexlibrary):
@@ -53,28 +54,38 @@ def modify_samplesheet(inputfile,indexlibrary):
     modified_samplesheet=[]
     with open(inputfile,mode='r') as org:
         samplesheet = csv.reader(org)
+        header_flag = True
         for row in samplesheet:
-            if len(row) != 9:
-                modified_samplesheet.append(row)
-            elif row[5] not in index_library:
-                modified_samplesheet.append(row)
-            else:
-                index_count = 1
-                org_row = row[:]
-                for index in index_library[row[5]]:
-                    row[1] += '_S'
-                    row[1] += str(index_count)
-                    row[2] += '_S'
-                    row[2] += str(index_count)
-                    row[5] = index
+            # Looking for the header '[Data]'
+            if header_flag:
+                if '[Data]' not in row:
                     modified_samplesheet.append(row)
-                    index_count += 1
-                    row = org_row[:]
+                else:
+                    # Jump to the row with column names, specify the variable index of 'index'
+                    row = next(samplesheet)
+                    index1 = row.index("index")
+                    modified_samplesheet.append(row)
+                    header_flag = False
+            # Working with the body part of samplesheet
+            else:
+                if row[index1] not in index_library:
+                    modified_samplesheet.append(row)
+                else:
+                    index_count = 1
+                    org_row = row[:]
+                    for index in index_library[row[index1]]:
+                        row[1] += '_S'
+                        row[1] += str(index_count)
+                        row[2] += '_S'
+                        row[2] += str(index_count)
+                        row[index1] = index
+                        modified_samplesheet.append(row)
+                        index_count += 1
+                        row = org_row[:]
     return modified_samplesheet
 
 # Write new samplesheet
-def write_new_samplesheet(inputfile,outputfile,indexlibrary):
-    modified_samplesheet=modify_samplesheet(inputfile,indexlibrary)
+def write_new_samplesheet(modified_samplesheet,outputfile):
     with open(outputfile,mode='w') as new_samplesheet:
         writer=csv.writer(new_samplesheet)
         for row in modified_samplesheet:
@@ -82,27 +93,18 @@ def write_new_samplesheet(inputfile,outputfile,indexlibrary):
 
 # Main
 def main(argv):
-    inputfile = ''
-    outputfile = ''
-    indexlibrary = ''
-    try:
-        opts, args = getopt.getopt(argv,"hi:o:x:",["ifile=","ofile=","indexlib="])
-    except getopt.GetoptError as err:
-        print(err)
-        usage()
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('python main.py -i <inputfile> -o <outputfile> -x <indexlibrary>')
-            sys.exit()
-        elif opt in ("-i", "--ifile"):
-            inputfile = arg
-        elif opt in ("-o", "--ofile"):
-            outputfile = arg
-            if outputfile == '':
-                outputfile = inputfile
-        elif opt in ("-x", "--indexlib"):
-            indexlibrary = arg
-    write_new_samplesheet(inputfile,outputfile,indexlibrary)
+    inputfile = args.inputfile
+    outputfile  = args.outputfile
+    indexlibrary = args.indexlibrary
+
+    modified_samplesheet = modify_samplesheet(inputfile,indexlibrary)
+    write_new_samplesheet(modified_samplesheet,outputfile)
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', dest="inputfile", help="Original samplesheet", type=str, required=True, default=False)
+    parser.add_argument('-o', dest="outputfile", help="Output modified samplesheet", type=str, required=True, default=False)
+    parser.add_argument('-x', dest="indexlibrary", help="Index library", type=str, required=True, default='Chromium_10X_indexes')
+    args = parser.parse_args()
+
+    main(args)
