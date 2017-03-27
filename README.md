@@ -2,6 +2,38 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
+### backup_zendesk_tickets.py
+Used to automatically back up tickets from zendesk
+
+#### Usage
+Example: `backup_zendesk_tickets.py --config-file ~/config_files/backup_zendesk_tickets.yaml --days 30`
+
+```
+Usage: backup_zendesk_tickets.py [OPTIONS]
+
+Options:
+  --config-file PATH  Path to the config file  [required]
+  --days INTEGER      Since how many days ago to backup tickets
+  --help              Show this message and exit.
+
+```
+
+#### Dependencies
+* zendesk
+* click
+* yaml
+
+#### Configuration
+Requires a config file:
+
+```
+url: https://ngisweden.zendesk.com
+username: mattias.ormestad@scilifelab.se
+token: <ask Mattias to get token>
+output_path: /Users/kate/Dropbox/dropbox_work/zendesk/output
+```
+
+
 ### backup_github.py
 Performs a backup of all the repositories in user's GitHub account.
 
@@ -34,7 +66,7 @@ Prints a list of analyzed samples with user_id and ngi_id
 get_sample_names.py P1234
 ```
 
-### index_fixer.py 
+### index_fixer.py
 Takes in a SampleSheet.csv and generates a new one with swapped or reverse complimented indexes.
 
 ###### Dependencies
@@ -42,8 +74,16 @@ Takes in a SampleSheet.csv and generates a new one with swapped or reverse compl
 * click
 * Flowcell_Parser: SampleSheetParser
 
+### merge_and_rename_NGI_fastq_files.py
+ Merges all fastq_files from a sample into one file.
+```
+merge_and_rename_NGI_fastq_files.py path/to/dir/with/inputfiles/ path/to/output/directory
+```
+
+
+
 ### project_status_extended.py
-Collects information about specified project from the filesystem of irma. 
+Collects information about specified project from the filesystem of irma.
 Without any arguments prints statistics for each sample, such as:
 * Number of reads
 * Coverage
@@ -98,12 +138,29 @@ Returns a summary of quota usage in Uppmax
 * couchdb
 * pprint
 
+
+### Samplesheet_converter.py
+For the purpose of converting Illumina samplesheet that contains Chromium 10X indexes for demultiplexing. Headers and lines with ordinary indexes will be passed without any change. Lines with Chromium 10X indexes will be expanded into 4 lines, with 1 index in each line, and suffix 'Sx' will be added at the end of sample names.
+#### Usage
+`python main.py -i <inputfile> -o <outputfile> -x <indexlibrary>`
+
+
 ### set_bioinforesponsible.py
-Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
+Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible.
 
 ###### Dependencies
 
 * Genologics: lims, config
+
+### use_undetermined.sh
+Creates softlinks of undetermined for specified flowcell and lane to be used in the analysis.
+To be run on irma.
+#### Usage
+Usage: `use_undetermined.sh  <flowcell> <lane> <sample>`  
+Example:  `use_undetermined.sh 160901_ST-E00214_0087_BH33GHALXX 1 P4601_273`
+#### Important
+After running the script, don't forget to (re-)**ORGANIZE FLOWCELL**.
+And then analysis can be started.
 
 ### ZenDesk Attachments Backup
 Takes a ZenDesk XML dump backup file and searches for attachment

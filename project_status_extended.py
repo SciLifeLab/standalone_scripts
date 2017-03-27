@@ -269,7 +269,7 @@ def get_samples_with_undetermined(data_dir, project):
 
 def get_samples_under_analysis(project):
     result = []
-    command = "jobinfo | grep piper | grep {}".format(project)
+    command = "jobinfo | grep piper_{}".format(project)
     try:
         p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output = p.communicate()
@@ -435,10 +435,10 @@ if __name__ == '__main__':
     parser.add_argument('--flowcells', help="List of flowcells where each sample has been sequenced", action="store_true")
 
     # todo
-    parser.add_argument('--high-duplicates', help="List of the samples with high percentage of duplicates (more than 15%)", action="store_true")
+    parser.add_argument('--high-duplicates', help="List of the samples with high percentage of duplicates (more than 15 percent)", action="store_true")
     parser.add_argument('--to-sequence', help="List of the samples that are not sequenced AT ALL on ANY flowcells or lanes. Not implemented yet", action="store_true")
     parser.add_argument('--qc-done', help="List of samples with completed QC. Not implemented yet", action="store_true")
-    parser.add_argument('--sample', '-s', help="Statistics for the specified sample. Not implemented yet", type=str)
+    parser.add_argument('--sample', '-s', type=str, help="Statistics for the specified sample. Not implemented yet")
 
     args = parser.parse_args()
     if not args.projects:
@@ -639,11 +639,48 @@ if __name__ == '__main__':
     elif args.sample:
         # todo sequenced on flowcells, organized on flowcells, undetermined, coverage, duplicates, mapping,
         # todo: under analysis, analysis failed
-        # stats from Francesco's script
+        # stats from Francesco's script - done
         # + sequenced on flowcells
-        # + organized on flowcells
+        # + organized on flowcells - done
+        # sequenced, but not organized - done
         # undetermined
-        print 'Not implemented yet'
+        result = find_results_from_francesco(uppmax_id, project)
+        sample = args.sample
+        sample_entry = result.get(sample, {})
+        if sample_entry:
+            if not args.skip_header:
+                print "sample_name\t#Reads\tRaw_coverage\t#Aligned_reads\t%Aligned_reads\tAlign_cov\tAutosomalCoverage\t%Dup\tMedianInsertSize"
+            print "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                    sample,
+                    sample_entry.get('#Reads'),
+                    sample_entry.get('RowCov'),
+                    sample_entry.get('#AlignedReads'),
+                    sample_entry.get('%AlignedReads'),
+                    sample_entry.get('AlignCov'),
+                    sample_entry.get('AutosomalCoverage'),
+                    sample_entry.get('%Dup'),
+                    sample_entry.get('MedianInsertSize')
+                )
+        else:
+            'No stats for sample {}'.format(sample)
+
+        sequenced = get_sequenced(project)
+        flowcells = sequenced.get(sample, {})
+        if flowcells:
+            print 'Sequenced on flowcells:'
+            for flowcell in sorted(flowcells):
+                print ' {}'.format(flowcell)
+        else:
+            print 'Nothing sequenced'
+
+        organized = get_organized(project)
+        flowcells = organized.get(sample, {})
+        if flowcells:
+            print 'Organized on flowcells:'
+            for flowcell in sorted(flowcells):
+                print ' {}'.format(flowcell)
+        else:
+            print 'Nothing organized'
     else:
         result = find_results_from_francesco(uppmax_id, project)
         if not args.skip_header:
