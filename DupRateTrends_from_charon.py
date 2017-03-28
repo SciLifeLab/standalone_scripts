@@ -19,6 +19,7 @@ def main(args):
     url   = args.url
     session = requests.Session()
     headers = {'X-Charon-API-token': token, 'content-type': 'application/json'}
+    duplications_per_date = {}
     for project in  session.get(url+'/api/v1/projects', headers=headers).json()['projects']:
         if project['sequencing_facility'] != 'NGI-S':
             continue
@@ -42,6 +43,10 @@ def main(args):
                 if oldest_run_date > datetime.date(year, month, day):
                     oldest_run_date = datetime.date(year, month, day)
             #at this point I have the older run date
+            if oldest_run_date not in duplications_per_date:
+                duplications_per_date[oldest_run_date] = []
+            duplications_per_date[oldest_run_date].append(sample['duplication_pc'])
+        if len(duplications_per_date) >0:
             import pdb
             pdb.set_trace()
 
