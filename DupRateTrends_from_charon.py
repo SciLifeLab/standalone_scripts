@@ -12,6 +12,10 @@ from datetime import  date
 
 
 
+#Static list of all NeoPrep projects. As NeoPrep is discontinued this is a stable list.
+NeoPrepProjects = ["P6971", "P6810", "P6651", "P6406", "P6254", "P6252", "P6152", "P5951", "P5514", "P5503", "P5476", "P5470", "P5370", "P5364", "P5301", "P5206", "P5201", "P5151", "P4903", "P4805", "P4753", "P4751", "P4729", "P4710", "P4651", "P4552", "P4454", "P4453", "P4401", "P4353", "P4206", "P4105", "P4056", "P4055", "P4004", "P3966", "P3719", "P3452", "P3451", "P2954", "P2806", "P2703", "P2477", "P2468", "P2456", "P2282", "P1888"]
+ToExludeProjectForReallyGoodReasons=["P4752"]
+
 def main(args):
     """Fetch all project and start to loop over them
     """
@@ -20,10 +24,15 @@ def main(args):
     session = requests.Session()
     headers = {'X-Charon-API-token': token, 'content-type': 'application/json'}
     duplications_per_date = {}
+    projects_per_date = {}
     for project in  session.get(url+'/api/v1/projects', headers=headers).json()['projects']:
         if project['sequencing_facility'] != 'NGI-S':
             continue
+        if "G.A16" in project['name'] or "G.A17" in project['name']:
+            continue
         pid = project['projectid'] #project id
+        if pid in NeoPrepProjects or pid in ToExludeProjectForReallyGoodReasons:
+            continue
         for sample in session.get(url+'/api/v1/samples/{}'.format(pid), headers=headers).json()['samples']:
             if sample.get('analysis_status') != 'ANALYZED':
                 continue
@@ -33,11 +42,12 @@ def main(args):
                 continue
             #now fetch sample runs
             sid = sample['sampleid']
+            dup_rate = sample['duplication_pc']
             oldest_run_date =  date.today() # no run can be older than today and being analysed
             for sample_run in session.get(url+ '/api/v1/seqruns/{}/{}'.format(pid, sid), headers=headers).json()['seqruns']:
                 rid = sample_run['seqrunid']
                 sequencing_start_date = rid.split("_")[0] #first 6 digit are the date
-                year  = int(sequencing_start_date[0:2])
+                year  = int("20" + sequencing_start_date[0:2])
                 month = int(sequencing_start_date[2:4])
                 day   = int(sequencing_start_date[4:6])
                 if oldest_run_date > datetime.date(year, month, day):
@@ -45,13 +55,24 @@ def main(args):
             #at this point I have the older run date
             if oldest_run_date not in duplications_per_date:
                 duplications_per_date[oldest_run_date] = []
-            duplications_per_date[oldest_run_date].append(sample['duplication_pc'])
-        if len(duplications_per_date) >0:
-            import pdb
-            pdb.set_trace()
-
-
-
+            duplications_per_date[oldest_run_date].append(dup_rate)
+            if oldest_run_date not in projects_per_date:
+                projects_per_date[oldest_run_date] = {}
+            if pid not in projects_per_date[oldest_run_date]:
+                projects_per_date[oldest_run_date][pid] = [1,dup_rate]
+            else:
+                projects_per_date[oldest_run_date][pid][0] += 1
+                projects_per_date[oldest_run_date][pid][1] += dup_rate
+        if len(duplications_per_date) > 0:
+            continue
+    for cur_date in sorted(duplications_per_date):
+        average = sum((duplications_per_date[cur_date]))/float(len(duplications_per_date[cur_date]))
+        sys.stdout.write("{} {} {} ".format(cur_date, average, len(duplications_per_date[cur_date])))
+        for pid in projects_per_date[cur_date]:
+            num_samples = projects_per_date[cur_date][pid][0]
+            average_dup_rate_proj =  projects_per_date[cur_date][pid][1]/float(projects_per_date[cur_date][pid][0])
+            sys.stdout.write("({},{},{}) ".format(pid,num_samples,average_dup_rate_proj))
+        sys.stdout.write("\n")
 
 
 if __name__ == '__main__':
