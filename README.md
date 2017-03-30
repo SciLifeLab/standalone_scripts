@@ -6,7 +6,7 @@ Repository to store standalone scripts that do not belong to any bigger package 
 ### DupRateTrends_from_charon.py
 Used to fetch stats from charon about duplication rate trends.
 
-### Usage
+#### Usage
 Example: `DupRateTrends_from_charon.py`
 
 ```
@@ -23,6 +23,30 @@ Options:
                         CHARON_BASE_URL if not provided
 ```
 
+
+### compute_production_stats.py
+This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organism have been sequenced. More in detail:
+         - reports total number of lanes sequenced per year
+         - reports total number of Human lanes and of Non-Human lanes sequenced (divided per instrument)
+         - other stats...
+
+##### Usage
+Example: `compute_production_stats.py --config couchdb.yaml`
+```
+Usage: compute_production_stats.py --config couchdb.yam
+
+Options:
+    --config CONFIG  configuration file
+```
+#### Configuration
+Requires a config file to access statusdb
+```
+statusdb:
+    url: path_to_tool
+    username: Username
+    password: *********
+    port: port_number
+```
 
 
 ### backup_zendesk_tickets.py
