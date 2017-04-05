@@ -2,6 +2,54 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
+
+### DupRateTrends_from_charon.py
+Used to fetch stats from charon about duplication rate trends.
+
+#### Usage
+Example: `DupRateTrends_from_charon.py`
+
+```
+Usage: DupRateTrends_from_charon.py
+
+Options:
+  -h, --help            show this help message and exit
+  --facility {stockholm,uppsala}
+                        facility sequencing the project (stockholm, uppsala)
+  -t TOKEN, --token TOKEN
+                        Charon API Token. Will be read from the env variable
+                        CHARON_API_TOKEN if not provided
+  -u URL, --url URL     Charon base url. Will be read from the env variable
+                        CHARON_BASE_URL if not provided
+```
+
+
+### compute_production_stats.py
+This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organism have been sequenced. More in detail:
+
+- reports total number of lanes sequenced per year
+- reports total number of Human lanes and of Non-Human lanes sequenced (divided per instrument)
+- other stats...
+
+##### Usage
+Example: `compute_production_stats.py --config couchdb.yaml`
+```
+Usage: compute_production_stats.py --config couchdb.yam
+
+Options:
+    --config CONFIG  configuration file
+```
+#### Configuration
+Requires a config file to access statusdb
+```
+statusdb:
+    url: path_to_tool
+    username: Username
+    password: *********
+    port: port_number
+```
+
+
 ### backup_zendesk_tickets.py
 Used to automatically back up tickets from zendesk
 
