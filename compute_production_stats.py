@@ -200,6 +200,8 @@ def instrument_usage():
     for row in project_summary:
         if "close_date" not in row.value:
             continue
+        if 'aborted' in row.value['details'] and row.value['details']['aborted']:
+            continue
         year_close_date = int(row.value["close_date"].split("-")[0])
         if year_close_date >= 2015:
             if 'sequencing_platform' not in  row.value['details']:
@@ -215,7 +217,6 @@ def instrument_usage():
             pattern = re.compile("^[0-9]+x[0-9]+")
             if not pattern.match(sequencing_setup):
                 continue
-           
             if instrument not in instruments:
                 instruments[instrument] = {'number':1, 'setup': {sequencing_setup : 1}}
             else:
@@ -224,6 +225,61 @@ def instrument_usage():
                     instruments[instrument]['setup'][sequencing_setup] = 1
                 else:
                     instruments[instrument]['setup'][sequencing_setup] += 1
+            project_name = row.value["project_name"]
+            projects[project_name] = {'sequencing_platform': instrument,
+                                        'sequencing_setup' :  sequencing_setup,
+                                        'samples_sequenced': set(),
+                                        'lanes': 0,
+                                        'sequencers' : set()
+                                        }
+    flowcell_db = couch["x_flowcells"]
+    project_sequenced = {}
+    for fc_doc in flowcell_db:
+        if 'RunInfo' not in flowcell_db[fc_doc]:
+            continue
+        instrument = flowcell_db[fc_doc]["RunInfo"]['Instrument']
+        if 'illumina' not in flowcell_db[fc_doc]:
+            print "Not illumina field found in doc"
+            continue
+        if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
+            print "Not Demultiplex_Stats field found in doc"
+            continue
+        if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
+            print "Not Barcode_lane_statistics field found in doc"
+            continue
+        projects_in_lanes = {}
+        for sample_lane in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
+            if sample_lane['Sample'] == 'unknown':
+                continue
+            if "Sample_Project"  in sample_lane:
+                project = sample_lane["Sample_Project"].strip()
+            elif "Project" in sample_lane:
+                project = sample_lane["Project"].strip()
+            else:
+                print "WRONG"
+            # now correct the project
+            if "." not in project:
+                project = project.replace("__", "_").replace("_", ".", 1)
+            if "." in project:
+                project_pieaces = project.split(".")
+                project = "{}.{}".format(project_pieaces[0].upper(), project_pieaces[1])
+
+            if project not in projects:
+                print "{} not found in projects".format(project)
+                continue
+            projects[project]['samples_sequenced'].update(sample_lane['Sample'])
+            lane = sample_lane['Lane']
+            if lane not in projects_in_lanes:
+                projects_in_lanes[lane] = {}
+            if project not in projects_in_lanes[lane] :
+                projects_in_lanes[lane][project] = 1
+            else:
+                projects_in_lanes[lane][project] += 1
+        for lane in projects_in_lanes:
+            for project in projects_in_lanes[lane]:
+                projects[project]['lanes'] += 1
+        projects[project]['sequencers'].update(instrument)
+
     import pdb
     pdb.set_trace()
 
