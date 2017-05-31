@@ -73,8 +73,7 @@ def parse_flowcell_db():
     projects = {}
     for row in project_summary:
         if "project_name" not in row.value:
-            import pdb
-            pdb.set_trace()
+            print "somehting is wrong here... I guess I am going to fail"
         if "reference_genome" in row.value:
             projects[row.value["project_name"]] = row.value["reference_genome"]
         else:
@@ -191,28 +190,72 @@ def parse_flowcell_db():
 
             
     
-
-
+def instrument_usage():
+    couch       = setupServer(CONFIG)
+    #fetch info about proejcts (reference type)
+    projectsDB = couch["projects"]
+    project_summary = projectsDB.view("project/summary")
+    projects = {}
+    instruments = {}
+    for row in project_summary:
+        if "close_date" not in row.value:
+            continue
+        year_close_date = int(row.value["close_date"].split("-")[0])
+        if year_close_date >= 2015:
+            if 'sequencing_platform' not in  row.value['details']:
+                continue
+            else:
+                instrument = row.value['details']['sequencing_platform']
+            if 'sequencing_setup' not in row.value['details']:
+                continue
+            else:
+                sequencing_setup = row.value['details']['sequencing_setup']
+            if sequencing_setup == "special" or  sequencing_setup == "Special":
+                continue
+            pattern = re.compile("^[0-9]+x[0-9]+")
+            if not pattern.match(sequencing_setup):
+                continue
+           
+            if instrument not in instruments:
+                instruments[instrument] = {'number':1, 'setup': {sequencing_setup : 1}}
+            else:
+                instruments[instrument]['number'] += 1
+                if sequencing_setup not in instruments[instrument]['setup']:
+                    instruments[instrument]['setup'][sequencing_setup] = 1
+                else:
+                    instruments[instrument]['setup'][sequencing_setup] += 1
+    import pdb
+    pdb.set_trace()
 
 
     
 def main(args):
     configuration_file = args.config
     load_yaml_config(configuration_file)
-    projects = parse_flowcell_db()
+    configuration_file = args.config
+    load_yaml_config(configuration_file)
+
+    if args.mode == 'production-stats':
+        projects = parse_flowcell_db()
+    
+    if args.mode == 'instrument-usage':
+        instrument_usage()
+    
+    
+
 
 
 
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organisms have been sequenced. More in detail:
-         - reports total number of lanes sequenced per year
-         - reports total number of Human lanes and of Non-Human lanes sequenced (divided per instrument)
-         - other stats...
+    parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organisms have been sequenced. It can be run in the following modes:
+         - production-stats: for each instrument type it prints number of FCs, number of lanes, etc. It then prints a summary of all stats
+         - instrument-usage: for each instrument type and year it prints different run set-ups and samples run with that set-up
         """)
-    
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('production-stats', 'instrument-usage'))
+
     args = parser.parse_args()
     main(args)
 
