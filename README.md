@@ -10,8 +10,9 @@ The following operations are supported:
 
  - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
  - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
-  - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
-  - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+ - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
 
 #### Usage
 Examples:

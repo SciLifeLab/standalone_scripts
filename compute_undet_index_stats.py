@@ -431,8 +431,49 @@ def fetch_undermined_stats():
 
 
 
-##indexes_file = args.indexes
-##INDEXES = Indexes(indexes_file)
+
+def fetch_pooled_projects(instrument_type):
+    status_db = setupServer(CONFIG)
+    flowcell_db = status_db["x_flowcells"]
+    counter = 0
+    projects_pooled = {}
+    for fc_doc in flowcell_db:
+        if 'RunInfo' not in flowcell_db[fc_doc]:
+            continue
+        FCid = flowcell_db[fc_doc]["RunInfo"]["Id"]
+        # first check that I have all necessary info to extract information
+        FC_type = get_FC_type(FCid)
+        #if a instrument type is specifed process only FCs run on that instrument
+        if instrument_type is not None:
+            if instrument_type != FC_type:
+                continue
+        if 'illumina' not in flowcell_db[fc_doc]:
+            print "Not illumina field found in doc"
+            continue
+        if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
+            print "Not Demultiplex_Stats field found in doc"
+            continue
+        if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
+            print "Not Barcode_lane_statistics field found in doc"
+            continue
+        demux_stats = flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']
+        for lane in ['1','2','3','4','5','6','7','8']:
+            samples_in_lane =  [entry['Sample'] for entry in demux_stats if entry['Lane'] == lane and not(entry['Sample'] == 'unknown' or entry['Sample'] == 'Undetermined') ]
+            if len(samples_in_lane) > 1:
+                #it means pooled
+                projects = set( entry['Project'] for entry in demux_stats if entry['Lane'] == lane and not(entry['Sample'] == 'unknown' or entry['Sample'] == 'Undetermined') )
+                samples_concat= ""
+                for sample in sorted(samples_in_lane):
+                    samples_concat += sample + " "
+                for project in projects:
+                    if project not in projects_pooled:
+                        projects_pooled[project] = set()
+                    projects_pooled[project].add(samples_concat)
+
+    for project in projects_pooled:
+        print project
+        for pool in projects_pooled[project]:
+            print "\t{}".format(pool)
 
 
 def main(args):
@@ -456,9 +497,11 @@ def main(args):
     if args.mode == 'single_sample_lanes':
         check_single_sample_lanes("HiSeqX")
 
+    if args.mode == 'fetch_pooled_projects':
+        fetch_pooled_projects(args.instrument_type)
 
-    #fetch_undermined_stats(configuration_file, INDEXES)
-    #check_index(configuration_file, INDEXES, "CTTGTAAT")
+
+
 
 
 
@@ -477,7 +520,7 @@ if __name__ == '__main__':
     parser.add_argument('--min_occurences', help="minimum number of occurences in undet in workset_undet mode", type=int, default=0)
    
     
-    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet', 'single_sample_lanes', 'workset_undet'))
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet', 'single_sample_lanes', 'workset_undet', 'fetch_pooled_projects'))
     
     
     parser.add_argument('--index', help="a specifc index (e.g., CTTGTAAT) to be searched across lanes and FCs", type=str)
