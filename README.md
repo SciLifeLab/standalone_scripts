@@ -91,6 +91,7 @@ Options:
 * zendesk
 * click
 * yaml
+* requests
 
 #### Configuration
 Requires a config file:
