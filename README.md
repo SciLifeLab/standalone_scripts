@@ -25,7 +25,7 @@ Examples:
 
 
 ### DupRateTrends_from_charon.py
-Used to fetch stats from charon about duplication rate trends.
+Used to fetch stats from charon about duplication rate trends and number of sequenced human genomes
 
 #### Usage
 Example: `DupRateTrends_from_charon.py`
@@ -35,8 +35,6 @@ Usage: DupRateTrends_from_charon.py
 
 Options:
   -h, --help            show this help message and exit
-  --facility {stockholm,uppsala}
-                        facility sequencing the project (stockholm, uppsala)
   -t TOKEN, --token TOKEN
                         Charon API Token. Will be read from the env variable
                         CHARON_API_TOKEN if not provided
