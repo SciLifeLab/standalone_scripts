@@ -3,8 +3,30 @@
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
 
+### compute_undet_index_stats.py
+used to fetch stats about undermined indexes.
+This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
+The following operations are supported:
+
+ - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+ - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
+ - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+ - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
+
+#### Usage
+Examples:
+ 
+  - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+ - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
+    - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
+
+
+
+
 ### DupRateTrends_from_charon.py
-Used to fetch stats from charon about duplication rate trends.
+Used to fetch stats from charon about duplication rate trends and number of sequenced human genomes
 
 #### Usage
 Example: `DupRateTrends_from_charon.py`
@@ -14,8 +36,6 @@ Usage: DupRateTrends_from_charon.py
 
 Options:
   -h, --help            show this help message and exit
-  --facility {stockholm,uppsala}
-                        facility sequencing the project (stockholm, uppsala)
   -t TOKEN, --token TOKEN
                         Charon API Token. Will be read from the env variable
                         CHARON_API_TOKEN if not provided

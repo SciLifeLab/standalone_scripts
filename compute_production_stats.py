@@ -13,6 +13,7 @@ import distance
 import operator
 import time
 from datetime import  date
+from datetime import  datetime
 
 CONFIG = {}
 
@@ -73,8 +74,7 @@ def parse_flowcell_db():
     projects = {}
     for row in project_summary:
         if "project_name" not in row.value:
-            import pdb
-            pdb.set_trace()
+            print "somehting is wrong here... I guess I am going to fail"
         if "reference_genome" in row.value:
             projects[row.value["project_name"]] = row.value["reference_genome"]
         else:
@@ -191,7 +191,222 @@ def parse_flowcell_db():
 
             
     
+def instrument_usage():
+    couch       = setupServer(CONFIG)
+    #fetch info about proejcts (reference type)
+    projectsDB = couch["projects"]
+    project_summary = projectsDB.view("project/summary")
+    projects = {}
+    instruments = {}
+    for row in project_summary:
+        if "close_date" not in row.value:
+            continue
+        if 'aborted' in row.value['details'] and row.value['details']['aborted']:
+            continue
+        year_close_date = int(row.value["close_date"].split("-")[0])
+        if year_close_date >= 2013:
+            if 'sequencing_platform' not in  row.value['details']:
+                continue
+            else:
+                instrument = row.value['details']['sequencing_platform']
+            if 'sequencing_setup' not in row.value['details']:
+                continue
+            else:
+                sequencing_setup = row.value['details']['sequencing_setup']
+            if sequencing_setup == "special" or  sequencing_setup == "Special":
+                continue
+            pattern = re.compile("^[0-9]+x[0-9]+")
+            if not pattern.match(sequencing_setup):
+                continue
+            if instrument not in instruments:
+                instruments[instrument] = {'number':1, 'setup': {sequencing_setup : 1}}
+            else:
+                instruments[instrument]['number'] += 1
+                if sequencing_setup not in instruments[instrument]['setup']:
+                    instruments[instrument]['setup'][sequencing_setup] = 1
+                else:
+                    instruments[instrument]['setup'][sequencing_setup] += 1
+            project_name = row.value["project_name"]
+            projects[project_name] = {'sequencing_platform': instrument,
+                                        'sequencing_setup' :  sequencing_setup,
+                                        'samples_sequenced': set(),
+                                        'lanes': 0,
+                                        'sequencers' : set()
+                                        }
+    flowcell_db = couch["x_flowcells"]
+    project_sequenced = {}
+    FC = 0
+    for fc_doc in flowcell_db:
+        if FC > 50:
+            continue
+        if 'RunInfo' not in flowcell_db[fc_doc]:
+            continue
+        instrument = flowcell_db[fc_doc]["RunInfo"]['Instrument']
+        if 'illumina' not in flowcell_db[fc_doc]:
+            print "Not illumina field found in doc"
+            continue
+        if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
+            print "Not Demultiplex_Stats field found in doc"
+            continue
+        if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
+            print "Not Barcode_lane_statistics field found in doc"
+            continue
+        projects_in_lanes = {}
+        for sample_lane in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
+            if sample_lane['Sample'] == 'unknown' :
+                continue
+            if "Sample_Project"  in sample_lane:
+                project = sample_lane["Sample_Project"].strip()
+            elif "Project" in sample_lane:
+                project = sample_lane["Project"].strip()
+            else:
+                print "WRONG"
+            # now correct the project
+            if "." not in project:
+                project = project.replace("__", "_").replace("_", ".", 1)
+            if "." in project:
+                project_pieaces = project.split(".")
+                project = "{}.{}".format(project_pieaces[0].upper(), project_pieaces[1])
+            
+            if project == "default":
+                continue
+            elif project not in projects:
+                continue
+            projects[project]['samples_sequenced'].update([sample_lane['Sample']])
+            projects[project]['sequencers'].update([instrument])
+            lane = sample_lane['Lane']
+            if lane not in projects_in_lanes:
+                projects_in_lanes[lane] = {}
+            if project not in projects_in_lanes[lane] :
+                projects_in_lanes[lane][project] = 1
+            else:
+                projects_in_lanes[lane][project] += 1
+        year  = int("20" + flowcell_db[fc_doc]['RunInfo']['Date'][0:2])
+        month =  int(flowcell_db[fc_doc]['RunInfo']['Date'][2:4])
+        day   = int(flowcell_db[fc_doc]['RunInfo']['Date'][4:6])
+        date_seq = datetime(year , month , day )
+        for lane in projects_in_lanes:
+            for project in projects_in_lanes[lane]:
+                projects[project]['lanes'] += 1
+                if 'date' in projects[project]:
+                    if projects[project]['date'] < date_seq:
+                        projects[project]['date'] = date_seq
+                else:
+                    projects[project]['date'] = date_seq
+        #FC += 1
+    flowcell_db = couch["flowcells"]
+    for fc_doc in flowcell_db:
+        if FC > 100:
+            continue
+        if 'RunInfo' not in flowcell_db[fc_doc]:
+            continue
+        if 'Date' not in flowcell_db[fc_doc]['RunInfo']:
+            continue
+        year = int(flowcell_db[fc_doc]['RunInfo']['Date'][0:2])
+        if year < 13:
+            print "run {} too old".format(flowcell_db[fc_doc]['RunInfo']['Id'])
+            continue
+        if 'Instrument' not in flowcell_db[fc_doc]["RunInfo"]:
+            import pdb
+            pdb.set_trace()
 
+        instrument = flowcell_db[fc_doc]["RunInfo"]['Instrument']
+        if 'illumina' not in flowcell_db[fc_doc]:
+            print "Not illumina field found in doc {}".format(fc_doc)
+            continue
+        if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
+            print "Not Demultiplex_Stats field found in doc {}".format(fc_doc)
+            import pdb
+            pdb.set_trace()
+            continue
+        if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
+            print "Not Barcode_lane_statistics field found in doc {}".format(fc_doc)
+            continue
+        
+        projects_in_lanes = {}
+        for sample_lane in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
+            if sample_lane['Sample ID'] == 'unknown' :
+                continue
+            if "Description"  in sample_lane:
+                project = sample_lane["Description"].strip()
+            elif "Project" in sample_lane:
+                project = sample_lane["Project"].strip()
+            else:
+                print "WRONG"
+            # now correct the project
+            if "." not in project:
+                project = project.replace("__", "_").replace("_", ".", 1)
+            if "." in project:
+                project_pieaces = project.split(".")
+                project = "{}.{}".format(project_pieaces[0].upper(), project_pieaces[1])
+
+            if project == "default":
+                continue
+            elif project not in projects:
+                continue
+            elif len(projects[project]['samples_sequenced']) > 0:
+                continue #it means I have already saw this i x_flowcell db
+            projects[project]['samples_sequenced'].update([sample_lane['Sample ID']])
+            projects[project]['sequencers'].update([instrument])
+            lane = sample_lane['Lane']
+            if lane not in projects_in_lanes:
+                projects_in_lanes[lane] = {}
+            if project not in projects_in_lanes[lane] :
+                projects_in_lanes[lane][project] = 1
+            else:
+                projects_in_lanes[lane][project] += 1
+        year  = int("20" + flowcell_db[fc_doc]['RunInfo']['Date'][0:2])
+        month =  int(flowcell_db[fc_doc]['RunInfo']['Date'][2:4])
+        day   = int(flowcell_db[fc_doc]['RunInfo']['Date'][4:6])
+        date_seq = datetime(year , month , day )
+        for lane in projects_in_lanes:
+            for project in projects_in_lanes[lane]:
+                projects[project]['lanes'] += 1
+                if 'date' in projects[project]:
+                    if projects[project]['date'] < date_seq:
+                        projects[project]['date'] = date_seq
+                else:
+                    projects[project]['date'] = date_seq
+        #FC += 1
+
+
+    
+    years = [2013, 2014, 2015, 2016, 2017]
+    sequencers_year_setup = {}
+    sequencers_setup = set([ projects[project]['sequencing_setup'] for project in projects if projects[project]['lanes'] > 0])
+    for project in projects:
+        if len(projects[project]['sequencers']) == 0:
+            continue
+        year = projects[project]['date'].year
+        samples = len(projects[project]['samples_sequenced'])
+        sequencers = projects[project]['sequencers']
+        sequencing_setup = projects[project]['sequencing_setup']
+        for sequencer in sequencers:
+            if sequencer not in sequencers_year_setup:
+                sequencers_year_setup[sequencer] = {}
+            if year not in sequencers_year_setup[sequencer]:
+                sequencers_year_setup[sequencer][year] = {}
+            if sequencing_setup not in sequencers_year_setup[sequencer][year]:
+                sequencers_year_setup[sequencer][year][sequencing_setup] = samples
+            else:
+                sequencers_year_setup[sequencer][year][sequencing_setup] += samples
+
+
+    for sequencer in sorted(sequencers_year_setup):
+        sys.stdout.write('{}\n'.format(sequencer))
+        for setup in sorted(sequencers_setup):
+            sys.stdout.write('{},'.format(setup))
+            for year in sorted(years):
+                if year not in sequencers_year_setup[sequencer]:
+                    #this sequencer, this year had no runs
+                    sys.stdout.write('0,')
+                else:
+                     if setup not in sequencers_year_setup[sequencer][year]:
+                        #it means that this sequencer this year has not such setup
+                        sys.stdout.write('0,')
+                     else:
+                        sys.stdout.write('{},'.format(sequencers_year_setup[sequencer][year][setup]))
+            sys.stdout.write('\n')
 
 
 
@@ -199,20 +414,30 @@ def parse_flowcell_db():
 def main(args):
     configuration_file = args.config
     load_yaml_config(configuration_file)
-    projects = parse_flowcell_db()
+    configuration_file = args.config
+    load_yaml_config(configuration_file)
+
+    if args.mode == 'production-stats':
+        projects = parse_flowcell_db()
+    
+    if args.mode == 'instrument-usage':
+        instrument_usage()
+    
+    
+
 
 
 
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organisms have been sequenced. More in detail:
-         - reports total number of lanes sequenced per year
-         - reports total number of Human lanes and of Non-Human lanes sequenced (divided per instrument)
-         - other stats...
+    parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organisms have been sequenced. It can be run in the following modes:
+         - production-stats: for each instrument type it prints number of FCs, number of lanes, etc. It then prints a summary of all stats
+         - instrument-usage: for each instrument type and year it prints different run set-ups and samples run with that set-up
         """)
-    
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('production-stats', 'instrument-usage'))
+
     args = parser.parse_args()
     main(args)
 
