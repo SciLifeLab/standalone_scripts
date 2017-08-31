@@ -235,10 +235,8 @@ def instrument_usage():
                                         }
     flowcell_db = couch["x_flowcells"]
     project_sequenced = {}
-    FC = 0
+    instrument_runs_per_week = {}
     for fc_doc in flowcell_db:
-        if FC > 50:
-            continue
         if 'RunInfo' not in flowcell_db[fc_doc]:
             continue
         instrument = flowcell_db[fc_doc]["RunInfo"]['Instrument']
@@ -285,6 +283,13 @@ def instrument_usage():
         month =  int(flowcell_db[fc_doc]['RunInfo']['Date'][2:4])
         day   = int(flowcell_db[fc_doc]['RunInfo']['Date'][4:6])
         date_seq = datetime(year , month , day )
+        if instrument not in instrument_runs_per_week:
+            instrument_runs_per_week[instrument] = {}
+        date_entry = "{}_{}".format(year, month) #date_seq.isocalendar()[1]) # year plus week number
+        if date_entry not in instrument_runs_per_week[instrument]:
+            instrument_runs_per_week[instrument][date_entry] = 1
+        else:
+            instrument_runs_per_week[instrument][date_entry] += 1
         for lane in projects_in_lanes:
             for project in projects_in_lanes[lane]:
                 projects[project]['lanes'] += 1
@@ -293,11 +298,8 @@ def instrument_usage():
                         projects[project]['date'] = date_seq
                 else:
                     projects[project]['date'] = date_seq
-        #FC += 1
     flowcell_db = couch["flowcells"]
     for fc_doc in flowcell_db:
-        if FC > 100:
-            continue
         if 'RunInfo' not in flowcell_db[fc_doc]:
             continue
         if 'Date' not in flowcell_db[fc_doc]['RunInfo']:
@@ -307,8 +309,8 @@ def instrument_usage():
             print "run {} too old".format(flowcell_db[fc_doc]['RunInfo']['Id'])
             continue
         if 'Instrument' not in flowcell_db[fc_doc]["RunInfo"]:
-            import pdb
-            pdb.set_trace()
+            print "ERROR: Instrument not found in RunInfo: how is this possible?"
+            exit
 
         instrument = flowcell_db[fc_doc]["RunInfo"]['Instrument']
         if 'illumina' not in flowcell_db[fc_doc]:
@@ -316,8 +318,6 @@ def instrument_usage():
             continue
         if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
             print "Not Demultiplex_Stats field found in doc {}".format(fc_doc)
-            import pdb
-            pdb.set_trace()
             continue
         if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
             print "Not Barcode_lane_statistics field found in doc {}".format(fc_doc)
@@ -359,6 +359,14 @@ def instrument_usage():
         month =  int(flowcell_db[fc_doc]['RunInfo']['Date'][2:4])
         day   = int(flowcell_db[fc_doc]['RunInfo']['Date'][4:6])
         date_seq = datetime(year , month , day )
+        if instrument not in instrument_runs_per_week:
+            instrument_runs_per_week[instrument] = {}
+        date_entry = "{}_{}".format(year, month) #date_seq.isocalendar()[1]) # year plus week number
+        if date_entry not in instrument_runs_per_week[instrument]:
+            instrument_runs_per_week[instrument][date_entry] = 1
+        else:
+            instrument_runs_per_week[instrument][date_entry] += 1
+
         for lane in projects_in_lanes:
             for project in projects_in_lanes[lane]:
                 projects[project]['lanes'] += 1
@@ -367,9 +375,23 @@ def instrument_usage():
                         projects[project]['date'] = date_seq
                 else:
                     projects[project]['date'] = date_seq
-        #FC += 1
 
-
+    years = [2013, 2014, 2015, 2016, 2017]
+    sys.stdout.write('date,')
+    for instrument in sorted(instrument_runs_per_week):
+        sys.stdout.write('{},'.format(instrument))
+    sys.stdout.write('\n')
+    for year in years:
+        for week in xrange(1,13):
+            date_to_search = "{}_{}".format(year, week)
+            sys.stdout.write('{},'.format(date_to_search))
+            for instrument in sorted(instrument_runs_per_week):
+                if date_to_search in instrument_runs_per_week[instrument]:
+                    sys.stdout.write('{},'.format(instrument_runs_per_week[instrument][date_to_search]))
+                else:
+                    sys.stdout.write('0,')
+            sys.stdout.write('\n')
+    sys.stdout.write('\n')
     
     years = [2013, 2014, 2015, 2016, 2017]
     sequencers_year_setup = {}
@@ -409,6 +431,58 @@ def instrument_usage():
             sys.stdout.write('\n')
 
 
+def year_bp_production():
+    couch       = setupServer(CONFIG)
+    db_names = ['flowcells', 'x_flowcells']
+    flowcells   = {}
+    production_stats = {}
+    for db_name in db_names:
+        flowcell_db = couch[db_name]
+        for fc_doc in flowcell_db:
+            if 'RunInfo' not in flowcell_db[fc_doc]:
+                continue
+            if 'Flowcell' not in flowcell_db[fc_doc]['RunInfo']:
+                continue 
+            fc_name = flowcell_db[fc_doc]['RunInfo']['Flowcell']
+            if fc_name in flowcells:
+                continue
+            else:
+                flowcells[fc_name] = 0
+            year  = int(flowcell_db[fc_doc]['RunInfo']['Date'][0:2])
+            month = int(flowcell_db[fc_doc]['RunInfo']['Date'][2:4])
+            if year < 12:
+                continue
+            yield_MBases = 0
+            if 'illumina' not in flowcell_db[fc_doc]:
+                continue
+            if 'Demultiplex_Stats' not in flowcell_db[fc_doc]['illumina']:
+                continue
+            if db_name == "x_flowcells":
+                if 'Flowcell_stats' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
+                    continue
+                if 'Yield (MBases)' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Flowcell_stats']:
+                    continue
+                yield_MBases = int(flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Flowcell_stats']['Yield (MBases)'].replace(',', ''))
+            else:
+                if 'Barcode_lane_statistics' not in  flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
+                    continue
+                for sample  in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
+                    yield_MBases +=  int(sample['Yield (Mbases)'].replace(',', ''))
+
+            if year not in production_stats:
+                production_stats[year] = month_production = [0]*12
+            production_stats[year][month-1] += yield_MBases
+    sys.stdout.write(',')
+    for year in sorted(production_stats):
+        sys.stdout.write('{},'.format(year))
+    sys.stdout.write('\n')
+    for month in range(0,12,1):
+        sys.stdout.write('{},'.format(month+1))
+        for year in sorted(production_stats):
+            sys.stdout.write('{},'.format(production_stats[year][month]))
+        sys.stdout.write('\n')
+    sys.stdout.write('\n')
+
 
     
 def main(args):
@@ -422,7 +496,10 @@ def main(args):
     
     if args.mode == 'instrument-usage':
         instrument_usage()
-    
+
+    if args.mode == 'year-stats':
+        year_bp_production()
+
     
 
 
@@ -434,9 +511,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("""This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organisms have been sequenced. It can be run in the following modes:
          - production-stats: for each instrument type it prints number of FCs, number of lanes, etc. It then prints a summary of all stats
          - instrument-usage: for each instrument type and year it prints different run set-ups and samples run with that set-up
+         - year-stats: cumulative data production by month
         """)
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
-    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('production-stats', 'instrument-usage'))
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('production-stats', 'instrument-usage', 'year-stats'))
 
     args = parser.parse_args()
     main(args)

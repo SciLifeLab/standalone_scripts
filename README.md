@@ -23,36 +23,51 @@ Examples:
     - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
 
 
+### compute_undet_index_stats.py
+used to fetch stats about undermined indexes.
+This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
+The following operations are supported:
 
-
-### DupRateTrends_from_charon.py
-Used to fetch stats from charon about duplication rate trends and number of sequenced human genomes
+ - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+ - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
+ - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+ - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
 
 #### Usage
-Example: `DupRateTrends_from_charon.py`
+Examples:
+ 
+  - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+ - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
+    - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
 
-```
-Usage: DupRateTrends_from_charon.py
 
-Options:
-  -h, --help            show this help message and exit
-  -t TOKEN, --token TOKEN
-                        Charon API Token. Will be read from the env variable
-                        CHARON_API_TOKEN if not provided
-  -u URL, --url URL     Charon base url. Will be read from the env variable
-                        CHARON_BASE_URL if not provided
-```
+
+
+
+### runs_per_week.sh
+Run on Irma prints a three columns:
+ 
+  - first column is the week number
+  - second column number of HiSeqX runs in that week
+  - seconf column number of HiSeq2500 runs in that week
+
+#### Usage
+Examp `runs_per_week.sh `
+
 
 
 ### compute_production_stats.py
-This scripts queries statusdb x_flowcelldb and project database and fetches informations about what organism have been sequenced. More in detail:
+This scripts queries statusdb x_flowcelldb and project database and fetches informations useful to plot trands and aggregated data. It can be run in three modalities:
 
-- reports total number of lanes sequenced per year
-- reports total number of Human lanes and of Non-Human lanes sequenced (divided per instrument)
-- other stats...
+         - production-stats: for each instrument type it prints number of FCs, number of lanes, etc. It then prints a summary of all stats
+         - instrument-usage: for each instrument type and year it prints different run set-ups and samples run with that set-up
+         - year-stats: cumulative data production by month
+
 
 ##### Usage
-Example: `compute_production_stats.py --config couchdb.yaml`
+Example: `compute_production_stats.py --config couchdb.yaml --mode year-stats`
 ```
 Usage: compute_production_stats.py --config couchdb.yam
 
