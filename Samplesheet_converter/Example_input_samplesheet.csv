@@ -1,0 +1,24 @@
+[Header]
+Investigator Name,Chuan Wang
+Date,None
+Experiment Name,Project_001
+[Reads]
+151
+151
+[Data]
+Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
+1,Sample_101,101,HGWT5ALXX,1:1,SI-GA-A1,,Project_001,
+1,Sample_102,102,HGWT5ALXX,1:1,SI-GA-B1,,Project_001,
+2,Sample_103,103,HGWT5ALXX,2:1,SI-GA-C1,,Project_001,
+2,Sample_104,104,HGWT5ALXX,2:1,SI-GA-D1,,Project_001,
+3,Sample_105,105,HGWT5ALXX,3:1,SI-GA-E1,,Project_001,
+3,Sample_106,106,HGWT5ALXX,3:1,SI-GA-F1,,Project_001,
+4,Sample_107,107,HGWT5ALXX,4:1,SI-GA-G1,,Project_001,
+4,Sample_108,108,HGWT5ALXX,4:1,SI-GA-H1,,Project_001,
+5,Sample_109,109,HGWT5ALXX,5:1,SI-GA-A2,,Project_001,
+5,Sample_110,110,HGWT5ALXX,5:1,SI-GA-B2,,Project_001,
+6,Sample_111,111,HGWT5ALXX,6:1,SI-GA-C2,,Project_001,
+6,Sample_112,112,HGWT5ALXX,6:1,SI-GA-D2,,Project_001,
+7,Sample_113,113,HGWT5ALXX,7:1,SI-GA-E2,,Project_001,
+7,Sample_114,114,HGWT5ALXX,7:1,SI-GA-F2,,Project_001,
+8,Sample_115,115,HGWT5ALXX,8:1,SI-GA-G2,,Project_001,

@@ -2,6 +2,89 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
+
+### compute_undet_index_stats.py
+used to fetch stats about undermined indexes.
+This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
+The following operations are supported:
+
+ - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+ - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
+ - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+ - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
+
+#### Usage
+Examples:
+ 
+  - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+ - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
+    - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
+
+
+### compute_undet_index_stats.py
+used to fetch stats about undermined indexes.
+This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
+The following operations are supported:
+
+ - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+ - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
+ - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+ - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
+
+#### Usage
+Examples:
+ 
+  - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+ - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
+    - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
+
+
+
+
+
+### runs_per_week.sh
+Run on Irma prints a three columns:
+ 
+  - first column is the week number
+  - second column number of HiSeqX runs in that week
+  - seconf column number of HiSeq2500 runs in that week
+
+#### Usage
+Examp `runs_per_week.sh `
+
+
+
+### compute_production_stats.py
+This scripts queries statusdb x_flowcelldb and project database and fetches informations useful to plot trands and aggregated data. It can be run in three modalities:
+
+         - production-stats: for each instrument type it prints number of FCs, number of lanes, etc. It then prints a summary of all stats
+         - instrument-usage: for each instrument type and year it prints different run set-ups and samples run with that set-up
+         - year-stats: cumulative data production by month
+
+
+##### Usage
+Example: `compute_production_stats.py --config couchdb.yaml --mode year-stats`
+```
+Usage: compute_production_stats.py --config couchdb.yam
+
+Options:
+    --config CONFIG  configuration file
+```
+#### Configuration
+Requires a config file to access statusdb
+```
+statusdb:
+    url: path_to_tool
+    username: Username
+    password: *********
+    port: port_number
+```
+
+
 ### backup_zendesk_tickets.py
 Used to automatically back up tickets from zendesk
 
@@ -15,13 +98,14 @@ Options:
   --config-file PATH  Path to the config file  [required]
   --days INTEGER      Since how many days ago to backup tickets
   --help              Show this message and exit.
-  
+
 ```
-  
+
 #### Dependencies
 * zendesk
-* click 
+* click
 * yaml
+* requests
 
 #### Configuration
 Requires a config file:
@@ -66,7 +150,7 @@ Prints a list of analyzed samples with user_id and ngi_id
 get_sample_names.py P1234
 ```
 
-### index_fixer.py 
+### index_fixer.py
 Takes in a SampleSheet.csv and generates a new one with swapped or reverse complimented indexes.
 
 ###### Dependencies
@@ -78,12 +162,12 @@ Takes in a SampleSheet.csv and generates a new one with swapped or reverse compl
  Merges all fastq_files from a sample into one file.
 ```
 merge_and_rename_NGI_fastq_files.py path/to/dir/with/inputfiles/ path/to/output/directory
-``` 
+```
 
 
 
 ### project_status_extended.py
-Collects information about specified project from the filesystem of irma. 
+Collects information about specified project from the filesystem of irma.
 Without any arguments prints statistics for each sample, such as:
 * Number of reads
 * Coverage
@@ -138,21 +222,28 @@ Returns a summary of quota usage in Uppmax
 * couchdb
 * pprint
 
+
+### Samplesheet_converter.py
+For the purpose of converting Illumina samplesheet that contains Chromium 10X indexes for demultiplexing. Headers and lines with ordinary indexes will be passed without any change. Lines with Chromium 10X indexes will be expanded into 4 lines, with 1 index in each line, and suffix 'Sx' will be added at the end of sample names.
+#### Usage
+`python main.py -i <inputfile> -o <outputfile> -x <indexlibrary>`
+
+
 ### set_bioinforesponsible.py
-Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible. 
+Calls up the genologics LIMS directly in order to more quickly set a bioinformatics responsible.
 
 ###### Dependencies
 
 * Genologics: lims, config
 
 ### use_undetermined.sh
-Creates softlinks of undetermined for specified flowcell and lane to be used in the analysis. 
+Creates softlinks of undetermined for specified flowcell and lane to be used in the analysis.
 To be run on irma.
 #### Usage
 Usage: `use_undetermined.sh  <flowcell> <lane> <sample>`  
 Example:  `use_undetermined.sh 160901_ST-E00214_0087_BH33GHALXX 1 P4601_273`
 #### Important
-After running the script, don't forget to (re-)**ORGANIZE FLOWCELL**. 
+After running the script, don't forget to (re-)**ORGANIZE FLOWCELL**.
 And then analysis can be started.
 
 ### ZenDesk Attachments Backup
