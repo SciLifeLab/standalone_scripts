@@ -119,7 +119,7 @@ class _snic_wrapper(snic_util):
             raise SystemExit
         supr_date_format = '%Y-%m-%d'
         today = datetime.date.today()
-        endday = today + datetime.timedelta(days=self.days or 90)
+        endday = today + datetime.timedelta(days=self.days)
         mem_snic_ids = []
         if self.members:
             for mem in self.members:
@@ -215,6 +215,9 @@ if __name__ == "__main__":
     subparser_create_project.add_argument("-e", "--pi-email", required=True, type=str, metavar="", help="PI email address")
     subparser_create_project.add_argument("-s", "--sensitive", required=True, type=to_bool, metavar="",
                                           help="Choose if the project is sensitive or not, (Only 'yes/no' is allowed)")
+    subparser_create_project.add_argument("-d", "--days", type=int, default=90, metavar="", help="Number of days created GRUS delivery project to be active")
+    subparser_create_project.add_argument("-t", "--title", type=str, metavar="", help="Custom title for GRUS delivery project")
+    subparser_create_project.add_argument("-m", "--members", type=str, action="append", metavar="", help="Members to be added in GRUS delivery project")
     # add sub command for extending a project
     subparser_extend_project = subparser.add_parser("extend_project", help="Extend the end date of GRUS project for given 'days'")
     subparser_extend_project.add_argument("-g", "--grus-project", required=True, type=str, metavar="", help="Grus project id, format should be 'deliveryNNNNN'")
