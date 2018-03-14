@@ -1,4 +1,4 @@
-#!usr/bin/env python
+#!/usr/bin/env python
 
 description="A python wrapper for SNIC API utilities. It requires a config file with SNIC credentials."
 
@@ -56,7 +56,7 @@ class snic_util(object):
         if params:
             for _key, _val in params.iteritems():
                 setattr(self, _key, _val)
-    
+
     def create_grus_project(self, proj_data={}):
         """Create a GRUS delivery project with given info and return info of created project in JSON"""
         pdata = proj_data or getattr(self, 'proj_data', {})
@@ -64,16 +64,16 @@ class snic_util(object):
         response = requests.post(create_proj_url, data=json.dumps(pdata), auth=self.api_cred)
         self._assert_response(response)
         return response.json()
-    
+
     def update_grus_project(self, prj_snic_id=None, updata={}):
         """Update a GRUS delivery project with given info and return info of updated project in JSON"""
         psnic = prj_snic_id or getattr(self, 'prj_snic_id', None)
-        udata = updata or getattr(self, 'updata', {})    
+        udata = updata or getattr(self, 'updata', {})
         update_proj_url = "{}/ngi_delivery/project/{}/update/".format(self.api_url, psnic)
         response = requests.post(update_proj_url, data=json.dumps(udata), auth=self.api_cred)
         self._assert_response(response)
         return response.json()
-        
+
     def get_user_info(self, user_email=None):
         """Search for user in SNIC and return list with matching hits. Each hits is in JSON format"""
         uemail = user_email or getattr(self, 'user_email')
@@ -83,7 +83,7 @@ class snic_util(object):
         if len(user_hits) == 0:
             logger.info("No user found with email {}".format(uemail))
         return user_hits
-    
+
     def get_project_info(self, grus_project=None):
         """Search for delivery project in SNIC and return list with matching hits. Each hits is in JSON format"""
         gproject = grus_project or getattr(self, 'grus_project')
@@ -93,7 +93,7 @@ class snic_util(object):
         if len(project_hits) == 0:
             logger.info("No projects was found with name {}".format(gproject))
         return project_hits
-    
+
     def _search_snic(self, search_url, search_params):
         response = requests.get(search_url, params=search_params, auth=self.api_cred)
         self._assert_response(response)
@@ -136,7 +136,7 @@ class _snic_wrapper(snic_util):
                     'end_date': endday.strftime(supr_date_format),
                     'ngi_ready': False,
                     'ngi_sensitive_data': self.sensitive,
-                    'member_ids': mem_snic_ids} 
+                    'member_ids': mem_snic_ids}
         question = ("\nA GRUS delivery project will be created with following information, check and confirm\n\n{}\n\n"
                     "NOTE: Sensivity for project is my default set to 'True', it can be change dby calling '--no-sensitive'. "
                     "Also parameters '--title / --members / --days' can be used to control the defaults, check help\n\n"
@@ -147,13 +147,13 @@ class _snic_wrapper(snic_util):
             logger.info("Created GRUS delivery project with id '{}'".format(grus_proj_details["name"]))
         else:
             logger.warning("Project will not be created. EXITING")
-        
+
     def _extend_project(self):
         ukey = "end_date"
         endday = datetime.date.today() + datetime.timedelta(days=self.days)
         uval = endday.strftime('%Y-%m-%d')
         self._execute_project_update(ukey=ukey, uval=uval)
-    
+
     def _change_pi(self):
         ukey = "pi_id"
         try:
@@ -164,7 +164,7 @@ class _snic_wrapper(snic_util):
             raise SystemExit
         uval = pi_snic_id
         self._execute_project_update(ukey=ukey, uval=uval)
-        
+
     def _change_sensitive(self):
         ukey = "ngi_sensitive_data"
         uval = self.sensitive
@@ -173,11 +173,11 @@ class _snic_wrapper(snic_util):
     def _project_info(self):
         interested_keys = ["name", "id", "title", "ngi_project_name", "pi", "members", "ngi_sensitive_data", "start_date", "end_date"]
         self._execute_search(exec_func=self.get_project_info, filter_keys=interested_keys)
- 
+
     def _user_info(self):
         interested_keys = ["first_name", "last_name", "id", "email", "department", "organization"]
         self._execute_search(exec_func=self.get_user_info, filter_keys=interested_keys)
-    
+
     def _execute_project_update(self, ukey, uval):
         try:
             prj_info = self.get_project_info(grus_project=self.grus_project)[0]
@@ -193,14 +193,14 @@ class _snic_wrapper(snic_util):
             logger.info("Updated project {}".format(self.grus_project))
         else:
             logger.warning("Project '{}' will not be updated. EXITING".format(self.grus_project))
-        
+
     def _execute_search(self, exec_func, filter_keys=[], all_info=False):
         all_info = all_info or getattr(self, "all_info", False)
         search_hits = exec_func()
         for ind, inf in enumerate(search_hits, 1):
             oinf = inf if all_info else OrderedDict((k, inf.get(k)) for k in filter_keys)
             print "Hit {}:\n{}".format(ind, json.dumps(oinf, indent=4))
-        
+
 
 if __name__ == "__main__":
 #    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description=description)
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     subparser_change_sensitive.add_argument("-g", "--grus-project", required=True, type=str, metavar="", help="Grus project id, format should be 'deliveryNNNNN'")
     subparser_change_sensitive.add_argument("-s", "--sensitive", required=True, type=to_bool, metavar="",
                                           help="Choose if the project is sensitive or not, (Only 'yes/no' is allowed)")
-    
+
     params = vars(parser.parse_args())
     # try loading config file
     try:
