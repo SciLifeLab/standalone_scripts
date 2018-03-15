@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env/python
 
 import re
 import os
@@ -6,7 +6,6 @@ import sys
 import shutil
 import argparse
 import collections
-
 def merge_files(input_dir, dest_dir):
     
     #Gather all fastq files in inputdir and its subdirs
@@ -17,7 +16,7 @@ def merge_files(input_dir, dest_dir):
                 fastq_files.append(os.path.join(subdir, fastq))
    
     #Match NGI sample number from flowcell
-    sample_pattern=re.compile("^(P[0-9]+_[0-9]+)_S[0-9]+_.+_R([1-2])_")
+    sample_pattern=re.compile("(P[0-9]+_[0-9]+)_([1-2])")
     #Remove files that already have the right name (i.e have been merged already)
     matches=[]
     for fastq_file in fastq_files:
@@ -35,20 +34,19 @@ def merge_files(input_dir, dest_dir):
         #grab one sample to work on
         first=fastq_files[0]
         fq_bn=os.path.basename(first)
-        sample_name=sample_pattern.match(fq_bn).group(1)
+        sample_name=sample_pattern.search(fq_bn).group(1)
         fastq_files_read1=[]
         fastq_files_read2=[]
-        
+          
         for fq in fastq_files:
-            if sample_name in os.path.basename(fq) and "_R1_" in os.path.basename(fq):
+            if sample_name in os.path.basename(fq) and "_1." in os.path.basename(fq):
                 fastq_files_read1.append(fq) 
                 
-            if sample_name in os.path.basename(fq) and "_R2_" in os.path.basename(fq):
+            if sample_name in os.path.basename(fq) and "_2." in os.path.basename(fq):
                 fastq_files_read2.append(fq)
 
         fastq_files_read1.sort()
         fastq_files_read2.sort()
-
         actual_merging(sample_name,1, fastq_files_read1, dest_dir)
         actual_merging(sample_name,2, fastq_files_read2, dest_dir)
         

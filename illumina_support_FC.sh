@@ -24,7 +24,7 @@ fi
 mkdir $FC
 
 echo "  fetch xml info"
-echo scp -r $user@$server:/srv/illumina/HiSeq_X_data/nosync/$FC/*xml $FC > $FC\_sync.out 2> $FC\_sync.err
+scp -r $user@$server:/srv/illumina/HiSeq_X_data/nosync/$FC/*xml $FC > $FC\_sync.out 2> $FC\_sync.err
 
 echo "   fetch csv info"
 scp -r $user@$server:/srv/illumina/HiSeq_X_data/nosync/$FC/*csv $FC  >> $FC\_sync.out 2>> $FC\_sync.err
