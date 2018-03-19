@@ -1,4 +1,8 @@
 #!/usr/bin/python
+
+### WIP, do not use!!
+
+
 import sys, httplib2, os, datetime, io, socket
 from time import gmtime, strftime
 from apiclient import discovery
