@@ -203,7 +203,6 @@ class _snic_wrapper(snic_util):
 
 
 if __name__ == "__main__":
-#    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description=description)
     # add main parser object with global parameters
     parser = argparse.ArgumentParser(prog=__file__, description="SNIC utility tools")
     parser.add_argument("-c", "--config", type=argparse.FileType('r'), metavar="",
@@ -211,33 +210,33 @@ if __name__ == "__main__":
     subparser = parser.add_subparsers(title="subcommands", dest="mode", metavar="MODE", help="Available SNIC utility modes")
     # add sub command for creating GRUS project
     subparser_create_project = subparser.add_parser("create_project", help="Create a GRUS delivery project with given information")
-    subparser_create_project.add_argument("-p", "--project", required=True, type=str, metavar="", help="NGI project name/id")
-    subparser_create_project.add_argument("-e", "--pi-email", required=True, type=str, metavar="", help="PI email address")
-    subparser_create_project.add_argument("-s", "--sensitive", required=True, type=to_bool, metavar="",
+    subparser_create_project.add_argument("-p", "--project", required=True, type=str, help="NGI project name/id")
+    subparser_create_project.add_argument("-e", "--pi-email", required=True, type=str, help="PI email address")
+    subparser_create_project.add_argument("-s", "--sensitive", required=True, type=to_bool,
                                           help="Choose if the project is sensitive or not, (Only 'yes/no' is allowed)")
-    subparser_create_project.add_argument("-d", "--days", type=int, default=90, metavar="", help="Number of days created GRUS delivery project to be active")
-    subparser_create_project.add_argument("-t", "--title", type=str, metavar="", help="Custom title for GRUS delivery project")
-    subparser_create_project.add_argument("-m", "--members", type=str, action="append", metavar="", help="Members to be added in GRUS delivery project")
+    subparser_create_project.add_argument("-d", "--days", type=int, default=90, help="Number of days created GRUS delivery project to be active")
+    subparser_create_project.add_argument("-t", "--title", type=str, help="Custom title for GRUS delivery project")
+    subparser_create_project.add_argument("-m", "--members", type=str, action="append", help="Members to be added in GRUS delivery project")
     # add sub command for extending a project
     subparser_extend_project = subparser.add_parser("extend_project", help="Extend the end date of GRUS project for given 'days'")
-    subparser_extend_project.add_argument("-g", "--grus-project", required=True, type=str, metavar="", help="Grus project id, format should be 'deliveryNNNNN'")
-    subparser_extend_project.add_argument("-d", "--days", required=True, type=int, metavar="", help="Number of days to extend a GRUS delivery project")
+    subparser_extend_project.add_argument("-g", "--grus-project", required=True, type=str, help="Grus project id, format should be 'deliveryNNNNN'")
+    subparser_extend_project.add_argument("-d", "--days", required=True, type=int, help="Number of days to extend a GRUS delivery project")
     # add sub command to search a project
     subparser_project_info = subparser.add_parser("project_info", help="Get information for specified GRUS project")
-    subparser_project_info.add_argument("-g", "--grus-project", required=True, type=str, metavar="", help="Grus project id, format should be 'deliveryNNNNN'")
+    subparser_project_info.add_argument("-g", "--grus-project", required=True, type=str, help="Grus project id, format should be 'deliveryNNNNN'")
     subparser_project_info.add_argument("-a", "--all-info", action="store_true", help="Display all information without default filtering")
     # add sub command to sear a user
     subparser_user_info = subparser.add_parser("user_info", help="Get SNIC information for specified user")
-    subparser_user_info.add_argument("-u", "--user-email", required=True, type=str, metavar="", help="User email address to fetch their SNIC details")
+    subparser_user_info.add_argument("-u", "--user-email", required=True, type=str, help="User email address to fetch their SNIC details")
     subparser_user_info.add_argument("-a", "--all-info", action="store_true", help="Display all information without default filtering")
     # add sub command to change a PI for a project
     subparser_change_pi = subparser.add_parser("change_pi", help="Change PI of mentioned GRUS project to given PI")
-    subparser_change_pi.add_argument("-g", "--grus-project", required=True, type=str, metavar="", help="Grus project id, format should be 'deliveryNNNNN'")
-    subparser_change_pi.add_argument("-e", "--pi-email",required=True, type=str, metavar="", help="Email address of user to set as new PI")
+    subparser_change_pi.add_argument("-g", "--grus-project", required=True, type=str, help="Grus project id, format should be 'deliveryNNNNN'")
+    subparser_change_pi.add_argument("-e", "--pi-email",required=True, type=str, help="Email address of user to set as new PI")
     # add sub command to change sensivity for a project
     subparser_change_sensitive = subparser.add_parser("change_sensitive", help="Change sensitivity of GRUS project")
-    subparser_change_sensitive.add_argument("-g", "--grus-project", required=True, type=str, metavar="", help="Grus project id, format should be 'deliveryNNNNN'")
-    subparser_change_sensitive.add_argument("-s", "--sensitive", required=True, type=to_bool, metavar="",
+    subparser_change_sensitive.add_argument("-g", "--grus-project", required=True, type=str, help="Grus project id, format should be 'deliveryNNNNN'")
+    subparser_change_sensitive.add_argument("-s", "--sensitive", required=True, type=to_bool,
                                           help="Choose if the project is sensitive or not, (Only 'yes/no' is allowed)")
 
     params = vars(parser.parse_args())
