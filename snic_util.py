@@ -186,7 +186,7 @@ class _snic_wrapper(snic_util):
             logger.error("Project with name '{}' does not exist in SNIC".format(self.grus_project))
             raise SystemExit
         oval = prj_info.get('pi', {}).get('id') if ukey == 'pi_id' else prj_info.get(ukey)
-        question = "\nProject {}: old value for key '{}' is '{}'. Replace it with '{}' (yes/no) ?".format(self.grus_project, ukey, oval, uval)
+        question = "\nProject {}: old value for key '{}' is '{}'. Replace it with '{}' (yes/no) ? ".format(self.grus_project, ukey, oval, uval)
         if proceed_or_not(question):
             logger.info("Updating project {}".format(self.grus_project))
             updated_info = self.update_grus_project(prj_snic_id=prj_snic_id, updata={ukey:uval})
