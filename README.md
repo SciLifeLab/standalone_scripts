@@ -2,6 +2,89 @@
 
 Repository to store standalone scripts that do not belong to any bigger package or repository.
 
+
+### compute_undet_index_stats.py
+used to fetch stats about undermined indexes.
+This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
+The following operations are supported:
+
+ - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+ - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
+ - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+ - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
+
+#### Usage
+Examples:
+ 
+  - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+ - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
+    - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
+
+
+### compute_undet_index_stats.py
+used to fetch stats about undermined indexes.
+This scripts queries statusdb x_flowcell_db  and fetch informaiton about runs.
+The following operations are supported:
+
+ - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
+ - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
+ - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+ - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
+
+#### Usage
+Examples:
+ 
+  - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+ - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
+    - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
+
+
+
+
+
+### runs_per_week.sh
+Run on Irma prints a three columns:
+ 
+  - first column is the week number
+  - second column number of HiSeqX runs in that week
+  - seconf column number of HiSeq2500 runs in that week
+
+#### Usage
+Examp `runs_per_week.sh `
+
+
+
+### compute_production_stats.py
+This scripts queries statusdb x_flowcelldb and project database and fetches informations useful to plot trands and aggregated data. It can be run in three modalities:
+
+         - production-stats: for each instrument type it prints number of FCs, number of lanes, etc. It then prints a summary of all stats
+         - instrument-usage: for each instrument type and year it prints different run set-ups and samples run with that set-up
+         - year-stats: cumulative data production by month
+
+
+##### Usage
+Example: `compute_production_stats.py --config couchdb.yaml --mode year-stats`
+```
+Usage: compute_production_stats.py --config couchdb.yam
+
+Options:
+    --config CONFIG  configuration file
+```
+#### Configuration
+Requires a config file to access statusdb
+```
+statusdb:
+    url: path_to_tool
+    username: Username
+    password: *********
+    port: port_number
+```
+
+
 ### backup_zendesk_tickets.py
 Used to automatically back up tickets from zendesk
 
@@ -22,6 +105,7 @@ Options:
 * zendesk
 * click
 * yaml
+* requests
 
 #### Configuration
 Requires a config file:
@@ -219,3 +303,18 @@ zendesk_attachment_backup.py <latest_backup>.zip
 * re
 * sys
 * zipfile
+
+### SNIC API UTILS
+
+`snic_util.py` is a python wrapper for `SNIC` API, to address most common/frequent purpose here at NGI. The subcommands available now are listed below.
+
+###### Sub-commands
+
+* `create_project`   - Create a GRUS delivery project with given information
+* `extend_project`   - Extend the end date of GRUS project for given 'days'
+* `project_info`     - Get information for specified GRUS project
+* `user_info`        - Get SNIC information for specified user
+* `change_pi`        - Change PI of mentioned GRUS project to given PI
+* `change_sensitive` - Change sensitivity of GRUS project
+
+The script itself is more self explanatory, so `python snic_util.py -h` will give more info on Usage.

@@ -46,10 +46,12 @@ def backup(user, password, dest):
     if not password is None:
         gh = Github(login=user, user=user, password=password)
         repos = gh.repos.list(type='all')
-    else:
+    if password is None or repos.all() == []:
+	print "No valid github credentials provided. Private repos will not be copied!"
         logging.info("No valid github credentials provided. Private repos will not be copied!")
         gh = Github()
         repos = gh.repos.list(type='all', user=user)
+
     for repo in repos.all():
         if password is not None and repo.private is True:
             source = repo.clone_url.replace("https://", "https://{}:{}@".format(user, password))
@@ -57,6 +59,7 @@ def backup(user, password, dest):
             source = repo.clone_url
             
         repo_path = os.path.join(dest, repo.name)
+	print "Backing up repository {}".format(repo.name)
         logging.info("Backing up repository {}".format(repo.name))
         #If the repository is present on destination, update all branches
         if os.path.exists(repo_path):
@@ -75,24 +78,26 @@ def backup(user, password, dest):
                     logging.error("There was an error fetching the branches from " \
                               "the repository {}, skipping it".format(repo.name))
                     pass
+	    logging.info("Finished copying repo {}".format(repo.name))
+	    print "Finished copying repo {}".format(repo.name)
         #Otherwise clone the repository and fetch all branches
         else:
-            logging.info("The repository {} does not exist on destination".format(repo.name))
-        try:
-            check_call(['git', 'clone', source, repo_path], stdout=PIPE, stderr=STDOUT)
-            logging.info("Cloning {}".format(repo.name))
-        except CalledProcessError:
-            print 'ERROR: Problem cloning repository {}, skipping it'.format(repo.name)
-            logging.error('Error cloning repository {}, skipping it'.format(repo.name))
+            logging.info("The repository {} isn't cloned at {}, cloning instead of updating...".format(repo.name, repo_path))
+            try:
+                check_call(['git', 'clone', source, repo_path], stdout=PIPE, stderr=STDOUT)
+                logging.info("Cloning {}".format(repo.name))
+            except CalledProcessError:
+                print 'ERROR: Problem cloning repository {}, skipping it'.format(repo.name)
+                logging.error('ERROR: Error cloning repository {}, skipping it'.format(repo.name))
             pass
-        try:
-            with cd(repo_path):
-                check_call(track_all_branches, shell=True, stdout=PIPE, stderr=STDOUT)
-                logging.info("Fetching branches for {}".format(repo.name))
-        except CalledProcessError:
-            print 'ERROR: Problem fetching branches for repository {}, skipping it'.format(repo.name)
-            logging.error('Problem fetching branches for repository {}, skipping it'.format(repo.name))
-            pass
+            try:
+                with cd(repo_path):
+                    check_call(track_all_branches, shell=True, stdout=PIPE, stderr=STDOUT)
+                    logging.info("Fetching branches for {}".format(repo.name))
+            except CalledProcessError:
+                print 'ERROR: Problem fetching branches for repository {}, skipping it'.format(repo.name)
+                logging.error('ERROR: Problem fetching branches for repository {}, skipping it'.format(repo.name))
+                pass
 
 def compressAndMove(source):
     stamp = datetime.datetime.now().isoformat()
@@ -133,7 +138,7 @@ if __name__=="__main__":
     dest = os.getcwd() if not args.d else args.d
     
     logging.basicConfig(filename=logfile, level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logging.info("Pulling backup into {} by using credentials for {}".format(dest, user))
-    
+    logging.info("Creating backup at {}, with github user {}".format(dest, user))
+    print "Creating backup at {}, with github user {}".format(dest, user) 
     backup(user, password, dest)
     compressAndMove(dest)

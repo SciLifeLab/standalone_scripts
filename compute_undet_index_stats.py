@@ -236,13 +236,14 @@ def find_undetermined_index_over_time(index_to_be_searched, instrument_type):
     couch=setupServer(CONFIG)
     flowcell_db = couch["x_flowcells"]
     flowcell_docs = {}
-    
     for fc_doc in flowcell_db:
         try:
             undetermined = flowcell_db[fc_doc]["Undetermined"]
         except KeyError:
             continue
         flowcell_docs[flowcell_db[fc_doc]["RunInfo"]["Id"]] = fc_doc
+
+
     time_line = []
     
     for FCid in sorted(flowcell_docs):
@@ -270,6 +271,79 @@ def find_undetermined_index_over_time(index_to_be_searched, instrument_type):
         FCid = FC[0]
         for lane in FC[1]:
             print "{}_{} {}".format(FCid, lane[0], lane[1])
+
+
+
+
+def undet_index_to_projects(index_to_be_searched, instrument_type, min_occurences=0):
+    status_db = setupServer(CONFIG)
+    workset_db = status_db['worksets']
+    workset_project_view = workset_db.view('project/ws_proj')
+    
+    
+    flowcell_db = status_db["x_flowcells"]
+    flowcell_docs = {}
+    counter = 0
+    projects_with_undet_in_fc_set = set()
+    worksets_with_undet_in_fc     = {}
+    for fc_doc in flowcell_db:
+        try:
+            undetermined = flowcell_db[fc_doc]["Undetermined"]
+        except KeyError:
+            continue
+        FCid = flowcell_db[fc_doc]["RunInfo"]["Id"]
+        # first check that I have all necessary info to extract information
+        FC_type = get_FC_type(FCid)
+        #if a instrument type is specifed process only FCs run on that instrument
+        if instrument_type is not None:
+            if instrument_type != FC_type:
+                continue
+        undetermined = flowcell_db[fc_doc]["Undetermined"]
+        for lane in ['1','2','3','4','5','6','7','8']:
+            if lane not in undetermined:
+                continue
+            index_to_be_searched_count = 0
+            if  index_to_be_searched in undetermined[lane] and undetermined[lane][index_to_be_searched] > min_occurences:
+                name = 'SampleName'
+                for samplesheet_entry in flowcell_db[fc_doc]["samplesheet_csv"]:
+                    if 'SampleName' not in samplesheet_entry:
+                         name = 'Sample_Name'
+                samples_with_undet_in_lane  = set([samplesheet_entry[name] for samplesheet_entry in  flowcell_db[fc_doc]["samplesheet_csv"] if samplesheet_entry['Lane']==lane])
+                projects_with_undet_in_lane = set([samplesheet_entry[name].split("_")[0] for samplesheet_entry in  flowcell_db[fc_doc]["samplesheet_csv"] if samplesheet_entry['Lane']==lane])
+                projects_with_undet_in_fc_set.update(projects_with_undet_in_lane)
+                #find out which workset contains these samples
+                for project in projects_with_undet_in_lane:
+                    #for each proejct look which workset has been involved
+                    #if len(workset_project_view[project].rows) > 1:
+                    #    import pdb
+                    #    pdb.set_trace()
+
+                    samples_with_undet_ws  = {}
+                    for sample in samples_with_undet_in_lane:
+                        #now I need to figure out in which WS the samples were... might be more than one as samples might be pooled
+                        for row in workset_project_view[project].rows:
+                            ws_doc_id = row.id
+                            ws_id = row.value.keys()[0] #I am pretty sure that for each row I have a sinlge entry
+                            if sample in row.value[ws_id]['samples'].keys():
+                                location = row.value[ws_id]['samples'][sample]['location']
+                                #now I know that this sample in this lane in this FC was affected by index presence and I know the position
+                                if ws_id not in worksets_with_undet_in_fc:
+                                    worksets_with_undet_in_fc[ws_id] = {}
+                                if FCid not in  worksets_with_undet_in_fc[ws_id]:
+                                    worksets_with_undet_in_fc[ws_id][FCid] = {}
+                                if lane not in worksets_with_undet_in_fc[ws_id][FCid]:
+                                    worksets_with_undet_in_fc[ws_id][FCid][lane] = set()
+                                worksets_with_undet_in_fc[ws_id][FCid][lane].add((sample,location))
+
+    for ws_id in sorted(worksets_with_undet_in_fc):
+        print ws_id
+        for run_id in sorted(worksets_with_undet_in_fc[ws_id]):
+            print "\t{}".format(run_id)
+            for lane in sorted(worksets_with_undet_in_fc[ws_id][run_id]):
+                sys.stdout.write("\t\t{}: ".format(lane))
+                for sample_location in worksets_with_undet_in_fc[ws_id][run_id][lane]:
+                    sys.stdout.write("({},{}) ".format(sample_location[0], sample_location[1]))
+                sys.stdout.write('\n')
 
 
 
@@ -357,14 +431,55 @@ def fetch_undermined_stats():
 
 
 
-##indexes_file = args.indexes
-##INDEXES = Indexes(indexes_file)
+
+def fetch_pooled_projects(instrument_type):
+    status_db = setupServer(CONFIG)
+    flowcell_db = status_db["x_flowcells"]
+    counter = 0
+    projects_pooled = {}
+    for fc_doc in flowcell_db:
+        if 'RunInfo' not in flowcell_db[fc_doc]:
+            continue
+        FCid = flowcell_db[fc_doc]["RunInfo"]["Id"]
+        # first check that I have all necessary info to extract information
+        FC_type = get_FC_type(FCid)
+        #if a instrument type is specifed process only FCs run on that instrument
+        if instrument_type is not None:
+            if instrument_type != FC_type:
+                continue
+        if 'illumina' not in flowcell_db[fc_doc]:
+            print "Not illumina field found in doc"
+            continue
+        if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
+            print "Not Demultiplex_Stats field found in doc"
+            continue
+        if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
+            print "Not Barcode_lane_statistics field found in doc"
+            continue
+        demux_stats = flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']
+        for lane in ['1','2','3','4','5','6','7','8']:
+            samples_in_lane =  [entry['Sample'] for entry in demux_stats if entry['Lane'] == lane and not(entry['Sample'] == 'unknown' or entry['Sample'] == 'Undetermined') ]
+            if len(samples_in_lane) > 1:
+                #it means pooled
+                projects = set( entry['Project'] for entry in demux_stats if entry['Lane'] == lane and not(entry['Sample'] == 'unknown' or entry['Sample'] == 'Undetermined') )
+                samples_concat= ""
+                for sample in sorted(samples_in_lane):
+                    samples_concat += sample + " "
+                for project in projects:
+                    if project not in projects_pooled:
+                        projects_pooled[project] = set()
+                    projects_pooled[project].add(samples_concat)
+
+    for project in projects_pooled:
+        print project
+        for pool in projects_pooled[project]:
+            print "\t{}".format(pool)
 
 
 def main(args):
     configuration_file = args.config
     load_yaml_config(configuration_file)
-    
+
     if args.mode == 'most_undet':
         fetch_undermined_stats()
     
@@ -373,12 +488,20 @@ def main(args):
             sys.exit("in this mode --index must be specified")
         find_undetermined_index_over_time(args.index, args.instrument_type)
 
+    if args.mode == 'workset_undet':
+        if args.index is None:
+            sys.exit("in this mode --index must be specified")
+        undet_index_to_projects(args.index, args.instrument_type, args.min_occurences)
+
+
     if args.mode == 'single_sample_lanes':
         check_single_sample_lanes("HiSeqX")
 
+    if args.mode == 'fetch_pooled_projects':
+        fetch_pooled_projects(args.instrument_type)
 
-    #fetch_undermined_stats(configuration_file, INDEXES)
-    #check_index(configuration_file, INDEXES, "CTTGTAAT")
+
+
 
 
 
@@ -389,12 +512,15 @@ if __name__ == '__main__':
     The following operations are supported:
         - check_undet_index: given a specific index checks all FCs and prints all FC and lanes where the indx appears as undetermined
         - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
-        - single_sample_lanes:
+        - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
+        - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
         """)
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
     parser.add_argument('--indexes', help="yamls file containing indexes we want to analyse", type=str)
+    parser.add_argument('--min_occurences', help="minimum number of occurences in undet in workset_undet mode", type=int, default=0)
+   
     
-    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet', 'single_sample_lanes'))
+    parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet', 'single_sample_lanes', 'workset_undet', 'fetch_pooled_projects'))
     
     
     parser.add_argument('--index', help="a specifc index (e.g., CTTGTAAT) to be searched across lanes and FCs", type=str)
