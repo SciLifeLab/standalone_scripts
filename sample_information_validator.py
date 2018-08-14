@@ -6,6 +6,7 @@ so that no errors are propagated downstream.
 from __future__ import print_function
 import argparse
 from openpyxl import load_workbook
+import coloredlogs
 import logging
 
 # Global variables to store general assumptions
@@ -14,6 +15,12 @@ FIRST_LINE = 20  # First line where user submitted data is located
 SAMPLE_NAME_COL = 'O'
 A_RATIO_COL = 'R'  # A260:A280 ratio
 CONC_COL = 'S'
+
+# Set up a logger with colored output
+logger = logging.getLogger(__name__)
+logger.propagate = False  # Otherwise the messages appeared twice
+coloredlogs.install(level='INFO', logger=logger,
+                    fmt='%(asctime)s %(levelname)s %(message)s')
 
 
 class NumericValidator(object):
@@ -29,7 +36,7 @@ class NumericValidator(object):
         """Checks whether value is numeric or not."""
         logging.debug(cell.value, cell.data_type)
         if cell.data_type != 'n':
-            logging.error(
+            logger.error(
                     'Cell {} is not numeric'.format(cell.coordinate)
                     )
             return False
@@ -37,14 +44,14 @@ class NumericValidator(object):
             float(cell.value)
             return True
         except ValueError:
-            logging.error(
+            logger.error(
                     'Cell {} is numeric but cannot be '
                     'transformed to float'.format(cell.coordinate)
             )
             return False
         except TypeError:
             if cell.value is None:
-                logging.warning(
+                logger.warning(
                     'Cell {} is numeric but empty'.format(cell.coordinate)
                 )
             else:
@@ -71,7 +78,7 @@ def validate_column(sheet, column_letter, row_start,
         if result:  # Test passed
             passes += 1
 
-    logging.info(
+    logger.info(
         'Checked column {}. {}/{} passes'.format(column_letter, passes, total)
         )
 
@@ -89,4 +96,5 @@ if __name__ == '__main__':
     parser.add_argument('sample_info_sheet',
                         help="Completed sample info sent to NGI by the user.")
     args = parser.parse_args()
+
     main(args.sample_info_sheet)
