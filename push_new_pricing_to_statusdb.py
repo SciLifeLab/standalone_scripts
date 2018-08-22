@@ -33,7 +33,7 @@ def is_empty_row(comp):
             return False
     return True
 
-def load_components(wb, user, user_email):
+def load_components(wb):
     ws = wb[SHEET['components']]
 
     # Unkown number of rows
@@ -50,7 +50,7 @@ def load_components(wb, user, user_email):
             cell_column = cell.coordinate.replace(str(header_row), '')
             header[cell_column] = cell_val
 
-    components = []
+    components = {}
     while row < MAX_NR_ROWS:
         new_component = {}
         for col, header_val in header.items():
@@ -60,11 +60,7 @@ def load_components(wb, user, user_email):
             new_component[header_val] = val
 
         if not is_empty_row(new_component):
-            new_component['Edited by user'] = user
-            new_component['Edited by user email'] = user_email
-            timestamp=datetime.datetime.now().isoformat()
-            new_component['Last edited'] = timestamp
-            components.append(new_component)
+            components[new_component['REF_ID']] = new_component
         row += 1
 
     return components
@@ -80,12 +76,17 @@ def main(input_sheet, config, user, user_email,
 
     if add_components:
         db = couch['pricing_components']
-        components = load_components(wb, user, user_email)
+        components = load_components(wb)
+        doc = {}
+        doc['components'] = components
+        doc['Issued by user'] = user
+        doc['Issued by user email'] = user_email
+        doc['Issued at'] = datetime.datetime.now().isoformat()
+        doc['Version'] = 2
         if push:
-            for component in components:
-                db.save(component)
+            db.save(doc)
         else:
-            print(components)
+            print(doc)
 
 
 if __name__ == '__main__':
