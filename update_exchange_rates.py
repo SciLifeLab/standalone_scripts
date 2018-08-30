@@ -4,57 +4,70 @@
 """
 
 import argparse
-import requests
-import re
 import yaml
 from couchdb import Server
 import datetime
+from forex_python.converter import CurrencyRates
 
+
+def get_current(db, view):
+    rows = db.view("by_date/{}".format(view), descending=True, limit=1).rows
+    if len(rows) != 0:
+        value = rows[0].value
+        return value
+    return None
 
 def main(config, push_to_server=False):
-    resp = requests.get("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml")
-    if not resp.ok:
-        raise Exception("Got a non-ok return code: {} from ECB. ABORTING".format(resp.status_code))
 
-    # Look for the four lines we need using regexes.
-    # I guess normal people would use an xml-parser
-    for line in resp.text.split('\n'):
-        date_r = r".*time='([0-9\-]*).*'"
-        date_match = re.match(date_r, line)
-        if date_match:
-            date = re.findall(date_r, line)[0]
-
-        name_r = r'.*:name>(.*)<.*'
-        name_match = re.match(name_r, line)
-        if name_match:
-            source_name = re.findall(name_r, line)[0]
-
-        usd_match = re.match(r".*currency='USD'.*", line)
-        if usd_match:
-            rate_match = re.findall(r".*rate='([0-9\.]*)'.*", line)
-            eur_to_usd = float(rate_match[0])
-
-        sek_match = re.match(r".*currency='SEK'.*", line)
-        if sek_match:
-            rate_match = re.findall(r".*rate='([0-9\.]*)'.*", line)
-            eur_to_sek = float(rate_match[0])
-
-    usd_to_sek = round(eur_to_sek/eur_to_usd, 4)
+    c = CurrencyRates()
+    # Will raise RatesNotAvailableError if not able to fetch from the api
+    usd_to_sek = c.get_rate('USD', 'SEK')
+    eur_to_sek = c.get_rate('EUR', 'SEK')
 
     # Create the doc that will be uploaded
     doc = {}
     doc['Issued at'] = datetime.datetime.now().isoformat()
-    doc['Data source date'] = date
-    doc['Data source'] = source_name
+    # I know it's bad practice to call the _source_url method,
+    # but if it breaks it breaks.
+    doc['Data source'] = "forex_python ({})".format(c._source_url())
     doc['USD_in_SEK'] = usd_to_sek
     doc['EUR_in_SEK'] = eur_to_sek
 
-    if push_to_server:
-        with open(config) as settings_file:
-            server_settings = yaml.load(settings_file)
-        couch = Server(server_settings.get("couch_server", None))
-        db = couch['pricing_exchange_rates']
+    # Load the statusdb database
+    with open(config) as settings_file:
+        server_settings = yaml.load(settings_file)
+    couch = Server(server_settings.get("couch_server", None))
+    db = couch['pricing_exchange_rates']
 
+    # Check that new is not too strange compared to current.
+    # This is a safety measure so that we have lower risk of having erroneus
+    # exchange rates in the db.
+    current_usd = get_current(db, 'usd_to_sek')
+    if current_usd is not None:
+        rel_change = (usd_to_sek-current_usd)/current_usd
+        print("INFO: Change in USD exchange rate: {:.3f}%".format(100*(rel_change)))
+
+        if abs(rel_change) > 0.20:
+            raise Exception("Financial crisis or rather; something is likely wrong!")
+
+    current_eur = get_current(db, 'eur_to_sek')
+    if current_eur is not None:
+        rel_change = (eur_to_sek-current_eur)/current_eur
+        print("INFO: Change in EUR exchange rate: {:.3f}%".format(100*(rel_change)))
+
+        if abs(rel_change) > 0.20:
+            raise Exception("Financial crisis or rather; something is likely wrong!")
+
+    # Completely conserved currencies are also strange.
+    if (current_eur is not None) and (current_usd is not None):
+        # This assumes the script is not ran too often
+        # (api udpates once per day)
+        small_number = 0.0000000001
+        if (abs(current_usd - usd_to_sek) < small_number) and \
+                (abs(current_eur - eur_to_sek) < small_number):
+            raise Exception("Super stable currencies? Stale api would be my guess.")
+
+    if push_to_server:
         db.save(doc)
     else:
         print(doc)
