@@ -36,7 +36,7 @@ MAX_NR_ROWS = 200
 # Assuming the rows of products are sorted in the preferred order
 
 # Set up a logger with colored output
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('push_new_pricing_logger')
 logger.propagate = False  # Otherwise the messages appeared twice
 coloredlogs.install(level='INFO', logger=logger,
                     fmt='%(asctime)s %(levelname)s %(message)s')
@@ -77,9 +77,17 @@ def check_conserved(new_items, current_items, type):
     for id, new_item in new_items.items():
         if str(id) in current_items:
             for conserved_key in conserved_keys:
+                if conserved_key not in new_item:
+                    raise ValueError("{} column not found in new {} row with "
+                                     "id {}. This column needs to be kept "
+                                     "conserved. ABORTING!".format(
+                                        conserved_key,
+                                        type,
+                                        id
+                                        ))
                 if new_item[conserved_key] != current_items[str(id)][conserved_key]:
                     raise ValueError("{} need to be conserved for {}."
-                                     " Violated for component with id {}. "
+                                     " Violated for item with id {}. "
                                      "Found {} for new and {} for current. "
                                      "ABORTING!".format(
                                         conserved_key,
@@ -88,7 +96,7 @@ def check_conserved(new_items, current_items, type):
                                         new_item[conserved_key],
                                         current_items[str(id)][conserved_key]
                                         ))
-
+    return True
 
 def get_current_items(db, type):
     rows = db.view("entire_document/by_version", descending=True, limit=1).rows
