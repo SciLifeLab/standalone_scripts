@@ -17,6 +17,15 @@ def get_current(db, view):
         return value
     return None
 
+def check_financial_crisis(current_val, new_val, currency):
+    if current_val is not None:
+        rel_change = (new_val-current_val)/current_val
+        print("INFO: Change in {} "
+              "exchange rate: {:.3f}%".format(currency, 100*(rel_change)))
+
+        if abs(rel_change) > 0.20:
+            raise Exception("Financial crisis or rather; something is likely wrong!")
+
 def main(config, push_to_server=False):
 
     c = CurrencyRates()
@@ -43,20 +52,10 @@ def main(config, push_to_server=False):
     # This is a safety measure so that we have lower risk of having erroneus
     # exchange rates in the db.
     current_usd = get_current(db, 'usd_to_sek')
-    if current_usd is not None:
-        rel_change = (usd_to_sek-current_usd)/current_usd
-        print("INFO: Change in USD exchange rate: {:.3f}%".format(100*(rel_change)))
-
-        if abs(rel_change) > 0.20:
-            raise Exception("Financial crisis or rather; something is likely wrong!")
-
     current_eur = get_current(db, 'eur_to_sek')
-    if current_eur is not None:
-        rel_change = (eur_to_sek-current_eur)/current_eur
-        print("INFO: Change in EUR exchange rate: {:.3f}%".format(100*(rel_change)))
 
-        if abs(rel_change) > 0.20:
-            raise Exception("Financial crisis or rather; something is likely wrong!")
+    check_financial_crisis(current_usd, usd_to_sek, 'USD')
+    check_financial_crisis(current_eur, eur_to_sek, 'EUR')
 
     # Completely conserved currencies are also strange.
     if (current_eur is not None) and (current_usd is not None):
