@@ -143,7 +143,10 @@ def load_products(wb):
                 val = val.replace('.', ',')
                 if val:
                     # Make a list with all individual components
-                    val = [int(prod_id) for prod_id in val.split(',')]
+                    val_list = [int(prod_id) for prod_id in val.split(',')]
+
+                    val = {comp_ref_id: {'quantity': 1} for comp_ref_id in val_list}
+
             new_product[header_val] = val
 
         if not is_empty_row(new_product):
