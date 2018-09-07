@@ -142,8 +142,17 @@ def load_products(wb):
                 val = str(val)
                 val = val.replace('.', ',')
                 if val:
-                    # Make a list with all individual components
-                    val_list = [int(prod_id) for prod_id in val.split(',')]
+                    val_list = []
+                    for comp_id in val.split(','):
+                        try:
+                            int(comp_id)
+                        except ValueError:
+                            print("Product on row {} has component with "
+                                  "invalid id {}: not an integer, "
+                                  " aborting!".format(row, comp_id))
+                            raise
+                        # Make a list with all individual components
+                        val_list.append(comp_id)
 
                     val = {comp_ref_id: {'quantity': 1} for comp_ref_id in val_list}
 
@@ -151,6 +160,12 @@ def load_products(wb):
 
         if not is_empty_row(new_product):
             product_row = row - FIRST_ROW['products'] + 1
+
+            # The id seems to be stored as a string in the database
+            # so might as well always have the ids as strings.
+
+            product_row = str(product_row)
+
             # the row in the sheet is used as ID.
             # In the future this will have to be backpropagated to the sheet.
             products[product_row] = new_product
@@ -183,6 +198,16 @@ def load_components(wb):
             val = ws["{}{}".format(col, row)].value
             if val is None:
                 val = ''
+            elif header_val == 'REF_ID':
+                # The id seems to be stored as a string in the database
+                # so might as well always have the ids as strings.
+                try:
+                    int(val)
+                except ValueError:
+                    print("ID value {} for row {} is not an id, "
+                          "aborting.".format(val, row))
+                val = str(val)
+
             new_component[header_val] = val
 
         if new_component['REF_ID'] in components:
@@ -207,6 +232,44 @@ def get_current_version(db):
         return 0
 
 
+def compare_two_objects(obj1, obj2, ignore_updated_time=True):
+    # Make copies in order to ignore fields
+    obj1_copy = obj1.copy()
+    obj2_copy = obj2.copy()
+
+    if ignore_updated_time:
+        if 'Last Updated' in obj1_copy:
+            obj1_copy.pop('Last Updated')
+        if 'Last Updated' in obj2_copy:
+            obj2_copy.pop('Last Updated')
+
+    return obj1_copy == obj2_copy
+
+
+def set_last_updated_field(new_objects, current_objects, object_type):
+    # if object is not found or changed in current set last updated field
+    now = datetime.datetime.now().isoformat()
+    for id in new_objects.keys():
+        updated = False
+        if id in current_objects:
+            # Beware! This simple == comparison is quite brittle. Sensitive to
+            # str vs int and such.
+            the_same = compare_two_objects(new_objects[id],
+                                           current_objects[id])
+            if not the_same:
+                updated = True
+        else:
+            updated = True
+
+        if updated:
+            print("Updating {}: {}".format(object_type, id))
+            new_objects[id]['Last Updated'] = now
+        else:
+            new_objects[id]['Last Updated'] = current_objects[id]['Last Updated']
+
+    return new_objects
+
+
 def main(input_file, config, user, user_email,
          add_components=False, add_products=False, push=False):
     with open(config) as settings_file:
@@ -225,6 +288,11 @@ def main(input_file, config, user, user_email,
         # Otherwise the first version
         if current_components:
             check_conserved(components, current_components, 'components')
+
+        # Modify the `last updated`-field of each item
+        components = set_last_updated_field(components,
+                                            current_components,
+                                            'component')
 
         doc = {}
         doc['components'] = components
@@ -254,6 +322,11 @@ def main(input_file, config, user, user_email,
         # Otherwise the first version
         if current_products:
             check_conserved(products, current_products, 'products')
+
+        # Modify the `last updated`-field of each item
+        products = set_last_updated_field(products,
+                                          current_products,
+                                          'product')
 
         doc = {}
         doc['products'] = products
