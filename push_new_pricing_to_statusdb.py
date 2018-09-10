@@ -98,6 +98,7 @@ def check_conserved(new_items, current_items, type):
                                         ))
     return True
 
+
 def get_current_items(db, type):
     rows = db.view("entire_document/by_version", descending=True, limit=1).rows
     if len(rows) != 0:
@@ -270,103 +271,178 @@ def set_last_updated_field(new_objects, current_objects, object_type):
     return new_objects
 
 
-def main(input_file, config, user, user_email,
-         add_components=False, add_products=False, push=False):
+def main_push(input_file, config, user, user_email,
+              add_components=False, add_products=False, push=False):
     with open(config) as settings_file:
         server_settings = yaml.load(settings_file)
     couch = Server(server_settings.get("couch_server", None))
 
     wb = load_workbook(input_file, read_only=True, data_only=True)
 
-    if add_components:
-        db = couch['pricing_components']
-        components = load_components(wb)
-        check_unique(components, 'components')
+    # setup a default doc that will be pushed
+    doc = {}
+    doc['Issued by user'] = user
+    doc['Issued by user email'] = user_email
+    doc['Issued at'] = datetime.datetime.now().isoformat()
 
-        current_components = get_current_items(db, 'components')
+    # A newly pushed document is always a draft
+    doc['Draft'] = True
 
-        # Otherwise the first version
-        if current_components:
-            check_conserved(components, current_components, 'components')
+    # --- Components --- #
+    comp_db = couch['pricing_components']
+    components = load_components(wb)
+    check_unique(components, 'components')
 
-        # Modify the `last updated`-field of each item
-        components = set_last_updated_field(components,
-                                            current_components,
-                                            'component')
+    current_components = get_current_items(comp_db, 'components')
 
-        doc = {}
-        doc['components'] = components
-        doc['Issued by user'] = user
-        doc['Issued by user email'] = user_email
-        doc['Issued at'] = datetime.datetime.now().isoformat()
+    if current_components:
+        check_conserved(components, current_components, 'components')
 
-        current_version = get_current_version(db)
-        doc['Version'] = current_version + 1
+    # Modify the `last updated`-field of each item
+    components = set_last_updated_field(components,
+                                        current_components,
+                                        'component')
 
-        if push:
-            logger.info(
-                'Pushing components document version {}'.format(doc['Version'])
-                )
-            db.save(doc)
+    # Save it but push it only if products are also parsed correctly
+    comp_doc = doc.copy()
+    comp_doc['components'] = components
+
+    current_version = get_current_version(comp_db)
+    comp_doc['Version'] = current_version + 1
+
+    # --- Products --- #
+    prod_db = couch['pricing_products']
+    products = load_products(wb)
+
+    check_unique(products, 'products')
+
+    current_products = get_current_items(prod_db, 'products')
+
+    if current_products:
+        check_conserved(products, current_products, 'products')
+
+    # Modify the `last updated`-field of each item
+    products = set_last_updated_field(products,
+                                      current_products,
+                                      'product')
+
+    prod_doc = doc.copy()
+    prod_doc['products'] = products
+
+    current_version = get_current_version(prod_db)
+    prod_doc['Version'] = current_version + 1
+
+    # --- Push or Print --- #
+    if push:
+        comp_db = couch['pricing_components']
+        prod_db = couch['pricing_products']
+
+        curr_comp_rows = comp_db.view("entire_document/by_version", descending=True, limit=1).rows
+        curr_prod_rows = prod_db.view("entire_document/by_version", descending=True, limit=1).rows
+
+        # Check that the latest one is not a draft
+        if (len(curr_comp_rows) == 0) or (len(curr_prod_rows) == 0):
+            print("No draft version found to publish. Aborting!")
+            return
         else:
-            print(doc)
+            curr_comp_doc = curr_comp_rows[0].value
+            curr_prod_doc = curr_prod_rows[0].value
+            if curr_comp_doc['Draft'] or curr_prod_doc['Draft']:
+                print("Most recent version is a draft. Please remove or "
+                      "publish this one before pushing a new draft. Aborting!")
+                return
 
-    if add_products:
-        db = couch['pricing_products']
-        products = load_products(wb)
+        logger.info(
+            'Pushing components document version {}'.format(comp_doc['Version'])
+            )
+        comp_db.save(comp_doc)
 
-        check_unique(products, 'products')
+        logger.info(
+            'Pushing products document version {}'.format(prod_doc['Version'])
+            )
+        prod_db.save(prod_doc)
+    else:
+        print(comp_doc)
+        print(prod_doc)
 
-        current_products = get_current_items(db, 'products')
 
-        # Otherwise the first version
-        if current_products:
-            check_conserved(products, current_products, 'products')
+def main_publish(config, user, user_email, dryrun=True):
+    with open(config) as settings_file:
+        server_settings = yaml.load(settings_file)
+    couch = Server(server_settings.get("couch_server", None))
 
-        # Modify the `last updated`-field of each item
-        products = set_last_updated_field(products,
-                                          current_products,
-                                          'product')
+    comp_db = couch['pricing_components']
+    prod_db = couch['pricing_products']
 
-        doc = {}
-        doc['products'] = products
-        doc['Issued by user'] = user
-        doc['Issued by user email'] = user_email
-        doc['Issued at'] = datetime.datetime.now().isoformat()
+    comp_rows = comp_db.view("entire_document/by_version", descending=True, limit=1).rows
+    prod_rows = prod_db.view("entire_document/by_version", descending=True, limit=1).rows
 
-        current_version = get_current_version(db)
-        doc['Version'] = current_version + 1
+    if (len(comp_rows) == 0) or (len(prod_rows) == 0):
+        print("No draft version found to publish. Aborting!")
+        return
 
-        if push:
-            logger.info(
-                'Pushing products document version {}'.format(doc['Version'])
-                )
-            db.save(doc)
-        else:
-            print(doc)
+    comp_doc = comp_rows[0].value
+    prod_doc = prod_rows[0].value
+    if (not comp_doc['Draft']) or (not prod_doc['Draft']):
+        print("Most recent version is not a draft. Aborting!")
+        return
+
+    comp_doc['Draft'] = False
+    prod_doc['Draft'] = False
+
+    if not dryrun:
+        logger.info(
+            'Pushing components document version {}'.format(comp_doc['Version'])
+            )
+        comp_db.save(comp_doc)
+
+        logger.info(
+            'Pushing products document version {}'.format(prod_doc['Version'])
+            )
+        prod_db.save(prod_doc)
+    else:
+        print(prod_doc, comp_doc)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('pricing_excel_file',
+    subparsers = parser.add_subparsers(
+                            title='actions',
+                            dest='subcommand_name',
+                            description="Either 'push' for uploading a draft "
+                                        "pricing version or 'publish' to make "
+                                        "the current draft the latest version"
+                                       )
+
+    push_parser = subparsers.add_parser('push')
+    push_parser.add_argument('pricing_excel_file',
                         help="The excel file currently used for pricing")
-    parser.add_argument('--statusdb_config', required=True,
+    push_parser.add_argument('--statusdb_config', required=True,
                         help='The genomics-status settings.yaml file.')
-    parser.add_argument('--components', action='store_true',
-                        help='Add the pricing components '
-                        'from the "Price list" sheet.')
-    parser.add_argument('--products', action='store_true',
-                        help='Add the pricing products '
-                        'from the sheet.')
-    parser.add_argument('--push', action='store_true',
+    push_parser.add_argument('--push', action='store_true',
                         help='Use this tag to actually push to the databse,'
                         ' otherwise it is just dryrun')
-    parser.add_argument('--user', required=True,
+    push_parser.add_argument('--user', required=True,
                         help='User that change the document')
-    parser.add_argument('--user_email', required=True,
-                        help='Email used to tell who changed the document')
+    push_parser.add_argument('--user_email', required=True,
+                        help='Email for the user who changed the document')
+
+    publish_parser = subparsers.add_parser('publish')
+    publish_parser.add_argument('--statusdb_config', required=True,
+                        help='The genomics-status settings.yaml file.')
+    publish_parser.add_argument('--user', required=True,
+                        help='User that change the document')
+    publish_parser.add_argument('--user_email', required=True,
+                        help='Email for the user who changed the document')
+    publish_parser.add_argument('--dryrun', action='store_true',
+                                help="Use this tag to only print what would "
+                                "have been done")
+
     args = parser.parse_args()
 
-    main(args.pricing_excel_file, args.statusdb_config, args.user,
-         args.user_email, add_components=args.components,
-         add_products=args.products, push=args.push)
+    if args.subcommand_name == 'push':
+        main_push(args.pricing_excel_file, args.statusdb_config, args.user,
+                  args.user_email, push=args.push)
+    elif args.subcommand_name == 'publish':
+        main_publish(args.statusdb_config, args.user, args.user_email,
+                     dryrun=args.dryrun)
