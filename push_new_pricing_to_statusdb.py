@@ -31,6 +31,11 @@ CONSERVED_KEY_SETS = {'products': ('ID', ['Category', 'Type', 'Name']),
 UNIQUE_KEY_SETS = {'products': ('ID', ['Category', 'Type', 'Name']),
                    'components': ('REF_ID', ['Category', 'Type', 'Product name', 'Units'])}
 
+NOT_NULL_KEYS = {'products': ['Category', 'Type', 'Name', 'Re-run fee'],
+                 'components': ['Category', 'Type', 'Status',
+                                'Product name', 'Units', 'Currency',
+                                'List price', 'Discount']}
+
 MAX_NR_ROWS = 200
 
 # Assuming the rows of products are sorted in the preferred order
@@ -98,6 +103,17 @@ def check_conserved(new_items, current_items, type):
                                         ))
     return True
 
+def check_not_null(items, type):
+    """Make sure type specific columns (given by NOT_NULL_KEYS) are not null."""
+
+    not_null_keys = NOT_NULL_KEYS[type]
+
+    for id, item in items.items():
+        for not_null_key in not_null_keys:
+            if item[not_null_key] is None or item[not_null_key] == '':
+                raise ValueError("{} cannot be empty for {}."
+                                 " Violated for item with id {}.".\
+                                 format(not_null_key, type, id))
 
 def get_current_items(db, type):
     rows = db.view("entire_document/by_version", descending=True, limit=1).rows
@@ -292,6 +308,7 @@ def main_push(input_file, config, user, user_email,
     comp_db = couch['pricing_components']
     components = load_components(wb)
     check_unique(components, 'components')
+    check_not_null(components, 'components')
 
     current_components = get_current_items(comp_db, 'components')
 
@@ -315,6 +332,7 @@ def main_push(input_file, config, user, user_email,
     products = load_products(wb)
 
     check_unique(products, 'products')
+    check_not_null(products, 'products')
 
     current_products = get_current_items(prod_db, 'products')
 
@@ -342,8 +360,7 @@ def main_push(input_file, config, user, user_email,
 
         # Check that the latest one is not a draft
         if (len(curr_comp_rows) == 0) or (len(curr_prod_rows) == 0):
-            print("No draft version found to publish. Aborting!")
-            return
+            print("No current version found. This will be the first!")
         else:
             curr_comp_doc = curr_comp_rows[0].value
             curr_prod_doc = curr_prod_rows[0].value
@@ -387,8 +404,12 @@ def main_publish(config, user, user_email, dryrun=True):
         print("Most recent version is not a draft. Aborting!")
         return
 
+    now = datetime.datetime.now().isoformat()
     comp_doc['Draft'] = False
+    comp_doc['Published'] = now
+
     prod_doc['Draft'] = False
+    prod_doc['Published'] = now
 
     if not dryrun:
         logger.info(
