@@ -142,10 +142,9 @@ def load_products(wb):
     product_price_columns = {}
     for cell in header_cells:
         cell_val = cell.value
-
+        # Get cell column as string
+        cell_column = cell.coordinate.replace(str(header_row), '')
         if cell_val not in SKIP['products']:
-            # Get cell column as string
-            cell_column = cell.coordinate.replace(str(header_row), '')
             header[cell_column] = cell_val
         else:
             # save a lookup to find column of prices
@@ -193,8 +192,8 @@ def load_products(wb):
                                     product_price_columns['External'],
                                     row
                                 )
-                    new_product['fixed_price']['price_in_sek'] = ws[int_cell]
-                    new_product['fixed_price']['price_per_unit_in_sek'] = ws[ext_cell]
+                    new_product['fixed_price']['price_in_sek'] = ws[int_cell].value
+                    new_product['fixed_price']['price_per_unit_in_sek'] = ws[ext_cell].value
 
             new_product[header_val] = val
 
