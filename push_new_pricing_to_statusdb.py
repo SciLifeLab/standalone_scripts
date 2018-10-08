@@ -103,6 +103,7 @@ def check_conserved(new_items, current_items, type):
                                         ))
     return True
 
+
 def check_not_null(items, type):
     """Make sure type specific columns (given by NOT_NULL_KEYS) are not null."""
 
@@ -114,6 +115,7 @@ def check_not_null(items, type):
                 raise ValueError("{} cannot be empty for {}."
                                  " Violated for item with id {}.".\
                                  format(not_null_key, type, id))
+
 
 def get_current_items(db, type):
     rows = db.view("entire_document/by_version", descending=True, limit=1).rows
@@ -137,6 +139,7 @@ def load_products(wb):
     header_row = row - 1
     header_cells = ws[header_row]
     header = {}
+    product_price_columns = {}
     for cell in header_cells:
         cell_val = cell.value
 
@@ -144,6 +147,9 @@ def load_products(wb):
             # Get cell column as string
             cell_column = cell.coordinate.replace(str(header_row), '')
             header[cell_column] = cell_val
+        else:
+            # save a lookup to find column of prices
+            product_price_columns[cell_val] = cell_column
 
     products = OrderedDict()
     # Unkown number of rows
@@ -172,6 +178,23 @@ def load_products(wb):
                         val_list.append(comp_id)
 
                     val = {comp_ref_id: {'quantity': 1} for comp_ref_id in val_list}
+
+            # Special logic added to the comment column
+            if header_val == 'Comment':
+                # Fixed price is added when price does not
+                # directly depend on the components
+                if val == 'Fixed price':
+                    new_product['fixed_price'] = {}
+                    int_cell = "{}{}".format(
+                                    product_price_columns['Internal'],
+                                    row
+                                )
+                    ext_cell = "{}{}".format(
+                                    product_price_columns['External'],
+                                    row
+                                )
+                    new_product['fixed_price']['price_in_sek'] = ws[int_cell]
+                    new_product['fixed_price']['price_per_unit_in_sek'] = ws[ext_cell]
 
             new_product[header_val] = val
 
