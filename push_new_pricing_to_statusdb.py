@@ -193,7 +193,7 @@ def load_products(wb):
                                     row
                                 )
                     new_product['fixed_price']['price_in_sek'] = ws[int_cell].value
-                    new_product['fixed_price']['price_per_unit_in_sek'] = ws[ext_cell].value
+                    new_product['fixed_price']['external_price_in_sek'] = ws[ext_cell].value
 
             new_product[header_val] = val
 
