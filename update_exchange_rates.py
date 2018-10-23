@@ -10,11 +10,11 @@ import datetime
 from forex_python.converter import CurrencyRates
 
 
-def get_current(db, view):
-    rows = db.view("by_date/{}".format(view), descending=True, limit=1).rows
+def get_current(db, item):
+    rows = db.view("entire_document/by_date", descending=True, limit=1).rows
     if len(rows) != 0:
         value = rows[0].value
-        return value
+        return value[item]
     return None
 
 def check_financial_crisis(current_val, new_val, currency):
