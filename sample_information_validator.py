@@ -219,6 +219,17 @@ class ProjectSheet:
 
 
 
+    def validate_vol(self, cell, vol):
+        """Checks entry for volume"""
+        if cell.value is None:
+            logger.error('No sample volume given in cell {}'.format(cell.coordinate))
+            return False
+        elif(cell.value < vol):
+            logger.warning('Sample volume ({}ul) in cell {} is lower than required: {}ul'\
+            .format(cell.value,cell.coordinate, vol))
+            return True
+        else:
+            return True
 
 class Validator(object):
 # Initializer / Instance attributes
@@ -302,6 +313,25 @@ def main(input_sheet, username_couchDB, password_couchDB):
     # validate all entries
     sheetOI.validate_column(sheetOI.ProjectInfo(username_couchDB, password_couchDB))
 
+def sample_number(sheet, sample_letter, row_start):
+    """ identifies the all rows containing a sample name, discards rows without entry.
+    Rows containing whitespace only trigger a warning and are discarded for subsequent
+    tests """
+    real = 1
+    cellID_withSample =list()
+    cellID_noSample =list()
+    for i in range(row_start, row_start+96):
+        cell_id = "{col}{row_itter}".format(col=sample_letter,row_itter=i)
+        cell_value = str(sheet[cell_id].value)
+        if(cell_value.isspace()):
+            logger.warning(
+                'Cell {} contains empty spaces only. Remove content.'.format(cell_id)
+               )
+        elif(sheet[cell_id].value != None):
+            cellID_withSample.append(i)
+        else:
+            cellID_noSample.append(cell_id)# TODO check here that these rows do really not contain information
+    return(cellID_withSample)
 
 
 
