@@ -11,6 +11,7 @@ import yaml
 from couchdb import Server
 import datetime
 from collections import OrderedDict
+import pprint
 
 FIRST_ROW = {'components': 9,
              'products': 4}
@@ -112,9 +113,13 @@ def check_not_null(items, type):
     for id, item in items.items():
         for not_null_key in not_null_keys:
             if item[not_null_key] is None or item[not_null_key] == '':
-                raise ValueError("{} cannot be empty for {}."
-                                 " Violated for item with id {}.".\
-                                 format(not_null_key, type, id))
+                # Special case for discontinued components
+                if 'Status' in item and item['Status'] == 'Discontinued':
+                    pass
+                else:
+                    raise ValueError("{} cannot be empty for {}."
+                                    " Violated for item with id {}.".\
+                                    format(not_null_key, type, id))
 
 
 def get_current_items(db, type):
@@ -142,6 +147,8 @@ def load_products(wb):
     product_price_columns = {}
     for cell in header_cells:
         cell_val = cell.value
+        if cell_val == 'ID':
+            cell_val = 'REF_ID'  # Don't want to confuse it with couchdb ids
         # Get cell column as string
         cell_column = cell.coordinate.replace(str(header_row), '')
         if cell_val not in SKIP['products']:
@@ -154,11 +161,12 @@ def load_products(wb):
     # Unkown number of rows
     while row < MAX_NR_ROWS:
         new_product = {}
+        fetch_prices = False # default behaviour
         for col, header_val in header.items():
             val = ws["{}{}".format(col, row)].value
             if val is None:
                 val = ''
-            if header_val == 'Components':
+            if header_val in ['Components', 'Alternative Components']:
                 # Some cells might be interpreted as floats
                 # e.g. "37,78"
                 val = str(val)
@@ -177,37 +185,36 @@ def load_products(wb):
                         val_list.append(comp_id)
 
                     val = {comp_ref_id: {'quantity': 1} for comp_ref_id in val_list}
+                elif header_val == 'Components':
+                    # If no components are listed, price should be fetched as well,
+                    # unless the row is in fact empty.
+                    if not is_empty_row(new_product):
+                        fetch_prices = True
 
-            # Special logic added to the comment column
-            if header_val == 'Comment':
+            # Comment column occurs after the price columns, so
+            # checking for this ensures that the prices have been parsed
+            if (header_val == 'Comment') and fetch_prices:
                 # Fixed price is added when price does not
                 # directly depend on the components
-                if val == 'Fixed price':
-                    new_product['fixed_price'] = {}
-                    int_cell = "{}{}".format(
-                                    product_price_columns['Internal'],
-                                    row
-                                )
-                    ext_cell = "{}{}".format(
-                                    product_price_columns['External'],
-                                    row
-                                )
-                    new_product['fixed_price']['price_in_sek'] = ws[int_cell].value
-                    new_product['fixed_price']['external_price_in_sek'] = ws[ext_cell].value
+                new_product['fixed_price'] = {}
+                int_cell = "{}{}".format(
+                                product_price_columns['Internal'],
+                                row
+                            )
+                ext_cell = "{}{}".format(
+                                product_price_columns['External'],
+                                row
+                            )
+                new_product['fixed_price']['price_in_sek'] = ws[int_cell].value
+                new_product['fixed_price']['external_price_in_sek'] = ws[ext_cell].value
 
             new_product[header_val] = val
 
         if not is_empty_row(new_product):
-            product_row = row - FIRST_ROW['products'] + 1
-
             # The id seems to be stored as a string in the database
             # so might as well always have the ids as strings.
-
-            product_row = str(product_row)
-
-            # the row in the sheet is used as ID.
-            # In the future this will have to be backpropagated to the sheet.
-            products[product_row] = new_product
+            product_id = str(new_product['REF_ID'])
+            products[product_id] = new_product
         row += 1
 
     return products
@@ -401,9 +408,9 @@ def main_push(input_file, config, user, user_email,
             )
         prod_db.save(prod_doc)
     else:
-        print(comp_doc)
-        print(prod_doc)
-
+        # Prettyprint the json output
+        pprint.pprint(comp_doc)
+        pprint.pprint(prod_doc)
 
 def main_publish(config, user, user_email, dryrun=True):
     with open(config) as settings_file:
