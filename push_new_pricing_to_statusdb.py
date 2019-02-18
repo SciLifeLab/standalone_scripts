@@ -214,6 +214,11 @@ def load_products(wb):
             # The id seems to be stored as a string in the database
             # so might as well always have the ids as strings.
             product_id = str(new_product['REF_ID'])
+
+            # Prepare for a status value on products
+            if 'Status' not in new_product:
+                new_product['Status'] = "Enabled"
+
             products[product_id] = new_product
         row += 1
 
