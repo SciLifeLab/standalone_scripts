@@ -11,6 +11,8 @@ import requests
 import sys
 import yaml
 from collections import OrderedDict
+from taca_ngi_pipeline.utils.database import statusdb_session as sdb
+from ngi_pipeline.database.classes import CharonSession, CharonError
 
 # set logger object
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
@@ -145,6 +147,11 @@ class _snic_wrapper(snic_util):
             logger.info("Creating GRUS delivery project")
             grus_proj_details = self.create_grus_project(prj_data)
             logger.info("Created GRUS delivery project with id '{}'".format(grus_proj_details["name"]))
+            #Post to statusdb and Charon
+            if self.update_databases:
+                dbSess=DbConnections()
+                dbSess.add_delivery_proj_in_charon(grus_proj_details["name"], self.project)
+                dbSess.add_delivery_proj_in_statusdb(grus_proj_details["name"], self.project)
         else:
             logger.warning("Project will not be created. EXITING")
 
@@ -201,6 +208,43 @@ class _snic_wrapper(snic_util):
             oinf = inf if all_info else OrderedDict((k, inf.get(k)) for k in filter_keys)
             print "Hit {}:\n{}".format(ind, json.dumps(oinf, indent=4))
 
+class DbConnections():
+    def __init__(self):
+        with open(os.getenv('STATUS_DB_CONFIG'), 'r') as db_cred_file:
+            db_conf = yaml.load(db_cred_file)['statusdb']
+        self.statusdbSess = sdb(db_conf, db="projects")
+        self.CharonSess = CharonSession()
+
+    def add_delivery_proj_in_charon(self, delivery_proj, projectid):
+        '''Updates delivery_projects in Charon at project level
+        '''
+        try:
+            #fetch the project
+            project_charon = self.CharonSess.project_get(projectid)
+            delivery_projects = project_charon['delivery_projects']
+            if delivery_proj not in delivery_projects:
+                delivery_projects.append(delivery_proj)
+                self.CharonSess.project_update(projectid, delivery_projects=delivery_projects)
+                logger.info('Charon delivery_projects for project {} updated with value {}'.format(projectid, delivery_proj))
+            else:
+                logger.warn('Charon delivery_projects for project {} not updated with value {} because the value was already present'.format(projectid, delivery_proj))
+        except Exception, e:
+            logger.error('Failed to update delivery_projects in charon for {}. Error says: {}'.format(projectid, e))
+            logger.exception(e)
+
+    def add_delivery_proj_in_statusdb(self, delivery_proj, projectid):
+        '''Updates delivery_projects in StatusDB at project level
+        '''
+        project_page=self.statusdbSess.get_project(projectid)
+        dprojs = project_page.get('delivery_projects', [])
+        dprojs.append(delivery_proj)
+        project_page['delivery_projects'] = dprojs
+        try:
+            self.statusdbSess.save_db_doc(project_page)
+            logger.info('Delivery_projects for project {} updated with value {} in statusdb'.format(projectid, delivery_proj))
+        except Exception, e:
+            logger.error('Failed to update delivery_projects in statusdb for {}. Error says: {}'.format(projectid, e))
+            logger.exception(e)
 
 if __name__ == "__main__":
     # add main parser object with global parameters
@@ -217,6 +261,7 @@ if __name__ == "__main__":
     subparser_create_project.add_argument("-d", "--days", type=int, default=90, help="Number of days created GRUS delivery project to be active")
     subparser_create_project.add_argument("-t", "--title", type=str, help="Custom title for GRUS delivery project")
     subparser_create_project.add_argument("-m", "--members", type=str, action="append", help="Members to be added in GRUS delivery project")
+    subparser_create_project.add_argument("--update-databases", action="store_true", help="Use to store generated delivery project in Charon and statusdb")
     # add sub command for extending a project
     subparser_extend_project = subparser.add_parser("extend_project", help="Extend the end date of GRUS project for given 'days'")
     subparser_extend_project.add_argument("-g", "--grus-project", required=True, type=str, help="Grus project id, format should be 'deliveryNNNNN'")
