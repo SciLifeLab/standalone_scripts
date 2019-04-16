@@ -1,0 +1,667 @@
+{
+    "DNA, 10X Genomics Chromium Genome, -, -, -": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": null,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": null,
+            "Minimum": null,
+            "Unit": "ng/uL"
+        },
+        "Input material": null,
+        "QC recommendation": null,
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": null,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Illumina TruSeq PCR-free, 180bp, -, 1291": {
+        "Amount": {
+            "Minimum": 2200.0,
+            "Recommended": 2200.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Illumina TruSeq PCR-free, 350bp, -, 1291": {
+        "Amount": {
+            "Minimum": 2200.0,
+            "Recommended": 2200.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Illumina TruSeq PCR-free, 670bp, -, 1291": {
+        "Amount": {
+            "Minimum": 4400.0,
+            "Recommended": 4400.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Illumina TruSeq PCR-free, no fragmentation, -, 1291": {
+        "Amount": {
+            "Minimum": 2200.0,
+            "Recommended": 2200.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Lucigen NxSeq AmpFREE Low, 180bp, PCR-free, -": {
+        "Amount": {
+            "Minimum": 2200.0,
+            "Recommended": 2200.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Lucigen NxSeq AmpFREE Low, 350bp, PCR-free, -": {
+        "Amount": {
+            "Minimum": 2200.0,
+            "Recommended": 2200.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Lucigen NxSeq AmpFREE Low, 670bp, PCR-free, -": {
+        "Amount": {
+            "Minimum": 4400.0,
+            "Recommended": 4400.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Lucigen NxSeq AmpFREE Low, no fragmentation, PCR-free, -": {
+        "Amount": {
+            "Minimum": 2200.0,
+            "Recommended": 2200.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 300.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Nextera Mate-Pair, 20kb, -, -": {
+        "Amount": {
+            "Minimum": 6000.0,
+            "Recommended": 6000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 1000.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": null,
+        "Quality requirement": "Gel",
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Nextera Mate-Pair, 3kb (no gel-cut), -, 1315": {
+        "Amount": {
+            "Minimum": 4000.0,
+            "Recommended": 4000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 1000.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": null,
+        "Quality requirement": "Gel",
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Nextera Mate-Pair, 3kb, -, 1315": {
+        "Amount": {
+            "Minimum": 4000.0,
+            "Recommended": 4000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 1000.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": null,
+        "Quality requirement": "Gel",
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Nextera Mate-Pair, 5-8kb, -, 1315": {
+        "Amount": {
+            "Minimum": 4000.0,
+            "Recommended": 4000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 1000.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": null,
+        "Quality requirement": "Gel",
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Nextera XT, -, Small genome, -": {
+        "Amount": {
+            "Minimum": 1000.0,
+            "Recommended": 1000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 1000.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Nextera XT, User QC, Small genome, -": {
+        "Amount": {
+            "Minimum": 1000.0,
+            "Recommended": 1000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 1000.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, RAD-seq, -, -, -": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": null,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": null,
+            "Minimum": null,
+            "Unit": "ng/uL"
+        },
+        "Input material": null,
+        "QC recommendation": null,
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": null,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Rubicon ThruPLEX DNA-seq, 180bp, Low-input, 1298": {
+        "Amount": {
+            "Minimum": 40.0,
+            "Recommended": 40.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 10.0,
+            "Minimum": 1.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Rubicon ThruPLEX DNA-seq, 250-400bp, Low-input, 1298": {
+        "Amount": {
+            "Minimum": 40.0,
+            "Recommended": 40.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 10.0,
+            "Minimum": 1.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Rubicon ThruPLEX DNA-seq, 350bp, Low-input, 1298": {
+        "Amount": {
+            "Minimum": 40.0,
+            "Recommended": 40.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 10.0,
+            "Minimum": 1.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Rubicon ThruPLEX DNA-seq, 670bp, Low-input, 1298": {
+        "Amount": {
+            "Minimum": 40.0,
+            "Recommended": 40.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 10.0,
+            "Minimum": 1.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Rubicon ThruPLEX DNA-seq, no fragmentation, Low-input, 1298": {
+        "Amount": {
+            "Minimum": 40.0,
+            "Recommended": 40.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 10.0,
+            "Minimum": 1.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Special, -, -, -": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": null,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": null,
+            "Minimum": null,
+            "Unit": "ng/uL"
+        },
+        "Input material": null,
+        "QC recommendation": null,
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": null,
+            "Unit": "uL"
+        }
+    },
+    "DNA, Swift Biosciences Accel-NGS Methyl Seq, -, Methyl-seq, -": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": null,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": null,
+            "Minimum": null,
+            "Unit": "ng/uL"
+        },
+        "Input material": null,
+        "QC recommendation": null,
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": null,
+            "Unit": "uL"
+        }
+    },
+    "Library, By user, -, -, -": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": null,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": null,
+            "Minimum": null,
+            "Unit": "ng/uL"
+        },
+        "Input material": null,
+        "QC recommendation": null,
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": null,
+            "Unit": "uL"
+        }
+    },
+    "Library, In-house, -, -, -": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": null,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": null,
+            "Minimum": null,
+            "Unit": "ng/uL"
+        },
+        "Input material": null,
+        "QC recommendation": null,
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": null,
+            "Unit": "uL"
+        }
+    },
+    "Nextera mate-pair, 1.5-2.5kb (gel free)": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": 1000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 1000.0,
+            "Minimum": 50.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "RNA, Illumina TruSeq Stranded mRNA, Poly-A selection, default, 1527": {
+        "Amount": {
+            "Minimum": 400.0,
+            "Recommended": 2000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 100.0,
+            "Minimum": 30.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "total RNA",
+        "QC recommendation": null,
+        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Volume": {
+            "Minimum": 15.0,
+            "Unit": "uL"
+        }
+    },
+    "RNA, Illumina TruSeq Stranded mRNA, no depletion or selection, -, 1529": {
+        "Amount": {
+            "Minimum": 100.0,
+            "Recommended": 100.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 25.0,
+            "Minimum": 10.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "mRNA",
+        "QC recommendation": null,
+        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "RNA, Illumina TruSeq Stranded total RNA, Epicenter RiboZero, -, 1309": {
+        "Amount": {
+            "Minimum": 1000.0,
+            "Recommended": 2000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 250.0,
+            "Minimum": 100.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "total RNA",
+        "QC recommendation": null,
+        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "RNA, Illumina TruSeq Stranded total RNA, Illumina RiboZero, -, 1301": {
+        "Amount": {
+            "Minimum": 1000.0,
+            "Recommended": 2000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 250.0,
+            "Minimum": 100.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "total RNA",
+        "QC recommendation": null,
+        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Volume": {
+            "Minimum": 20.0,
+            "Unit": "uL"
+        }
+    },
+    "RNA, Illumina TruSeq small RNA, -, -, 1544": {
+        "Amount": {
+            "Minimum": 1000.0,
+            "Recommended": 1000.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 400.0,
+            "Minimum": 250.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "total RNA",
+        "QC recommendation": "Small RNA Bioanalyzer",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "RNA, Special, -, -, -": {
+        "Amount": {
+            "Minimum": null,
+            "Recommended": null,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": null,
+            "Minimum": null,
+            "Unit": "ng/uL"
+        },
+        "Input material": null,
+        "QC recommendation": null,
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": null,
+            "Unit": "uL"
+        }
+    },
+    "Rubicon Thruplex DNA-seq (ChIP-seq)": {
+        "Amount": {
+            "Minimum": 1.0,
+            "Recommended": 1.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 10.0,
+            "Minimum": 0.2,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": null,
+        "Quality requirement": "Bioanalyzer",
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "Rubicon Thruplex DNA-seq (FFPE)": {
+        "Amount": {
+            "Minimum": 200.0,
+            "Recommended": 200.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 50.0,
+            "Minimum": 20.0,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    },
+    "Rubicon Thruplex DNA-seq (small genome)": {
+        "Amount": {
+            "Minimum": 2.0,
+            "Recommended": 2.0,
+            "Unit": "ng"
+        },
+        "Concentration": {
+            "Maximum": 10.0,
+            "Minimum": 0.2,
+            "Unit": "ng/uL"
+        },
+        "Input material": "DNA",
+        "QC recommendation": "Gel",
+        "Quality requirement": null,
+        "Volume": {
+            "Minimum": 10.0,
+            "Unit": "uL"
+        }
+    }
+}
