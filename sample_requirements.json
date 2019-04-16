@@ -183,7 +183,9 @@
         },
         "Input material": "DNA",
         "QC recommendation": null,
-        "Quality requirement": "Gel",
+        "Quality requirement": {
+            "Method": "Gel"
+        },
         "Volume": {
             "Minimum": 20.0,
             "Unit": "uL"
@@ -202,7 +204,9 @@
         },
         "Input material": "DNA",
         "QC recommendation": null,
-        "Quality requirement": "Gel",
+        "Quality requirement": {
+            "Method": "Gel"
+        },
         "Volume": {
             "Minimum": 20.0,
             "Unit": "uL"
@@ -221,7 +225,9 @@
         },
         "Input material": "DNA",
         "QC recommendation": null,
-        "Quality requirement": "Gel",
+        "Quality requirement": {
+            "Method": "Gel"
+        },
         "Volume": {
             "Minimum": 20.0,
             "Unit": "uL"
@@ -240,7 +246,9 @@
         },
         "Input material": "DNA",
         "QC recommendation": null,
-        "Quality requirement": "Gel",
+        "Quality requirement": {
+            "Method": "Gel"
+        },
         "Volume": {
             "Minimum": 20.0,
             "Unit": "uL"
@@ -506,7 +514,10 @@
         },
         "Input material": "total RNA",
         "QC recommendation": null,
-        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Quality requirement": {
+            "Method": "Bioanalyzer",
+            "RIN": 8
+        },
         "Volume": {
             "Minimum": 15.0,
             "Unit": "uL"
@@ -525,7 +536,10 @@
         },
         "Input material": "mRNA",
         "QC recommendation": null,
-        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Quality requirement": {
+            "Method": "Bioanalyzer",
+            "RIN": 8
+        },
         "Volume": {
             "Minimum": 10.0,
             "Unit": "uL"
@@ -544,7 +558,10 @@
         },
         "Input material": "total RNA",
         "QC recommendation": null,
-        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Quality requirement": {
+            "Method": "Bioanalyzer",
+            "RIN": 8
+        },
         "Volume": {
             "Minimum": 20.0,
             "Unit": "uL"
@@ -563,7 +580,10 @@
         },
         "Input material": "total RNA",
         "QC recommendation": null,
-        "Quality requirement": "Bioanalyzer (RIN \u22658)",
+        "Quality requirement": {
+            "Method": "Bioanalyzer",
+            "RIN": 8
+        },
         "Volume": {
             "Minimum": 20.0,
             "Unit": "uL"
@@ -620,7 +640,9 @@
         },
         "Input material": "DNA",
         "QC recommendation": null,
-        "Quality requirement": "Bioanalyzer",
+        "Quality requirement": {
+            "Method": "Bioanalyzer"
+        },
         "Volume": {
             "Minimum": 10.0,
             "Unit": "uL"
