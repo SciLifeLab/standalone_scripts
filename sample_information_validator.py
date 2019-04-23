@@ -103,16 +103,15 @@ class ProjectSheet:
             pdoc = db.get(prow[0].id)
             return(pdoc)
 
-    def requirements(self, path):
-        if self.sample_rec is None:
-            wb_sample_recommendations = load_workbook(path, read_only=True, data_only=True)
-            self.sample_rec = wb_sample_recommendations['Numeric']
-
-    def prep_standards(self, info, recom_path):
-        ''' gets the sample requirements from the sample requirement excel sheet based
+    def prep_standards(self, info, config):
+        ''' gets the sample requirements from statusDB (json format) based
             on the given sample prep type. '''
-        with open(recom_path) as ifh: #ifh = input file handler
-            recom_info = json.load(ifh)
+        with open(config) as settings_file:
+            server_settings = yaml.load(settings_file, Loader=yaml.FullLoader)
+        couch = couchdb.Server(server_settings.get("couch_server", None))
+        requirementsDB = couch["sample_requirements"]
+        requirements = requirementsDB.view("valid/by_date", descending=True)
+        recom_info = requirements.rows[0].value["requirements"]
         prep = info['details']['library_construction_method']
         prep_recs = [None,None,None,None,None,None,None]
         if prep in recom_info:
@@ -149,7 +148,7 @@ class ProjectSheet:
                 )
             quit()
 
-    def validate(self, info, recom_path):
+    def validate(self, info, config_info):
         """Validates all rows with a sample ID
 
         First checks for existence and correctness of a plate ID and if user changed the default.
@@ -158,7 +157,7 @@ class ProjectSheet:
         samples only) with the optional attributes.
         - Loops through all the given cells and validates them individually.
         """
-        prep_recs = self.prep_standards(info, recom_path)
+        prep_recs = self.prep_standards(info, config_info)
         passes = 0
         total = 0
 
@@ -275,7 +274,7 @@ class Validator(object):
             return True
 
 
-def main(input_sheet, config_statusDB, recom_path):
+def main(input_sheet, config_statusDB):
     # Instantiate the ProjectSheet object
     sheetOI = ProjectSheet(input_sheet)
     # get Project Information from couchDB
@@ -283,7 +282,7 @@ def main(input_sheet, config_statusDB, recom_path):
     # validate the project name to ensure correct identification in couchDB
     sheetOI.validate_project_Name(Project_Information)
     # validate all entries
-    sheetOI.validate(Project_Information, recom_path)
+    sheetOI.validate(Project_Information, config_statusDB)
 
 
 if __name__ == '__main__':
@@ -291,10 +290,8 @@ if __name__ == '__main__':
     parser.add_argument('sampleInfoSheet',
                         help="Completed sample info sent to NGI by the user.")
     parser.add_argument('config_statusDB',
-                        help="settings file in yaml format to access statusDB.")
-    parser.add_argument('path_recom_sheet', default=None,
-                        help="path to the sample recommendation excel file")
+                        help="settings file in yaml format to access statusDB \
+                        in the format \"couch_server: http://<username>:<password>@tools.scilifelab.se:5984\"")
     args = parser.parse_args()
 
-    main(args.sampleInfoSheet,  args.config_statusDB,\
-    args.path_recom_sheet)
+    main(args.sampleInfoSheet,  args.config_statusDB)
