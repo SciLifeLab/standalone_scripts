@@ -10,6 +10,7 @@ import re
 import couchdb
 import numbers
 import json
+import yaml
 
 #global variable
 WARNINGS = 0
@@ -75,10 +76,11 @@ class ProjectSheet:
                 cellID_noSample.append(cell_id)# TODO check here that these rows do really not contain information
         return(cellID_withSample)
 
-    def ProjectInfo(self, username_couchDB, password_couchDB, url):
-        url_string = "http://"+username_couchDB+":"+password_couchDB+url
-        connection = couchdb.Server(url=url_string)
-        db = connection["projects"]
+    def ProjectInfo(self, config):
+        with open(config) as settings_file:
+            server_settings = yaml.load(settings_file, Loader=yaml.FullLoader)
+        couch = couchdb.Server(server_settings.get("couch_server", None))
+        db = couch["projects"]
         # check the existence of the project number in couchDB
         project_id_found = db.view("project/project_id", key=self.projectID())
         prow=project_id_found.rows
@@ -273,11 +275,11 @@ class Validator(object):
             return True
 
 
-def main(input_sheet, username_couchDB, password_couchDB, url_couchDB, recom_path):
+def main(input_sheet, config_statusDB, recom_path):
     # Instantiate the ProjectSheet object
     sheetOI = ProjectSheet(input_sheet)
     # get Project Information from couchDB
-    Project_Information = sheetOI.ProjectInfo(username_couchDB, password_couchDB, url_couchDB)
+    Project_Information = sheetOI.ProjectInfo(config_statusDB)
     # validate the project name to ensure correct identification in couchDB
     sheetOI.validate_project_Name(Project_Information)
     # validate all entries
@@ -288,15 +290,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('sampleInfoSheet',
                         help="Completed sample info sent to NGI by the user.")
-    parser.add_argument('username', default=None,
-                        help="Username for couchDB")
-    parser.add_argument('password', default=None,
-                        help="Password for couchDB")
-    parser.add_argument('url_couchDB', default=None,
-                        help="server address for couchDB i.e. \"@tools-dev.scilifelab.se:5984\"")
+    parser.add_argument('config_statusDB',
+                        help="settings file in yaml format to access statusDB.")
     parser.add_argument('path_recom_sheet', default=None,
                         help="path to the sample recommendation excel file")
     args = parser.parse_args()
 
-    main(args.sampleInfoSheet,  args.username, args.password, args.url_couchDB,\
+    main(args.sampleInfoSheet,  args.config_statusDB,\
     args.path_recom_sheet)
