@@ -121,6 +121,22 @@ def check_not_null(items, type):
                                     " Violated for item with id {}.".\
                                     format(not_null_key, type, id))
 
+def check_discontinued(components, products):
+    """Make sure no discontinued components are used for enabled products."""
+
+    for product_id, product in products.items():
+        component_ids = []
+        if product["Components"]:
+            component_ids += product["Components"].keys()
+        if product["Alternative Components"]:
+            component_ids += product["Alternative Components"].keys()
+
+        for component_id in component_ids:
+            if product["Status"] == "Enabled":
+                if components[component_id]["Status"] == "Discontinued":
+                    raise ValueError("Product {}:\"{}\" uses the discontinued component {}:\"{}\"".\
+                                    format(product_id, products[product_id]["Name"], \
+                                           component_id, components[component_id]["Product name"]))
 
 def get_current_items(db, type):
     rows = db.view("entire_document/by_version", descending=True, limit=1).rows
@@ -383,6 +399,9 @@ def main_push(input_file, config, user, user_email,
 
     current_version = get_current_version(prod_db)
     prod_doc['Version'] = current_version + 1
+
+    # Verify no discontinued components are used for enabled products
+    check_discontinued(components, products)
 
     # --- Push or Print --- #
     if push:
