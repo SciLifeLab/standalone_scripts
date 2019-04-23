@@ -22,18 +22,19 @@ SHEET = {'components': 'Price list',
 SKIP = {'components': ['Price', 'Total', 'Per unit'],
         'products': ['Internal', 'External']}
 
-# The name of the _id_ key and which variables that cannot be changed
+# The name of the _id_ key and which variables that shouldn't be changed
 # while keeping the same _id_. If an update of any of these fields is needed,
-# a new id needs to be created.
-CONSERVED_KEY_SETS = {'products': ('ID', ['Category', 'Type', 'Name']),
-                      'components': ('REF_ID', ['Category', 'Type', 'Product name'])}
+# a new id should be created.
+CONSERVED_KEY_SETS = {'products': ['Category', 'Type', 'Name'],
+                      'components': ['Category', 'Type', 'Product name']}
 
-# The combination of these "columns" need to be unique within the document
-UNIQUE_KEY_SETS = {'products': ('ID', ['Category', 'Type', 'Name']),
-                   'components': ('REF_ID', ['Category', 'Type', 'Product name', 'Units'])}
+# The combination of these "columns" should be unique within the document,
+# a warning will be issued otherwise
+UNIQUE_KEY_SETS = {'products': ['Category', 'Type', 'Name'],
+                   'components': ['Category', 'Type', 'Product name', 'Units']}
 
-NOT_NULL_KEYS = {'products': ['Category', 'Type', 'Name', 'Re-run fee'],
-                 'components': ['Category', 'Type', 'Status',
+NOT_NULL_KEYS = {'products': ['REF_ID', 'Category', 'Type', 'Name', 'Re-run fee'],
+                 'components': ['REF_ID', 'Category', 'Type', 'Status',
                                 'Product name', 'Units', 'Currency',
                                 'List price', 'Discount']}
 
@@ -49,20 +50,20 @@ coloredlogs.install(level='INFO', logger=logger,
 
 
 def check_unique(items, type):
-    """Make sure all items within _items_
+    """Check whether all items within _items_
 
-    fulfill the uniqueness criteria according to the UNIQUE_KEY_SETS
+    fulfill the uniqueness criteria according to the UNIQUE_KEY_SETS.
+    Otherwise warn accordingly.
     """
     key_val_set = set()
     for id, item in items.items():
-        id_key, keys = UNIQUE_KEY_SETS[type]
+        keys = UNIQUE_KEY_SETS[type]
         t = tuple(item[key] for key in keys)
 
         # Check that it is not already added
         if t in key_val_set:
-            raise ValueError("Key combination {}:{} is included multiple "
-                             "times in the {} sheet. "
-                             "ABORTING.".format(keys, t, type))
+            logger.warning("Key combination {}:{} is included multiple "
+                             "times in the {} sheet. ".format(keys, t, type))
         key_val_set.add(t)
     return True
 
@@ -78,30 +79,22 @@ def check_conserved(new_items, current_items, type):
                         with ID attribute as the key.
         type          - Either "components" or "products"
     """
-    conserved_keys = CONSERVED_KEY_SETS[type][1]
+    conserved_keys = CONSERVED_KEY_SETS[type]
 
     for id, new_item in new_items.items():
         if str(id) in current_items:
             for conserved_key in conserved_keys:
                 if conserved_key not in new_item:
-                    raise ValueError("{} column not found in new {} row with "
-                                     "id {}. This column needs to be kept "
-                                     "conserved. ABORTING!".format(
-                                        conserved_key,
-                                        type,
-                                        id
-                                        ))
+                    logger.warning("{} column not found in new {} row with "
+                                     "id {}. This column should be kept "
+                                     "conserved.".format(conserved_key, type, id))
                 if new_item[conserved_key] != current_items[str(id)][conserved_key]:
-                    raise ValueError("{} need to be conserved for {}."
-                                     " Violated for item with id {}. "
-                                     "Found {} for new and {} for current. "
-                                     "ABORTING!".format(
-                                        conserved_key,
-                                        type,
-                                        id,
-                                        new_item[conserved_key],
-                                        current_items[str(id)][conserved_key]
-                                        ))
+                    logger.warning("{} should be conserved for {}. "
+                                     "Violated for item with id {}. "
+                                     "Found \"{}\" for new and \"{}\" for current. ".format(
+                                        conserved_key, type,
+                                        id, new_item[conserved_key],
+                                        current_items[str(id)][conserved_key]))
     return True
 
 
