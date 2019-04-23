@@ -9,7 +9,6 @@ import logging
 import re
 import couchdb
 import numbers
-import json
 import yaml
 
 #global variable
@@ -24,7 +23,7 @@ coloredlogs.install(level='INFO', logger=logger,
 
 
 class ProjectSheet:
-#Class Attributes
+    #Class Attributes
     SHEET_NAME = 'Sample information'
     FIRST_LINE = 20  # First line where user submitted data is located
     SAMPLE_NAME_COL = 'O'
@@ -99,7 +98,7 @@ class ProjectSheet:
             )
             quit()
         else:
-        # puts the Document of the identified project in a new variable "pdoc"
+            # puts the Document of the identified project in a new variable "pdoc"
             pdoc = db.get(prow[0].id)
             return(pdoc)
 
@@ -112,10 +111,10 @@ class ProjectSheet:
         requirementsDB = couch["sample_requirements"]
         requirements = requirementsDB.view("valid/by_date", descending=True)
         recom_info = requirements.rows[0].value["requirements"]
+
         prep = info['details']['library_construction_method']
         prep_recs = [None,None,None,None,None,None,None]
         if prep in recom_info:
-
             prep_recs = [\
             recom_info[prep]['Concentration']['Minimum'],\
             recom_info[prep]['Concentration']['Maximum'],\
@@ -130,9 +129,7 @@ class ProjectSheet:
                 prep_recs.append(None)
 
         else:
-            logger.error(
-                'Preparation type \"{}\" not found'.format(prep)
-                )
+            logger.error('Preparation type \"{}\" not found'.format(prep))
             quit()
         return(prep_recs)
 
@@ -150,7 +147,6 @@ class ProjectSheet:
 
     def validate(self, info, config_info):
         """Validates all rows with a sample ID
-
         First checks for existence and correctness of a plate ID and if user changed the default.
         Then, given the column letter and which rows to validate:
         - Initiates the given validators for concentration, volume and RIN (RNA
@@ -181,7 +177,6 @@ class ProjectSheet:
                 if result_conc and result_vol:  # Test passed
                     passes += 1
         if (prep_recs[5] == 'Bioanalyzer (RIN ≥8)'):
-
             logger.info(
             'Sample processing prerequisit: submission of {} data'.format(prep_recs[5])
             )
@@ -245,7 +240,6 @@ class Validator(object):
         or (self.access_sample_info_sheet[self.concentrationID].value > max_conc):
             global WARNINGS
             WARNINGS += 1
-
             logger.warning('Sample concentration ({}ng/ul) in cell {} is out of specifications: {}-{}ng/ul'\
             .format(self.access_sample_info_sheet[self.concentrationID].value,self.concentrationID, min_conc, max_conc))
         return True
