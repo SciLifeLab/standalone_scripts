@@ -9,8 +9,7 @@ import logging
 import re
 import couchdb
 import numbers
-import decimal
-
+import json
 
 #global variable
 WARNINGS = 0
@@ -44,7 +43,7 @@ class ProjectSheet:
 
     # instance methods
     def getAccessUserSheet(self):
-        if self.work_sheet == None:
+        if self.work_sheet is None:
             wb = load_workbook(self.sample_info_sheet, read_only=True, data_only=True)
             ws = wb[ProjectSheet.SHEET_NAME]
             self.work_sheet = ws
@@ -59,8 +58,8 @@ class ProjectSheet:
         """ identifies the all rows containing a sample name, discards rows without entry.
         Rows containing whitespace only trigger a warning and are discarded for subsequent
         tests """
-        cellID_withSample = list()
-        cellID_noSample = list()
+        cellID_withSample = []
+        cellID_noSample = []
         for i in range(ProjectSheet.FIRST_LINE, ProjectSheet.FIRST_LINE+96):
             cell_id = "{col}{row_iter}".format(col=ProjectSheet.SAMPLE_NAME_COL,row_iter=i)
             cell_value = str(self.work_sheet[cell_id].value)
@@ -103,33 +102,33 @@ class ProjectSheet:
             return(pdoc)
 
     def requirements(self, path):
-        if self.sample_rec == None:
+        if self.sample_rec is None:
             wb_sample_recommendations = load_workbook(path, read_only=True, data_only=True)
             self.sample_rec = wb_sample_recommendations['Numeric']
 
     def prep_standards(self, info, recom_path):
         ''' gets the sample requirements from the sample requirement excel sheet based
             on the given sample prep type. '''
-
+        with open(recom_path) as ifh: #ifh = input file handler
+            recom_info = json.load(ifh)
         prep = info['details']['library_construction_method']
+        prep_recs = [None,None,None,None,None,None,None]
+        if prep in recom_info:
 
-        prep_recs = [None,None,None,None,None,None,None,None]
-        prep_type_found = False
-        for row in range(2, 15):
-            cellID_prep = "A{row}".format(row=row)
-            self.requirements(recom_path)
-            if(self.sample_rec[cellID_prep].value == prep):
-                prep_row = row
-                prep_recs = [\
-                self.sample_rec["C{min_conc}".format(min_conc=prep_row)].value, \
-                self.sample_rec["D{max_conc}".format(max_conc=prep_row)].value, \
-                self.sample_rec["E{min_vol}".format(min_vol=prep_row)].value, \
-                self.sample_rec["F{rec_ng}".format(rec_ng=prep_row)].value, \
-                self.sample_rec["G{min_ng}".format(min_ng=prep_row)].value, \
-                self.sample_rec["H{qual_req}".format(qual_req=prep_row)].value, \
-                self.sample_rec["I{qual_rec}".format(qual_rec=prep_row)].value]
-                prep_type_found = True
-        if(prep_type_found == False):
+            prep_recs = [\
+            recom_info[prep]['Concentration']['Minimum'],\
+            recom_info[prep]['Concentration']['Maximum'],\
+            recom_info[prep]['Volume']['Minimum'],\
+            recom_info[prep]['Amount']['Recommended'],\
+            recom_info[prep]['Amount']['Minimum'],\
+            recom_info[prep]['Quality requirement']['Method'],\
+            recom_info[prep]['QC recommendation'],]
+            if 'RIN' in recom_info[prep]['Quality requirement']:
+                prep_recs.append(recom_info[prep]['Quality requirement']['RIN'])
+            else:
+                prep_recs.append(None)
+
+        else:
             logger.error(
                 'Preparation type \"{}\" not found'.format(prep)
                 )
@@ -138,17 +137,17 @@ class ProjectSheet:
 
     def validate_project_Name(self, info):
         project_name_DB = info['project_name']
-        project_name_user = re.split('-', self.work_sheet[ProjectSheet.PROJECT_NAME_USER_SHEET].value)[0]
+        project_name_user = self.work_sheet[ProjectSheet.PROJECT_NAME_USER_SHEET].value.split('-')[0]
         if(project_name_DB == project_name_user):
             logger.info('plateID {} correct.'.format(self.work_sheet[ProjectSheet.PLATE_ID].value))
         else:
             logger.error(
                 'Wrong PLATE ID! Your given plate ID {} does not match your project. '
-                'If this plate ID is correct, please contact your Project coordinator'.format(plate_id)
+                'If this plate ID is correct, please contact your Project coordinator'.format(ProjectSheet.PLATE_ID)
                 )
             quit()
 
-    def validate_column(self, info, recom_path):
+    def validate(self, info, recom_path):
         """Validates all rows with a sample ID
 
         First checks for existence and correctness of a plate ID and if user changed the default.
@@ -172,8 +171,9 @@ class ProjectSheet:
             validator.validate_numeric()
             result_conc = validator.validate_conc(prep_recs[0], prep_recs[1])
             result_vol = validator.validate_vol(prep_recs[2])
-            if (prep_recs[5] == 'Bioanalyzer (RIN ≥8)'):
-                result_rin = validator.validate_rin()
+            result_rin = validator.validate_rin(prep_recs[7])
+
+            if prep_recs[7] is not None: #most common mis-spellings
                 if result_conc and result_vol and result_rin:  # Test passed
                     passes += 1
             else:
@@ -225,7 +225,9 @@ class Validator(object):
                     return False
                 except ValueError:
                     logger.error(
-                    'Cell {} with value \"'.format(self.access_sample_info_sheet[checkNumbers].coordinate)+ self.access_sample_info_sheet[checkNumbers].value + '\" is not numeric'
+                    'Cell {0} with value \"{1}\" is not numeric'.format(\
+                    self.access_sample_info_sheet[checkNumbers].coordinate, \
+                    self.access_sample_info_sheet[checkNumbers].value)
                     )
                 except TypeError:
                     if self.access_sample_info_sheet[checkNumbers].value is None:
@@ -258,9 +260,9 @@ class Validator(object):
         else:
             return True
 
-    def validate_rin(self):
+    def validate_rin(self, rin):
         """Checks entry for RIN in RNA samples only"""
-        if self.access_sample_info_sheet[self.rinID].value <8:
+        if self.access_sample_info_sheet[self.rinID].value < rin:
             logger.warning(
                 'RIN value in cell {} is below recommendation'.format(self.access_sample_info_sheet[self.rinID].coordinate)
             )
@@ -278,10 +280,8 @@ def main(input_sheet, username_couchDB, password_couchDB, url_couchDB, recom_pat
     Project_Information = sheetOI.ProjectInfo(username_couchDB, password_couchDB, url_couchDB)
     # validate the project name to ensure correct identification in couchDB
     sheetOI.validate_project_Name(Project_Information)
-    # get info about prep type
-    prep_recommendations = sheetOI.prep_standards(Project_Information, recom_path)
     # validate all entries
-    sheetOI.validate_column(Project_Information, recom_path)
+    sheetOI.validate(Project_Information, recom_path)
 
 
 if __name__ == '__main__':
