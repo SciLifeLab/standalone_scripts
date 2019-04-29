@@ -11,7 +11,7 @@ import couchdb
 import numbers
 import yaml
 
-#global variable
+# global variable
 WARNINGS = 0
 
 
@@ -61,18 +61,18 @@ class ProjectSheet:
         cellID_withSample = []
         cellID_noSample = []
         for i in range(ProjectSheet.FIRST_LINE, ProjectSheet.FIRST_LINE+96):
-            cell_id = "{col}{row_iter}".format(col=ProjectSheet.SAMPLE_NAME_COL,row_iter=i)
+            cell_id = "{col}{row_iter}".format(col=ProjectSheet.SAMPLE_NAME_COL, row_iter=i)
             cell_value = str(self.work_sheet[cell_id].value)
             if(cell_value.isspace()):
                 logger.warning(
                     'Cell {} contains empty spaces only. Remove content.'.format(cell_id)
-                   )
+                    )
                 global WARNINGS
                 WARNINGS += 1
-            elif(self.work_sheet[cell_id].value != None):
+            elif(self.work_sheet[cell_id].value is not None):
                 cellID_withSample.append(i)
             else:
-                cellID_noSample.append(cell_id)# TODO check here that these rows do really not contain information
+                cellID_noSample.append(cell_id) # TODO check here that these rows do really not contain information
         return(cellID_withSample)
 
     def ProjectInfo(self, config):
@@ -82,20 +82,20 @@ class ProjectSheet:
         db = couch["projects"]
         # check the existence of the project number in couchDB
         project_id_found = db.view("project/project_id", key=self.projectID())
-        prow=project_id_found.rows
+        prow = project_id_found.rows
         # Project not found
         if len(prow) == 0:
             logger.error(
-            'Project not found, please check your entry for the PlateID, it should have the format'
-            'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
-            )
+                'Project not found, please check your entry for the PlateID, it should have the format'
+                'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
+                )
             quit()
         # more than one project found
         elif len(prow) > 1:
             logger.error(
-            'Project ID not unique, please check your entry for the PlateID, it should have the format'
-            'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
-            )
+                'Project ID not unique, please check your entry for the PlateID, it should have the format'
+                'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
+                )
             quit()
         else:
             # puts the Document of the identified project in a new variable "pdoc"
@@ -116,12 +116,12 @@ class ProjectSheet:
         prep_recs = [None,None,None,None,None,None,None]
         if prep in recom_info:
             prep_recs = [\
-            recom_info[prep]['Concentration']['Minimum'],\
-            recom_info[prep]['Concentration']['Maximum'],\
-            recom_info[prep]['Volume']['Minimum'],\
-            recom_info[prep]['Amount']['Recommended'],\
-            recom_info[prep]['Amount']['Minimum'],\
-            recom_info[prep]['Quality requirement']['Method'],\
+            recom_info[prep]['Concentration']['Minimum'],
+            recom_info[prep]['Concentration']['Maximum'],
+            recom_info[prep]['Volume']['Minimum'],
+            recom_info[prep]['Amount']['Recommended'],
+            recom_info[prep]['Amount']['Minimum'],
+            recom_info[prep]['Quality requirement']['Method'],
             recom_info[prep]['QC recommendation'],]
             if 'RIN' in recom_info[prep]['Quality requirement']:
                 prep_recs.append(recom_info[prep]['Quality requirement']['RIN'])
@@ -178,25 +178,25 @@ class ProjectSheet:
                     passes += 1
         if (prep_recs[5] == 'Bioanalyzer (RIN ≥8)'):
             logger.info(
-            'Sample processing prerequisit: submission of {} data'.format(prep_recs[5])
-            )
+                'Sample processing prerequisit: submission of {} data'.format(prep_recs[5])
+                )
             logger.info(
                 'Checked entry in sample concentration, volume and quality control. {}/{} pass'\
                 .format(passes, total)
                 )
         else:
-            if(prep_recs[5] != None):
+            if(prep_recs[5] is not None):
                 logger.info(
-                'Sample processing prerequisit: submission of {} data'.format(prep_recs[5])
-                )
-            if(prep_recs[6] != None):
+                    'Sample processing prerequisit: submission of {} data'.format(prep_recs[5])
+                    )
+            if(prep_recs[6] is not None):
                 logger.info(
-                'Sample QC recommendation: submission of {} data'.format(prep_recs[6])
-                )
+                    'Sample QC recommendation: submission of {} data'.format(prep_recs[6])
+                    )
             logger.info(
-                'Checked entry in sample concentration and volume. {}/{} pass, {} warning(s).'\
-                .format(passes, total, WARNINGS)
-                )
+                    'Checked entry in sample concentration and volume. {}/{} pass, {} warning(s).'\
+                    .format(passes, total, WARNINGS)
+                    )
 
 
 class Validator(object):
@@ -221,15 +221,15 @@ class Validator(object):
                     return False
                 except ValueError:
                     logger.error(
-                    'Cell {0} with value \"{1}\" is not numeric'.format(\
-                    self.access_sample_info_sheet[checkNumbers].coordinate, \
-                    self.access_sample_info_sheet[checkNumbers].value)
-                    )
+                        'Cell {0} with value "{1}" is not numeric'.format(\
+                        self.access_sample_info_sheet[checkNumbers].coordinate, \
+                        self.access_sample_info_sheet[checkNumbers].value)
+                        )
                 except TypeError:
                     if self.access_sample_info_sheet[checkNumbers].value is None:
                         logger.error(
-                        'Cell {} is numeric but empty'.format(self.access_sample_info_sheet[checkNumbers].coordinate)
-                        )
+                            'Cell {} is numeric but empty'.format(self.access_sample_info_sheet[checkNumbers].coordinate)
+                            )
                         return False
                     else:
                         raise
@@ -260,7 +260,7 @@ class Validator(object):
         if self.access_sample_info_sheet[self.rinID].value < rin:
             logger.warning(
                 'RIN value in cell {} is below recommendation'.format(self.access_sample_info_sheet[self.rinID].coordinate)
-            )
+                )
             global WARNINGS
             WARNINGS += 1
             return True
