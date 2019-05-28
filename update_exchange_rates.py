@@ -51,8 +51,8 @@ def main(config, push_to_server=False):
     # Check that new is not too strange compared to current.
     # This is a safety measure so that we have lower risk of having erroneus
     # exchange rates in the db.
-    current_usd = get_current(db, 'usd_to_sek')
-    current_eur = get_current(db, 'eur_to_sek')
+    current_usd = get_current(db, 'USD_in_SEK')
+    current_eur = get_current(db, 'EUR_in_SEK')
 
     check_financial_crisis(current_usd, usd_to_sek, 'USD')
     check_financial_crisis(current_eur, eur_to_sek, 'EUR')
