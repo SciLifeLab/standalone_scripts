@@ -11,6 +11,7 @@ import yaml
 from couchdb import Server
 import datetime
 from collections import OrderedDict
+import pprint
 
 FIRST_ROW = {'components': 9,
              'products': 4}
@@ -21,18 +22,19 @@ SHEET = {'components': 'Price list',
 SKIP = {'components': ['Price', 'Total', 'Per unit'],
         'products': ['Internal', 'External']}
 
-# The name of the _id_ key and which variables that cannot be changed
+# The name of the _id_ key and which variables that shouldn't be changed
 # while keeping the same _id_. If an update of any of these fields is needed,
-# a new id needs to be created.
-CONSERVED_KEY_SETS = {'products': ('ID', ['Category', 'Type', 'Name']),
-                      'components': ('REF_ID', ['Category', 'Type', 'Product name'])}
+# a new id should be created.
+CONSERVED_KEY_SETS = {'products': ['Category', 'Type', 'Name'],
+                      'components': ['Category', 'Type', 'Product name']}
 
-# The combination of these "columns" need to be unique within the document
-UNIQUE_KEY_SETS = {'products': ('ID', ['Category', 'Type', 'Name']),
-                   'components': ('REF_ID', ['Category', 'Type', 'Product name', 'Units'])}
+# The combination of these "columns" should be unique within the document,
+# a warning will be issued otherwise
+UNIQUE_KEY_SETS = {'products': ['Category', 'Type', 'Name'],
+                   'components': ['Category', 'Type', 'Product name', 'Units']}
 
-NOT_NULL_KEYS = {'products': ['Category', 'Type', 'Name', 'Re-run fee'],
-                 'components': ['Category', 'Type', 'Status',
+NOT_NULL_KEYS = {'products': ['REF_ID', 'Category', 'Type', 'Name', 'Re-run fee'],
+                 'components': ['REF_ID', 'Category', 'Type', 'Status',
                                 'Product name', 'Units', 'Currency',
                                 'List price', 'Discount']}
 
@@ -48,20 +50,20 @@ coloredlogs.install(level='INFO', logger=logger,
 
 
 def check_unique(items, type):
-    """Make sure all items within _items_
+    """Check whether all items within _items_
 
-    fulfill the uniqueness criteria according to the UNIQUE_KEY_SETS
+    fulfill the uniqueness criteria according to the UNIQUE_KEY_SETS.
+    Otherwise warn accordingly.
     """
     key_val_set = set()
     for id, item in items.items():
-        id_key, keys = UNIQUE_KEY_SETS[type]
+        keys = UNIQUE_KEY_SETS[type]
         t = tuple(item[key] for key in keys)
 
         # Check that it is not already added
         if t in key_val_set:
-            raise ValueError("Key combination {}:{} is included multiple "
-                             "times in the {} sheet. "
-                             "ABORTING.".format(keys, t, type))
+            logger.warning("Key combination {}:{} is included multiple "
+                             "times in the {} sheet. ".format(keys, t, type))
         key_val_set.add(t)
     return True
 
@@ -77,30 +79,22 @@ def check_conserved(new_items, current_items, type):
                         with ID attribute as the key.
         type          - Either "components" or "products"
     """
-    conserved_keys = CONSERVED_KEY_SETS[type][1]
+    conserved_keys = CONSERVED_KEY_SETS[type]
 
     for id, new_item in new_items.items():
         if str(id) in current_items:
             for conserved_key in conserved_keys:
                 if conserved_key not in new_item:
-                    raise ValueError("{} column not found in new {} row with "
-                                     "id {}. This column needs to be kept "
-                                     "conserved. ABORTING!".format(
-                                        conserved_key,
-                                        type,
-                                        id
-                                        ))
+                    logger.warning("{} column not found in new {} row with "
+                                     "id {}. This column should be kept "
+                                     "conserved.".format(conserved_key, type, id))
                 if new_item[conserved_key] != current_items[str(id)][conserved_key]:
-                    raise ValueError("{} need to be conserved for {}."
-                                     " Violated for item with id {}. "
-                                     "Found {} for new and {} for current. "
-                                     "ABORTING!".format(
-                                        conserved_key,
-                                        type,
-                                        id,
-                                        new_item[conserved_key],
-                                        current_items[str(id)][conserved_key]
-                                        ))
+                    logger.warning("{} should be conserved for {}. "
+                                     "Violated for item with id {}. "
+                                     "Found \"{}\" for new and \"{}\" for current. ".format(
+                                        conserved_key, type,
+                                        id, new_item[conserved_key],
+                                        current_items[str(id)][conserved_key]))
     return True
 
 
@@ -112,10 +106,30 @@ def check_not_null(items, type):
     for id, item in items.items():
         for not_null_key in not_null_keys:
             if item[not_null_key] is None or item[not_null_key] == '':
-                raise ValueError("{} cannot be empty for {}."
-                                 " Violated for item with id {}.".\
-                                 format(not_null_key, type, id))
+                # Special case for discontinued components
+                if 'Status' in item and item['Status'] == 'Discontinued':
+                    pass
+                else:
+                    raise ValueError("{} cannot be empty for {}."
+                                    " Violated for item with id {}.".\
+                                    format(not_null_key, type, id))
 
+def check_discontinued(components, products):
+    """Make sure no discontinued components are used for enabled products."""
+
+    for product_id, product in products.items():
+        component_ids = []
+        if product["Components"]:
+            component_ids += product["Components"].keys()
+        if product["Alternative Components"]:
+            component_ids += product["Alternative Components"].keys()
+
+        for component_id in component_ids:
+            if product["Status"] == "Enabled":
+                if components[component_id]["Status"] == "Discontinued":
+                    raise ValueError("Product {}:\"{}\" uses the discontinued component {}:\"{}\"".\
+                                    format(product_id, products[product_id]["Name"], \
+                                           component_id, components[component_id]["Product name"]))
 
 def get_current_items(db, type):
     rows = db.view("entire_document/by_version", descending=True, limit=1).rows
@@ -142,6 +156,8 @@ def load_products(wb):
     product_price_columns = {}
     for cell in header_cells:
         cell_val = cell.value
+        if cell_val == 'ID':
+            cell_val = 'REF_ID'  # Don't want to confuse it with couchdb ids
         # Get cell column as string
         cell_column = cell.coordinate.replace(str(header_row), '')
         if cell_val not in SKIP['products']:
@@ -154,11 +170,12 @@ def load_products(wb):
     # Unkown number of rows
     while row < MAX_NR_ROWS:
         new_product = {}
+        fetch_prices = False # default behaviour
         for col, header_val in header.items():
             val = ws["{}{}".format(col, row)].value
             if val is None:
                 val = ''
-            if header_val == 'Components':
+            if header_val in ['Components', 'Alternative Components']:
                 # Some cells might be interpreted as floats
                 # e.g. "37,78"
                 val = str(val)
@@ -177,37 +194,41 @@ def load_products(wb):
                         val_list.append(comp_id)
 
                     val = {comp_ref_id: {'quantity': 1} for comp_ref_id in val_list}
+                elif header_val == 'Components':
+                    # If no components are listed, price should be fetched as well,
+                    # unless the row is in fact empty.
+                    if not is_empty_row(new_product):
+                        fetch_prices = True
 
-            # Special logic added to the comment column
-            if header_val == 'Comment':
+            # Comment column occurs after the price columns, so
+            # checking for this ensures that the prices have been parsed
+            if (header_val == 'Comment') and fetch_prices:
                 # Fixed price is added when price does not
                 # directly depend on the components
-                if val == 'Fixed price':
-                    new_product['fixed_price'] = {}
-                    int_cell = "{}{}".format(
-                                    product_price_columns['Internal'],
-                                    row
-                                )
-                    ext_cell = "{}{}".format(
-                                    product_price_columns['External'],
-                                    row
-                                )
-                    new_product['fixed_price']['price_in_sek'] = ws[int_cell].value
-                    new_product['fixed_price']['external_price_in_sek'] = ws[ext_cell].value
+                new_product['fixed_price'] = {}
+                int_cell = "{}{}".format(
+                                product_price_columns['Internal'],
+                                row
+                            )
+                ext_cell = "{}{}".format(
+                                product_price_columns['External'],
+                                row
+                            )
+                new_product['fixed_price']['price_in_sek'] = ws[int_cell].value
+                new_product['fixed_price']['external_price_in_sek'] = ws[ext_cell].value
 
             new_product[header_val] = val
 
         if not is_empty_row(new_product):
-            product_row = row - FIRST_ROW['products'] + 1
-
             # The id seems to be stored as a string in the database
             # so might as well always have the ids as strings.
+            product_id = str(new_product['REF_ID'])
 
-            product_row = str(product_row)
+            # Prepare for a status value on products
+            if 'Status' not in new_product:
+                new_product['Status'] = "Enabled"
 
-            # the row in the sheet is used as ID.
-            # In the future this will have to be backpropagated to the sheet.
-            products[product_row] = new_product
+            products[product_id] = new_product
         row += 1
 
     return products
@@ -372,6 +393,9 @@ def main_push(input_file, config, user, user_email,
     current_version = get_current_version(prod_db)
     prod_doc['Version'] = current_version + 1
 
+    # Verify no discontinued components are used for enabled products
+    check_discontinued(components, products)
+
     # --- Push or Print --- #
     if push:
         comp_db = couch['pricing_components']
@@ -401,9 +425,9 @@ def main_push(input_file, config, user, user_email,
             )
         prod_db.save(prod_doc)
     else:
-        print(comp_doc)
-        print(prod_doc)
-
+        # Prettyprint the json output
+        pprint.pprint(comp_doc)
+        pprint.pprint(prod_doc)
 
 def main_publish(config, user, user_email, dryrun=True):
     with open(config) as settings_file:
