@@ -18,7 +18,7 @@ mkdir -p $HOME/kvalitetssystem
 mount_smbfs //ngi.transfer@homer.scilifelab.se/kvalitetssystem $HOME/kvalitetssystem
 
 #Copy zipped backup file
-rysnc -av $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip $HOME/kvalitetssystem
+rsync -av $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip $HOME/kvalitetssystem
 
 #Unmount homer
 umount $HOME/kvalitetssystem
