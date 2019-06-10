@@ -127,9 +127,11 @@ def check_discontinued(components, products):
         for component_id in component_ids:
             if product["Status"] == "Enabled":
                 if components[component_id]["Status"] == "Discontinued":
-                    raise ValueError("Product {}:\"{}\" uses the discontinued component {}:\"{}\"".\
+                    logger.warning(("Product {}:\"{}\" uses the discontinued component "
+                    "{}:\"{}\", changing product status to \"discontinued\"").\
                                     format(product_id, products[product_id]["Name"], \
                                            component_id, components[component_id]["Product name"]))
+                    product["Status"] = "Discontinued"
 
 def get_current_items(db, type):
     rows = db.view("entire_document/by_version", descending=True, limit=1).rows
@@ -333,7 +335,7 @@ def set_last_updated_field(new_objects, current_objects, object_type):
 def main_push(input_file, config, user, user_email,
               add_components=False, add_products=False, push=False):
     with open(config) as settings_file:
-        server_settings = yaml.load(settings_file)
+        server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
     couch = Server(server_settings.get("couch_server", None))
 
     wb = load_workbook(input_file, read_only=True, data_only=True)
@@ -431,7 +433,7 @@ def main_push(input_file, config, user, user_email,
 
 def main_publish(config, user, user_email, dryrun=True):
     with open(config) as settings_file:
-        server_settings = yaml.load(settings_file)
+        server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
     couch = Server(server_settings.get("couch_server", None))
 
     comp_db = couch['pricing_components']
