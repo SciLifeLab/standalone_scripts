@@ -103,7 +103,6 @@ class ProjectSheet:
         project_plate_ID = self.projectID()
         project_id_found = db.view("project/project_id", key=project_plate_ID[0])
         prow = project_id_found.rows
-#        print(prow)
         # Project not found
         if len(prow) == 0:
             logger.error(
@@ -121,7 +120,7 @@ class ProjectSheet:
         else:
             # puts the Document of the identified project in a new variable "pdoc"
             pdoc = db.get(prow[0].id)
-            return([pdoc, project_plate_ID[1]])
+            return pdoc, project_plate_ID[1]
 
     def prep_standards(self, info, config):
         '''
@@ -135,7 +134,7 @@ class ProjectSheet:
         requirements = requirementsDB.view("valid/by_date", descending=True)
         recom_info = requirements.rows[0].value["requirements"]
 
-        prep = info[0]['details']['library_construction_method']
+        prep = info['details']['library_construction_method']
         prep_recs = [None,None,None,None,None,None,None]
         if prep in recom_info:
             if recom_info[prep]['Quality requirement'] is not None:
@@ -146,35 +145,43 @@ class ProjectSheet:
                 recom_info[prep]['Amount']['Recommended'],
                 recom_info[prep]['Amount']['Minimum'],
                 recom_info[prep]['Quality requirement']['Method'],
-                recom_info[prep]['QC recommendation'],]
+                recom_info[prep]['QC recommendation']]
                 if 'RIN' in recom_info[prep]['Quality requirement']:
                     prep_recs.append(recom_info[prep]['Quality requirement']['RIN'])
                 else:
                     prep_recs.append(None)
             else:
-                prep_recs.append(None)
+                prep_recs = [\
+                recom_info[prep]['Concentration']['Minimum'],
+                recom_info[prep]['Concentration']['Maximum'],
+                recom_info[prep]['Volume']['Minimum'],
+                recom_info[prep]['Amount']['Recommended'],
+                recom_info[prep]['Amount']['Minimum'],
+                None,
+                recom_info[prep]['QC recommendation'],
+                None]
 
         else:
             logger.error('Preparation type \"{}\" not found'.format(prep))
             quit()
         return(prep_recs)
 
-    def validate_project_Name(self, info):
+    def validate_project_Name(self, info, project_plate_ID ):
         """
         Prints the identified project name based on the user supplied Plate/Project ID for
         control purposes by the project coordinator. Further checks that the
         plate number is not already in couchDB.
         """
-        project_name_DB = info[0]['project_name']
-        samples = info[0]['samples'].keys()
-        plate ='P{}_{}'.format(info[1].split("P")[1],info[1].split("P")[2])
+        project_name_DB = info['project_name']
+        samples = info['samples'].keys()
+        plate ='P{}_{}'.format(project_plate_ID.split("P")[1],project_plate_ID.split("P")[2])
         found_plate = [s for s in samples if plate in s]
         if(len(found_plate)>0):
-            new_plate_no = int(info[1].split("P")[2])
+            new_plate_no = int(project_plate_ID.split("P")[2])
             new_plate_no += 1
-            new_plate_ID = 'P{}P{}'.format(info[1].split("P")[1], new_plate_no)
+            new_plate_ID = 'P{}P{}'.format(project_plate_ID.split("P")[1], new_plate_no)
             logger.warning(
-                'Plate number {} is already used. Please increase the plate number to {}.'.format(info[1], new_plate_ID))
+                'Plate number {} is already used. Please increase the plate number to {}.'.format(project_plate_ID, new_plate_ID))
             global WARNINGS
             WARNINGS += 1
         logger.info('identified project name: {}'.format(project_name_DB))
@@ -214,6 +221,8 @@ class ProjectSheet:
                         if result_conc and result_vol and result_numeric:  # Test passed
                             passes += 1
             else:
+                # this means that the prep chosen has no recommendations in the DB
+                # i.e. ALL values for recommendations are missing
                 recom_avail = None
                 if result_numeric:  # Test passed
                     passes += 1
@@ -344,9 +353,9 @@ def main(input_sheet, config_statusDB):
     # Instantiate the ProjectSheet object
     sheetOI = ProjectSheet(input_sheet)
     # get Project Information from couchDB
-    Project_Information = sheetOI.ProjectInfo(config_statusDB)
+    Project_Information, project_plate_ID = sheetOI.ProjectInfo(config_statusDB)
     # validate the project name to ensure correct identification in couchDB
-    sheetOI.validate_project_Name(Project_Information)
+    sheetOI.validate_project_Name(Project_Information, project_plate_ID)
     # validate all entries
     sheetOI.validate(Project_Information, config_statusDB)
 
