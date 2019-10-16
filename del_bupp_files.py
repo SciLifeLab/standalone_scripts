@@ -30,14 +30,14 @@ def main(args):
             if args.danger:
                 os.remove(f)
             else:
-                sys.stderr.write("Would have removed {}".format(f))
+                sys.stderr.write("Would have removed {}\n".format(f))
 
         # Remove everything older than approx 2 years
         if (datetime.datetime.now() - file_date).days > 600:
             if args.danger:
                 os.remove(f)
             else:
-                sys.stderr.write("Would have removed {}".format(f))
+                sys.stderr.write("Would have removed {}\n".format(f))
 
 
 if __name__ == "__main__":
