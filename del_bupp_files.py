@@ -22,8 +22,7 @@ def main(args):
             file_date = datetime.datetime.strptime(bn[0:10], "%Y-%m-%d")
 
         if file_date is None:
-            sys.stderr.write("Error {} was not possible to parse.".format(f))
-            sys.exit(-1)
+            continue
 
         # Save backups from April, August, December
         # Remove others older than 90 days
