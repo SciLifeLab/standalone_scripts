@@ -22,7 +22,7 @@ def main(args):
             file_date = datetime.datetime.strptime(bn[0:10], "%Y-%m-%d")
 
         if file_date is None:
-            sys.stderr.write("Error {} was not possible to parse.".format(file_date))
+            sys.stderr.write("Error {} was not possible to parse.".format(f))
             sys.exit(-1)
 
         # Save backups from April, August, December
