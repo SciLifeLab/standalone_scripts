@@ -14,11 +14,16 @@ def main(args):
     files = glob.glob("/home/bupp/other/*")
     for f in files:
         bn = os.path.basename(f)
+        file_date = None
         if args.mode == 'github' and 'github' in f:
             file_date = datetime.datetime.strptime(bn[13:23], "%Y-%m-%d")
             
         if args.mode == 'zendesk' and 'github' not in f:
             file_date = datetime.datetime.strptime(bn[0:10], "%Y-%m-%d")
+
+        if file_date is None:
+            sys.stderr.write("Error {} was not possible to parse.".format(file_date)
+            sys.exit(-1)
 
         # Save backups from April, August, December
         # Remove others older than 90 days
@@ -34,8 +39,6 @@ def main(args):
                 os.remove(f)
             else:
                 sys.stderr.write("Would have removed {}".format(f))
-
-
 
 
 if __name__ == "__main__":
