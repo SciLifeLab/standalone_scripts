@@ -14,10 +14,10 @@ def main(args):
     files = glob.glob("/home/bupp/other/*")
     for f in files:
         bn = os.path.basename(f)
-        if args.mode == 'github':
+        if args.mode == 'github' and 'github' in f:
             file_date = datetime.datetime.strptime(bn[13:23], "%Y-%m-%d")
             
-        if args.mode == 'zendesk':
+        if args.mode == 'zendesk' and 'github' not in f:
             file_date = datetime.datetime.strptime(bn[0:10], "%Y-%m-%d")
 
         # Save backups from April, August, December
