@@ -16,9 +16,11 @@ def main(args):
         bn = os.path.basename(f)
         file_date = None
         if args.mode == 'github' and 'github' in f:
+            # Typical file name: githubbackup_2019-09-09T15:42:39.980130.tar.gz
             file_date = datetime.datetime.strptime(bn[13:23], "%Y-%m-%d")
-            
+
         if args.mode == 'zendesk' and 'github' not in f:
+            # Typical file name: 2019-09-09_16-33.bckp.json
             file_date = datetime.datetime.strptime(bn[0:10], "%Y-%m-%d")
 
         if file_date is None:
