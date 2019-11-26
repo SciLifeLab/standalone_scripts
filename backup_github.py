@@ -8,9 +8,10 @@ import datetime
 import tarfile
 import shutil
 import yaml
+from itertools import chain
 
 from subprocess import CalledProcessError, PIPE, STDOUT, check_call
-from pygithub3 import Github
+from github import Github
 
 track_all_branches = """
 for branch in `git branch -a | grep remotes | grep -v HEAD | grep -v master`; do
@@ -43,17 +44,23 @@ def credentials():
 def backup(user, password, dest):
     """Performs a backup of all the public repos in user's GitHub account on dest
     """
+    if password is None or user is None:
+        logger.error("No valid github credentials provided. Exiting!")
+        sys.exit(-1)
     if not password is None:
-        gh = Github(login=user, user=user, password=password)
-        repos = gh.repos.list(type='all')
-    if password is None or repos.all() == []:
-        logger.warning("No valid github credentials provided. Private repos will not be copied!")
-        gh = Github()
-        repos = gh.repos.list(type='all', user=user)
+        gh = Github(user, password)
+        SL_org = gh.get_organization('SciLifeLab')
+        NGI_org = gh.get_organization('NationalGenomicsInfrastructure')
 
-    for repo in repos.all():
+        SL_repos = SL_org.get_repos(visibility='all')
+        NGI_repos = NGI_org.get_repos(visibility='all')
+
+    for repo in chain(SL_repos, NGI_repos):
         if password is not None and repo.private is True:
-            source = repo.clone_url.replace("https://", "https://{}:{}@".format(user, password))
+            source = repo.clone_url.replace(
+                                "https://",
+                                "https://{}:{}@".format(user, password)
+                                )
         else:
             source = repo.clone_url
 
@@ -65,11 +72,11 @@ def backup(user, password, dest):
                      "all branches".format(repo.name))
             with cd(repo_path):
                 try:
-                    #These stdout and stderr flush out the normal github output
-                    #the alternative of using -q doesn't always work
+                    # These stdout and stderr flush out the normal github output
+                    # the alternative of using -q doesn't always work
                     check_call(['git', 'stash'], stdout=PIPE, stderr=STDOUT)
                     check_call(['git', 'pull'], stdout=PIPE, stderr=STDOUT)
-		#General exception to better catch errors
+                # General exception to better catch errors
                 except CalledProcessError:
                     logger.error("There was an error fetching the branches from " \
                               "the repository {}, skipping it".format(repo.name))
@@ -103,7 +110,7 @@ def compressAndMove(source, final_dest):
         pass
     #Moves output to backup folder
     try:
-       shutil.move("{}/githubbackup_{}.tar.gz".format(os.getcwd(), stamp), final_dest)
+        shutil.move("{}/githubbackup_{}.tar.gz".format(os.getcwd(), stamp), final_dest)
     except Exception:
         logger.error("Unable to move backup archive.")
 
