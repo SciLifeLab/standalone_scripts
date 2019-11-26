@@ -67,7 +67,7 @@ def backup(user, password, organizations, dest):
             repos_l.append(gh_org.get_repos(type='all'))
 
             # Check that destination directories are set up
-            org_dest_path = os.path.join(dest, org.name)
+            org_dest_path = os.path.join(dest, org)
             if not os.path.exists(org_dest_path):
                 os.mkdir(org_dest_path)
 
