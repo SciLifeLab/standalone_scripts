@@ -157,7 +157,7 @@ if __name__ == "__main__":
         user = config.get("github_username")
         password = config.get("github_password")
 
-    dest = os.getcwd() if not args.d else args.d
+    dest = os.getcwd() if not args.dest else args.dest
 
     logging.basicConfig(
         filename=logfile, level=logging.DEBUG,
