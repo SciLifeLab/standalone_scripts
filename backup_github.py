@@ -53,7 +53,7 @@ def credentials():
 
 
 def backup(user, password, organizations, dest):
-    """Performs a backup of all the accessible repos in given organizaions
+    """Performs a backup of all the accessible repos in given organizations
     """
     if password is None or user is None:
         logger.error("No valid github credentials provided. Exiting!")
@@ -175,5 +175,5 @@ if __name__ == "__main__":
                                             dest,
                                             ", ".join(args.organizations)
                                             ))
-    backup(user, password, args.organizaions, dest)
+    backup(user, password, args.organizations, dest)
     compressAndMove(dest, args.final_dest)
