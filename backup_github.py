@@ -66,6 +66,11 @@ def backup(user, password, organizations, dest):
 
             repos_l.append(gh_org.get_repos(type='all'))
 
+            # Check that destination directories are set up
+            org_dest_path = os.path.join(dest, org.name)
+            if not os.path.exists(org_dest_path):
+                os.mkdir(org_dest_path)
+
     for repo in chain(*repos_l):
         if password is not None and repo.private is True:
             source = repo.clone_url.replace(
@@ -75,7 +80,7 @@ def backup(user, password, organizations, dest):
         else:
             source = repo.clone_url
 
-        repo_path = os.path.join(dest, repo.name)
+        repo_path = os.path.join(dest, repo.organization, repo.name)
         logger.info("Backing up repository {}".format(repo.name))
         # If the repository is present on destination, update all branches
         if os.path.exists(repo_path):
