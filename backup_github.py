@@ -80,7 +80,7 @@ def backup(user, password, organizations, dest):
         else:
             source = repo.clone_url
 
-        repo_path = os.path.join(dest, repo.organization.name, repo.name)
+        repo_path = os.path.join(dest, repo.organization.login, repo.name)
         logger.info("Backing up repository {}".format(repo.name))
         # If the repository is present on destination, update all branches
         if os.path.exists(repo_path):
