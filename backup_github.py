@@ -66,7 +66,7 @@ def backup(user, password, organizations, dest):
 
             repos_l.append(gh_org.get_repos(type='all'))
 
-    for repo in chain(repos_l):
+    for repo in chain(*repos_l):
         if password is not None and repo.private is True:
             source = repo.clone_url.replace(
                                 "https://",
