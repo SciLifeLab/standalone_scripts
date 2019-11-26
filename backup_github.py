@@ -107,18 +107,20 @@ def backup(user, password, organizations, dest):
                 check_call(['git', 'clone', source, repo_path],
                            stdout=PIPE, stderr=STDOUT)
                 logger.info("Cloning {}".format(repo.name))
-            except CalledProcessError:
+            except CalledProcessError as e:
                 logger.error("ERROR: Error cloning repository {}, "
                              "skipping it".format(repo.name))
+                logger.error(str(e))
             pass
             try:
                 with cd(repo_path):
                     check_call(track_all_branches, shell=True,
                                stdout=PIPE, stderr=STDOUT)
                     logger.info("Fetching branches for {}".format(repo.name))
-            except CalledProcessError:
+            except CalledProcessError as e:
                 logger.error("ERROR: Problem fetching branches for "
                              "repository {}, skipping it".format(repo.name))
+                logger.error(str(e))
                 pass
 
 
@@ -128,15 +130,16 @@ def compressAndMove(source, final_dest):
         with tarfile.open("githubbackup_{}.tar.gz".format(stamp), "w:gz") as tar:
             tar.add(source, arcname=os.path.basename(source))
         tar.close()
-    except Exception:
+    except Exception as e:
         logger.error("Unable to compress backup into archive.")
-        pass
+        raise e
     # Moves output to backup folder
     try:
         shutil.move("{}/githubbackup_{}.tar.gz".format(os.getcwd(), stamp),
                     final_dest)
-    except Exception:
+    except Exception as e:
         logger.error("Unable to move backup archive.")
+        raise e
 
 
 if __name__ == "__main__":
@@ -165,7 +168,7 @@ if __name__ == "__main__":
     dest = os.getcwd() if not args.dest else args.dest
 
     logging.basicConfig(
-        filename=logfile, level=logging.DEBUG,
+        filename=logfile, level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
 
