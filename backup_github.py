@@ -48,7 +48,7 @@ def credentials():
     if not os.path.exists(config_file):
         config_file = os.path.join(os.environ.get("GITHUBBACKUP_CREDS"))
     with open(config_file) as f:
-        conf = yaml.load(f)
+        conf = yaml.load(f, Loader=yaml.SafeLoader)
     return conf
 
 
@@ -64,7 +64,7 @@ def backup(user, password, organizations, dest):
         for org in organizations:
             gh_org = gh.get_organization(org)
 
-            repos_l.append(gh_org.get_repos(visibility='all'))
+            repos_l.append(gh_org.get_repos(type='all'))
 
     for repo in chain(repos_l):
         if password is not None and repo.private is True:
