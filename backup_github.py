@@ -59,34 +59,35 @@ def backup(user, password, organizations, dest):
         logger.error("No valid github credentials provided. Exiting!")
         sys.exit(-1)
     if password is not None:
-        gh = Github(user, password)
-        repos_l = []  # list of repos iterators
-        for org in organizations:
-            gh_org = gh.get_organization(org)
+        github_instance = Github(user, password)
+        repositories = []  # list of repository *iterators*
+        for organization in organizations:
+            github_organization = github_instance.get_organization(organization)
 
-            repos_l.append(gh_org.get_repos(type='all'))
+            repositories.append(github_organization.get_repos(type='all'))
 
             # Check that destination directories are set up
-            org_dest_path = os.path.join(dest, org)
-            if not os.path.exists(org_dest_path):
-                os.mkdir(org_dest_path)
+            organization_destination_path = os.path.join(dest, organization)
+            if not os.path.exists(organization_destination_path):
+                os.mkdir(organization_destination_path)
 
-    for repo in chain(*repos_l):
-        if password is not None and repo.private is True:
-            source = repo.clone_url.replace(
+    for repository in chain(*repositories):
+        if password is not None and repository.private is True:
+            source = repository.clone_url.replace(
                                 "https://",
                                 "https://{}:{}@".format(user, password)
                                 )
         else:
-            source = repo.clone_url
+            source = repository.clone_url
 
-        repo_path = os.path.join(dest, repo.organization.login, repo.name)
-        logger.info("Backing up repository {}".format(repo.name))
+        repository_path = os.path.join(dest, repository.organization.login,
+                                       repository.name)
+        logger.info("Backing up repository {}".format(repository.name))
         # If the repository is present on destination, update all branches
-        if os.path.exists(repo_path):
+        if os.path.exists(repository_path):
             logger.info("The repository {} already exists on destination. "
-                        "Pulling all branches".format(repo.name))
-            with cd(repo_path):
+                        "Pulling all branches".format(repository.name))
+            with cd(repository_path):
                 try:
                     # These stdout and stderr flush out the normal github
                     # output the alternative of using -q doesn't always work
@@ -96,35 +97,40 @@ def backup(user, password, organizations, dest):
                 except CalledProcessError:
                     logger.error("There was an error fetching the branches "
                                  "from the repository {}, "
-                                 "skipping it".format(repo.name))
+                                 "skipping it".format(repository.name))
                     pass
-            logger.info("Finished copying repo {}".format(repo.name))
+            logger.info("Finished copying repo {}".format(repository.name))
         # Otherwise clone the repository and fetch all branches
         else:
             logger.info("The repository {} isn't cloned at {}, cloning instead"
-                        " of updating...".format(repo.name, repo_path))
+                        " of updating...".format(repository.name,
+                                                 repository_path))
             try:
-                check_call(['git', 'clone', source, repo_path],
+                check_call(['git', 'clone', source, repository_path],
                            stdout=PIPE, stderr=STDOUT)
-                logger.info("Cloning {}".format(repo.name))
+                logger.info("Cloning {}".format(repository.name))
             except CalledProcessError as e:
                 logger.error("ERROR: Error cloning repository {}, "
-                             "skipping it".format(repo.name))
+                             "skipping it".format(repository.name))
                 logger.error(str(e))
-            pass
+                pass
             try:
-                with cd(repo_path):
+                with cd(repository_path):
                     check_call(track_all_branches, shell=True,
                                stdout=PIPE, stderr=STDOUT)
-                    logger.info("Fetching branches for {}".format(repo.name))
+                    logger.info("Fetching branches for {}".format(
+                                                            repository.name
+                                                            ))
             except CalledProcessError as e:
                 logger.error("ERROR: Problem fetching branches for "
-                             "repository {}, skipping it".format(repo.name))
+                             "repository {}, skipping it".format(
+                                                            repository.name
+                                                            ))
                 logger.error(str(e))
                 pass
 
 
-def compressAndMove(source, final_dest):
+def compress_and_move(source, final_dest):
     stamp = datetime.datetime.now().isoformat()
     try:
         with tarfile.open("githubbackup_{}.tar.gz".format(stamp), "w:gz") as tar:
@@ -184,4 +190,4 @@ if __name__ == "__main__":
                                             ", ".join(args.organizations)
                                             ))
     backup(user, password, args.organizations, dest)
-    compressAndMove(dest, args.final_dest)
+    compress_and_move(dest, args.final_dest)
