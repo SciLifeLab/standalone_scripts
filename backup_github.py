@@ -149,7 +149,6 @@ def compress_and_move(source, final_dest):
 
 
 if __name__ == "__main__":
-    logfile = 'githubbackup.log'
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--user", nargs='?', type=str, help="GitHub username")
     parser.add_argument("--password", nargs='?', type=str,
@@ -161,6 +160,8 @@ if __name__ == "__main__":
                         "be backed up", required=True)
     parser.add_argument('--organizations', nargs='*', required=True,
                         help="Github organizations that should be backed up")
+    parser.add_argument('--logfile', type=str, default='githubbackup.log',
+                        help="File to append the log to.")
     args = parser.parse_args()
 
     # Command line flags take priority. Otherwise use config
@@ -173,8 +174,14 @@ if __name__ == "__main__":
 
     dest = os.getcwd() if not args.dest else args.dest
 
+    # Need to check if the directory exists for the given log file
+    logfile_directory = os.path.dirname(os.path.abspath(args.logfile))
+    if not os.path.exists(logfile_directory):
+        logging.error("The directory for the specified log file does not exist. Aborting")
+        sys.exit(-1)
+
     logging.basicConfig(
-        filename=logfile, level=logging.INFO,
+        filename=args.logfile, level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
 
