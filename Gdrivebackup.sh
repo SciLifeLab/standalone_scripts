@@ -3,7 +3,7 @@
 ###
 ### This script is to zip and save certain directories from Google Drive which have been backed up to 'ngi.transfer' to the homer system for QA purposes
 ### This script requires that The Google Backup and Sysnc utility be running on the ngi.transfer computer and that ngi.transfer has access to homer
-### Recommended to be run once a month.
+### Recommended to be run once a month. The file `~/Library/Preferences/nsmb.conf` contains the password details for mount_smbfs.
 ###
 
 currentDate=`date +"%Y-%m-%d"`
@@ -15,7 +15,7 @@ zip -vr $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip  $HOME/Google\ Drive/
 mkdir -p $HOME/kvalitetssystem
 
 #Mount homer password should be in keychain
-/sbin/mount_smbfs //ngi.transfer:[password]@homer.scilifelab.se/kvalitetssystem $HOME/kvalitetssystem
+/sbin/mount_smbfs -N //ngi.transfer@homer.scilifelab.se/kvalitetssystem $HOME/kvalitetssystem
 
 #Copy zipped backup file
 rsync -av $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip $HOME/kvalitetssystem
