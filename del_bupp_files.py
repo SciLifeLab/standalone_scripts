@@ -10,6 +10,7 @@ import os
 import argparse
 import sys
 
+
 def main(args):
     files = glob.glob("/home/bupp/other/*")
     for f in files:
@@ -17,29 +18,47 @@ def main(args):
         file_date = None
         if args.mode == 'github' and 'github' in f:
             # Typical file name: githubbackup_2019-09-09T15:42:39.980130.tar.gz
-            file_date = datetime.datetime.strptime(bn[13:23], "%Y-%m-%d")
+            try:
+                file_date = datetime.datetime.strptime(bn[13:23], "%Y-%m-%d")
+            except ValueError as e:
+                print(e, file=sys.stderr)
+                continue
 
         if args.mode == 'zendesk' and 'github' not in f:
             # Typical file name: 2019-09-09_16-33.bckp.json
-            file_date = datetime.datetime.strptime(bn[0:10], "%Y-%m-%d")
+            try:
+                file_date = datetime.datetime.strptime(bn[0:10], "%Y-%m-%d")
+            except ValueError as e:
+                sys.stderr.write(e)
+                print(e, file=sys.stderr)
+                continue
 
         if file_date is None:
             continue
 
-        # Save backups from April, August, December
-        # Remove others older than 90 days
-        if ((datetime.datetime.now() - file_date).days > 90 and file_date.month % 4):
-            if args.danger:
-                os.remove(f)
-            else:
-                sys.stderr.write("Would have removed {}\n".format(f))
+        remove = False
+        # Keep all backups from the last 20 days
+        if (datetime.datetime.now() - file_date).days > 20:
 
-        # Remove everything older than approx 2 years
-        if (datetime.datetime.now() - file_date).days > 600:
-            if args.danger:
-                os.remove(f)
-            else:
-                sys.stderr.write("Would have removed {}\n".format(f))
+            # Remove all but a single last one of the weekly backups
+            # for April, August and December.
+            if ((file_date.month == 4 and file_date.day < 24) or
+                (file_date.month in [8,12] and file_date.day < 25)):
+                remove = True
+
+            # Remove all other weekly backups
+            if file_date.month % 4:
+                remove = True
+
+            # Remove everything older than approx 2 years
+            if (datetime.datetime.now() - file_date).days > 600:
+                remove = True
+
+            if remove:
+                if args.danger:
+                    os.remove(f)
+                else:
+                    sys.stderr.write("Would have removed {}\n".format(f))
 
 
 if __name__ == "__main__":
