@@ -14,8 +14,11 @@ zip -vr $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip  $HOME/Google\ Drive/
 #make mountpoint
 mkdir -p $HOME/kvalitetssystem
 
-#Mount homer password should be in keychain
-/sbin/mount_smbfs -N //ngi.transfer@homer.scilifelab.se/kvalitetssystem $HOME/kvalitetssystem
+#export the password from the file `~/Library/Preferences/nsmb.conf`
+export $(sed -n 2p /Users/ngi.transfer/Library/Preferences/nsmb.conf)
+
+#Mount homer
+/sbin/mount -t smbfs //ngi.transfer:$password@homer.scilifelab.se/kvalitetssystem $HOME/kvalitetssystem
 
 #Copy zipped backup file
 rsync -av $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip $HOME/kvalitetssystem
