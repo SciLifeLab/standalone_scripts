@@ -14,6 +14,7 @@ import yaml
 from numpy import setdiff1d
 from collections import Counter
 import Levenshtein as lev
+import sys
 
 # Set up a logger with colored output
 logger = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ class LibrarySheet:
         self.library_info_sheet = library_info_sheet
         self.library_sheet = None
         self.sample_rec = None
+        self.Project_Information = None
 
     # instance methods
     def getAccessUserSheet(self):
@@ -57,12 +59,11 @@ class LibrarySheet:
         if(len(re.findall('P\d+P\d+', plate_id))>0):
             project_id_user = re.findall('P\d+', plate_id)[0]
         else:
-            logger.error(
+            sys.exit(logger.error(
                 'The given plate ID ({}) in cell {} has the wrong format. It should be in the format'
                 ' PxxxxxPx, where x are numbers. If you think your Plate ID is correct, contact your project coordinator.'\
                 .format(plate_id, LibrarySheet.PLATE_ID)
-                )
-            quit()
+                ))
         return([project_id_user, plate_id])
 
     def getRows(self, column):
@@ -102,40 +103,39 @@ class LibrarySheet:
         prow = project_id_found.rows
         # Project not found
         if len(prow) == 0:
-            logger.error(
+            sys.exit(logger.error(
                 'Project not found, please check your entry for the PlateID, it should have the format'
                 'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
-                )
-            quit()
+                ))
         # more than one project found
         elif len(prow) > 1:
-            logger.error(
+            sys.exit(logger.error(
                 'Project ID not unique, please check your entry for the PlateID, it should have the format'
                 'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
-                )
-            quit()
+                ))
         else:
             # puts the Document of the identified project in a new variable "pdoc"
-            pdoc = db.get(prow[0].id)
-            return pdoc, project_plate_ID[1]
+            self.Project_Information = db.get(prow[0].id)
+            self.Project_Plate_ID = project_plate_ID[1]
 
-    def validate_project_Name(self, info, project_plate_ID):
+    def validate_project_Name(self):
         """
         Prints the identified project name based on the user supplied Plate/Project ID for
         control purposes by the project coordinator. Further checks that the
         plate number is not already in couchDB.
         """
-        project_name_DB = info['project_name']
-        samples = info['samples'].keys()
-        plate ='P{}_{}'.format(project_plate_ID.split("P")[1],project_plate_ID.split("P")[2])
+    #    print(self.pdoc)
+        project_name_DB = self.Project_Information['project_name']
+        samples = self.Project_Information['samples'].keys()
+        plate ='P{}_{}'.format(self.Project_Plate_ID.split("P")[1],self.Project_Plate_ID.split("P")[2])
         found_plate = [s for s in samples if plate in s]
         warning_project_name = 0
         if(len(found_plate)>0):
-            new_plate_no = int(project_plate_ID.split("P")[2])
+            new_plate_no = int(self.Project_Plate_ID.split("P")[2])
             new_plate_no += 1
-            new_plate_ID = 'P{}P{}'.format(project_plate_ID.split("P")[1], new_plate_no)
+            new_plate_ID = 'P{}P{}'.format(self.Project_Plate_ID.split("P")[1], new_plate_no)
             logger.warning(
-                'Plate number {} is already used. Please increase the plate number to {}.'.format(project_plate_ID, new_plate_ID))
+                'Plate number {} is already used. Please increase the plate number to {}.'.format(self.Project_Plate_ID, new_plate_ID))
             warning_project_name = 1
         return(warning_project_name)
 
@@ -157,7 +157,7 @@ class LibrarySheet:
             warning_cycles += 1
         return(warning_cycles)
 
-    def validate(self, project_info):
+    def validate(self):
         """
         - identifies the samples in a pool
         - detects missing entry in pool column
@@ -173,9 +173,8 @@ class LibrarySheet:
         if(len(cell_rowid_sample) > len(cell_rowid_pool)):
             missing_pool_rowid_list = setdiff1d(cell_rowid_sample, cell_rowid_pool)
             for missing_pool_rowid in missing_pool_rowid_list:
-                logger.error(
-                    'Missing pool definition in {}{}'.format(LibrarySheet.POOL_NAME_SAMPLE_COL, missing_pool_rowid))
-            quit()
+                sys.exit(logger.error(
+                    'Missing pool definition in {}{}'.format(LibrarySheet.POOL_NAME_SAMPLE_COL, missing_pool_rowid)))
 
         #initiate check for sequencing setup and discrepancies between ordered numbers
         #of cycles and average read length
@@ -186,7 +185,7 @@ class LibrarySheet:
             cell_id_pool = "{col}{row_nr}".format(col=LibrarySheet.POOL_NAME_COL, row_nr=row_nr)
             validator = Validator(self.library_sheet,cell_id_mol) # molarity is currently not checked
             result_numeric, warnings_numeric = validator.validate_numeric()
-            warnings_c = self.validate_sequencing_setup(project_info, cell_id_length)
+            warnings_c = self.validate_sequencing_setup(self.Project_Information, cell_id_length)
             warnings_cycle.append(warnings_c)
 
         #retrieve all pool IDs defined, in order to later analyse by pool
@@ -205,38 +204,42 @@ class LibrarySheet:
         poolIDs = list(dict.fromkeys(pool_values))
         i = 0
         current_pool_rows = []
+        pools_with_warnings = []
         for pool in poolIDs:
             for nrow_nr in cell_rowid_sample:
                 current_cell_id_pool ="{col}{row_nr}".format(col=LibrarySheet.POOL_NAME_SAMPLE_COL, row_nr=nrow_nr)
                 current_cell_value_pool = self.library_sheet[current_cell_id_pool].value
                 if(current_cell_value_pool == pool):
                     current_pool_rows.append(nrow_nr)
-            validator = Validator(self.library_sheet, None)
+            validator = Validator(self.library_sheet)
 
-            result_index, sindex, warning_index_mix, \
-            warning_length_comp = validator.select_index(current_pool_rows, pool)
+            dictionary_sel_index = validator.select_index(current_pool_rows, pool)
+            dictionary_val_index = \
+            validator.validate_index(dictionary_sel_index["result_index"],
+                                    pool,
+                                    dictionary_sel_index["sindex"]
 
-            warning_low_div, warning_index_length,\
-            warning_index_balance = validator.validate_index(result_index, pool, sindex)
-
-            pool_warning = pool, [warning_low_div, warning_index_length, \
-            warning_index_balance, warnings_cycle[i], warning_index_mix, warning_length_comp]
-
-            pool_warnings.append(pool_warning)
+                                    )
+            # summary of warnings
+            all_warnings = [
+                            dictionary_val_index["warning_low_div"],
+                            dictionary_val_index["warning_index_length"],
+                            dictionary_val_index["warning_index_balance"],
+                            warnings_cycle[i],
+                            dictionary_sel_index["warning_index_mix"],
+                            dictionary_sel_index["warning_length_comp"]
+                            ]
+            sums_warnings = sum(all_warnings)
+            if(sums_warnings > 0):
+                pools_with_warnings.append(pool)
             current_pool_rows =[]
             i += 1
 
-        # summarise warnings and return
-        pools_with_warnings = []
-        for warning in pool_warnings:
-            sums_warnings = sum(warning[1])
-            if(sums_warnings > 0):
-                pools_with_warnings.append(warning[0])
         return(len(pools_with_warnings), len(poolIDs))
 
 class Validator(object):
     # Initializer / Instance attributes
-    def __init__(self, access_sample_info_sheet, molarityID):
+    def __init__(self, access_sample_info_sheet, molarityID = None):
         self.access_sample_info_sheet = access_sample_info_sheet
         self.molarityID = molarityID
 
@@ -324,9 +327,8 @@ class Validator(object):
 
                 # generates error if both custom and NGI standard index are selected for the same sample
                 if (self.access_sample_info_sheet["{col}{row_nr}".format(col=LibrarySheet.CINDEX_COL, row_nr=sindex.split(LibrarySheet.SINDEX_COL)[1])].value is not None):
-                    logger.error('Custom and Standard Index selected for the sample in fields {}{} and {}{}. Please clarify which of the two indexes was used.'\
-                    .format(LibrarySheet.SINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1], LibrarySheet.CINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1]))
-                    quit()
+                    sys.exit(logger.error('Custom and Standard Index selected for the sample in fields {}{} and {}{}. Please clarify which of the two indexes was used.'\
+                    .format(LibrarySheet.SINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1], LibrarySheet.CINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1])))
 
         # retrieves index sequences for custom indexes
         cindex_list = []
@@ -356,15 +358,13 @@ class Validator(object):
             sel_index = sindex_list
             if(len(sindex_list) != len(pool_rows)):
                 for absent_index in sindex_absent:
-                    logger.error("missing index in row {}".format(re.sub("\D","",absent_index)))
-                    quit()
+                    sys.exit(logger.error("missing index in row {}".format(re.sub("\D","",absent_index))))
         elif(len(sindex_absent) == len(pool_rows)):
             sel_index = cindex_list
             sindex_chosen = False
             if(len(cindex_list) != len(pool_rows)):
                 for absent_index in cindex_absent:
-                    logger.error("missing index in row {}".format(re.sub("\D","",absent_index)))
-                    quit()
+                    sys.exit(logger.error("missing index in row {}".format(re.sub("\D","",absent_index))))
         else:
             sindex_chosen = False
 
@@ -382,102 +382,104 @@ class Validator(object):
             .format(pool))
             warning_mixed_indexes += 1
 
+        dictionary_index = {
+        "result_index" : sel_index,
+        "sindex" : sindex_chosen,
+        "warning_index_mix" : warning_mixed_indexes,
+        "warning_length_comp" : warning_component_length
+        }
+
         # returns warnings for check summary
-        return(sel_index, sindex_chosen, warning_mixed_indexes, warning_component_length)
+        return(dictionary_index)
 
     def validate_index(self, index_seq, pool_name, sindex):
         '''
         does all the fancy index checks
         '''
-
         # allows for entry "noIndex" if only one sample is defined in the pool
         c = Counter(index_seq)
         if(c['noIndex'] > 0 and len(index_seq) != 1):
-            logger.error('Pool {} contains undefined index(es) (\"noIndex\")'\
-            .format(pool_name))
-            quit()
+            sys.exit(logger.error('Pool {} contains undefined index(es) (\"noIndex\")'.format(pool_name)))
         elif(c['noIndex'] == 1 and len(index_seq) == 1):
-            logger.info('Pool {} containing one sample is not indexed.'\
-            .format(pool_name))
+            logger.info('Pool {} containing one sample is not indexed.'.format(pool_name))
         elif(c['noIndex'] == 0):
             # checks that all indexes in a pool are unique
             for index, index_count in c.most_common():
                 if(index_count>1):
-                    logger.error('The index sequence \"{}\" in pool {} is not unique for this pool.'\
-                    .format(index, pool_name))
-                    quit()
+                    sys.exit(logger.error('The index sequence \"{}\" in pool {} is not unique for this pool.'\
+                    .format(index, pool_name)))
                 else:
                     break
 
         warning_low_div = 0
         index_count = 1
+        charRE = re.compile(r'[^ATCGNatcgn\-\.]')
         for index in index_seq:
             # checks that indexes only contain valid letters
-            charRE = re.compile(r'[^ATCGNatcgn\-.]')
             index_search = charRE.search(index)
             if(bool(index_search) and index != "noIndex"):
-                logger.error('The index sequence \"{}\" in pool {} contains invalid characters.'\
+                sys.exit(logger.error('The index sequence \"{}\" in pool {} contains invalid characters.'\
                 ' Allowed characters: A/T/C/G/N/a/t/c/g/n/-'
-                .format(index, pool_name))
-                quit()
+                .format(index, pool_name)))
 
             # check that indexes within a pool have minimum diversity
             for i in range(index_count,len(index_seq)):
-                if lev.distance(index.lower(), index_seq[i].lower()) < LibrarySheet.MAX_DISTANCE:
+                levenshtein_distance = lev.distance(index.lower(), index_seq[i].lower())
+                if levenshtein_distance < LibrarySheet.MAX_DISTANCE:
                     logger.warning('The index sequences {} and {} in pool {}'\
                     ' display low diversity (only {} nt difference).'\
-                    .format(index,index_seq[i], pool_name, lev.distance(index.lower(), index_seq[i].lower())))
+                    .format(index,index_seq[i], pool_name, levenshtein_distance))
                     warning_low_div += 1
             index_count += 1
 
         # checks index length
         warning_index_length = 0
         warning_index_balance = 0
-        if(not sindex):
-            index_length = []
-            for index in index_seq:
-                index_length.append(len(index))
-            count_length = Counter(index_length)
+        index_length = []
+        for index in index_seq:
+            index_length.append(len(index))
+        count_length = Counter(index_length)
 
-            if(len(count_length) > 1):
-                logger.warning('There are {} different index lengths in pool {}, please double check the sequences.'\
-                .format(len(count_length),pool_name))
-                warning_index_length += 1
+        # checks color balance in the pool
+        max_length = sorted(count_length.keys())[-1]
+        min_length = sorted(count_length.keys())[0]
+        index_list_colour = []
+        for index in index_seq:
+            index_colour = index.replace('T','G').replace('A','B').replace('C', 'R')
+            index_list_colour.append(list(index_colour))
+        for row_nr in range(0,max_length):
+            column = []
+            for row in index_list_colour:
+                try:
+                    column.append(row[row_nr])
+                except IndexError:                      # exception for pools with different index length of samples
+                    logger.warning('There are {} different index lengths in pool {}, please double check the sequences.'\
+                    .format(len(count_length),pool_name))
+                    warning_index_length += 1
+            count_colour = Counter(column)
+            if(len(count_colour)<2 and sum(count_colour.values()) > 1):
+                logger.warning('Indexes in pool {} unbalanced at position {}'\
+                .format(pool_name, row_nr+1))
+                warning_index_balance += 1
 
-            # checks color balance in the pool
-            max_length = sorted(count_length.keys())[-1]
-            min_length = sorted(count_length.keys())[0]
-            index_list_colour = []
-            for index in index_seq:
-                index_colour = index.replace('T','G').replace('A','R').replace('C', 'R')
-                index_list_colour.append(list(index_colour))
-
-            for row_nr in range(0,max_length):
-                column = []
-                for row in index_list_colour:
-                    try:
-                        column.append(row[row_nr])
-                    except IndexError:
-                        pass
-                count_colour = Counter(column)
-                if(len(count_colour)<2 and sum(count_colour.values()) > 1):
-                    logger.warning('Indexes in pool {} unbalanced at position {}'\
-                    .format(pool_name, row_nr+1))
-                    warning_index_balance += 1
-
+        dictionary_val_index = {
+        "warning_low_div" : warning_low_div,
+        "warning_index_length" : warning_index_length,
+        "warning_index_balance" : warning_index_balance
+        }
         # returns warnings for check summary
-        return(warning_low_div, warning_index_length, warning_index_balance)
+        return(dictionary_val_index)
 
 
 def main(input_sheet, config_statusDB):
     # Instantiate the LibrarySheet object
     sheetOI = LibrarySheet(input_sheet)
     # get Project Information from couchDB
-    Project_Information, project_plate_ID = sheetOI.ProjectInfo(config_statusDB)
+    sheetOI.ProjectInfo(config_statusDB)
     # validate the project name to ensure correct identification in couchDB
-    sheetOI.validate_project_Name(Project_Information, project_plate_ID)
+    sheetOI.validate_project_Name()
     # validate all entries
-    pool_fail, poolIDs = sheetOI.validate(Project_Information)
+    pool_fail, poolIDs = sheetOI.validate()
     # final check summary
     logger.info(
         'Library submission check complete. {}/{} pool(s) pass without warnings.'\
