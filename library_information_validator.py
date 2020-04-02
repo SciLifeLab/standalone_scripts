@@ -59,11 +59,12 @@ class LibrarySheet:
         if(len(re.findall('P\d+P\d+', plate_id))>0):
             project_id_user = re.findall('P\d+', plate_id)[0]
         else:
-            sys.exit(logger.error(
+            logger.error(
                 'The given plate ID ({}) in cell {} has the wrong format. It should be in the format'
                 ' PxxxxxPx, where x are numbers. If you think your Plate ID is correct, contact your project coordinator.'\
                 .format(plate_id, LibrarySheet.PLATE_ID)
-                ))
+                )
+            sys.exit(1)
         return([project_id_user, plate_id])
 
     def getRows(self, column):
@@ -103,16 +104,18 @@ class LibrarySheet:
         prow = project_id_found.rows
         # Project not found
         if len(prow) == 0:
-            sys.exit(logger.error(
+            logger.error(
                 'Project not found, please check your entry for the PlateID, it should have the format'
                 'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
-                ))
+                )
+            sys.exit(1)
         # more than one project found
         elif len(prow) > 1:
-            sys.exit(logger.error(
+            logger.error(
                 'Project ID not unique, please check your entry for the PlateID, it should have the format'
                 'PxxxxxPx, where x are numbers. If your Plate ID is correct, contact your project coordinator.'
-                ))
+                )
+            sys.exit(1)
         else:
             # puts the Document of the identified project in a new variable "pdoc"
             self.Project_Information = db.get(prow[0].id)
@@ -173,8 +176,9 @@ class LibrarySheet:
         if(len(cell_rowid_sample) > len(cell_rowid_pool)):
             missing_pool_rowid_list = setdiff1d(cell_rowid_sample, cell_rowid_pool)
             for missing_pool_rowid in missing_pool_rowid_list:
-                sys.exit(logger.error(
-                    'Missing pool definition in {}{}'.format(LibrarySheet.POOL_NAME_SAMPLE_COL, missing_pool_rowid)))
+                logger.error(
+                    'Missing pool definition in {}{}'.format(LibrarySheet.POOL_NAME_SAMPLE_COL, missing_pool_rowid))
+                sys.exit(1)
 
         #initiate check for sequencing setup and discrepancies between ordered numbers
         #of cycles and average read length
@@ -327,8 +331,9 @@ class Validator(object):
 
                 # generates error if both custom and NGI standard index are selected for the same sample
                 if (self.access_sample_info_sheet["{col}{row_nr}".format(col=LibrarySheet.CINDEX_COL, row_nr=sindex.split(LibrarySheet.SINDEX_COL)[1])].value is not None):
-                    sys.exit(logger.error('Custom and Standard Index selected for the sample in fields {}{} and {}{}. Please clarify which of the two indexes was used.'\
-                    .format(LibrarySheet.SINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1], LibrarySheet.CINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1])))
+                    logger.error('Custom and Standard Index selected for the sample in fields {}{} and {}{}. Please clarify which of the two indexes was used.'\
+                    .format(LibrarySheet.SINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1], LibrarySheet.CINDEX_COL, sindex.split(LibrarySheet.SINDEX_COL)[1]))
+                    sys.exit(1)
 
         # retrieves index sequences for custom indexes
         cindex_list = []
@@ -358,13 +363,15 @@ class Validator(object):
             sel_index = sindex_list
             if(len(sindex_list) != len(pool_rows)):
                 for absent_index in sindex_absent:
-                    sys.exit(logger.error("missing index in row {}".format(re.sub("\D","",absent_index))))
+                    logger.error("missing index in row {}".format(re.sub("\D","",absent_index)))
+                    sys.exit(1)
         elif(len(sindex_absent) == len(pool_rows)):
             sel_index = cindex_list
             sindex_chosen = False
             if(len(cindex_list) != len(pool_rows)):
                 for absent_index in cindex_absent:
-                    sys.exit(logger.error("missing index in row {}".format(re.sub("\D","",absent_index))))
+                    logger.error("missing index in row {}".format(re.sub("\D","",absent_index)))
+                    sys.exit(1)
         else:
             sindex_chosen = False
 
@@ -399,15 +406,17 @@ class Validator(object):
         # allows for entry "noIndex" if only one sample is defined in the pool
         c = Counter(index_seq)
         if(c['noIndex'] > 0 and len(index_seq) != 1):
-            sys.exit(logger.error('Pool {} contains undefined index(es) (\"noIndex\")'.format(pool_name)))
+            logger.error('Pool {} contains undefined index(es) (\"noIndex\")'.format(pool_name))
+            sys.exit(1)
         elif(c['noIndex'] == 1 and len(index_seq) == 1):
             logger.info('Pool {} containing one sample is not indexed.'.format(pool_name))
         elif(c['noIndex'] == 0):
             # checks that all indexes in a pool are unique
             for index, index_count in c.most_common():
                 if(index_count>1):
-                    sys.exit(logger.error('The index sequence \"{}\" in pool {} is not unique for this pool.'\
-                    .format(index, pool_name)))
+                    logger.error('The index sequence \"{}\" in pool {} is not unique for this pool.'\
+                    .format(index, pool_name))
+                    sys.exit(1)
                 else:
                     break
 
@@ -418,9 +427,10 @@ class Validator(object):
             # checks that indexes only contain valid letters
             index_search = charRE.search(index)
             if(bool(index_search) and index != "noIndex"):
-                sys.exit(logger.error('The index sequence \"{}\" in pool {} contains invalid characters.'\
+                logger.error('The index sequence \"{}\" in pool {} contains invalid characters.'\
                 ' Allowed characters: A/T/C/G/N/a/t/c/g/n/-'
-                .format(index, pool_name)))
+                .format(index, pool_name))
+                sys.exit(1)
 
             # check that indexes within a pool have minimum diversity
             for i in range(index_count,len(index_seq)):
