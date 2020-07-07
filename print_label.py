@@ -7,15 +7,12 @@
 # 2020: Moved to https://github.com/SciLifeLab/standalone_scripts (@ewels)
 # 2020: Rewritten to work with Python 3 (@ewels)
 
+import argparse
 
-
-import sys
-
-def construct(*args, **kwargs):
-    start = int(kwargs.get('start'))
-    end = int(kwargs.get('end'))
-    plates = int(kwargs.get('plates'))
-
+def construct(start, end, plates):
+    start = int(start)
+    end = int(end)
+    plates = int(plates)
     for i in range(start, end):
         PID = "P"+str(i)
         makeProjectBarcode(PID,plates)
@@ -38,40 +35,42 @@ def makeProjectBarcode(PID,plates):
         print ("^XZ")
 
 def getArgs():
-    from optparse import OptionParser
     ''' Options '''
-    parser = OptionParser(
-        description="""Tool for constructing barcode labels for NGI Genomics Projects""",
-        usage='-s <start project ID> -e <end project id>',
-        version="%prog V0.02 sverker.lundin@scilifelab.se")
-    parser.add_option('-s', '--start', type=int,
-        help='the starting project ID (numeric, e.g. 123)')
-    parser.add_option('-e', '--end', type=int,
-        help='the last project ID (numeric, e.g. 234)')
-    parser.add_option('-p', '--plates', type=int,
-        help='the number of plates (numeric, e.g. 5)')
+    parser = argparse.ArgumentParser(
+        description = "Tool for constructing barcode labels for NGI Genomics Projects",
+        usage = '--start <start project ID> --end <end project id>'
+    )
+    parser.add_argument(
+        '-s', '--start',
+        type = int,
+        help = 'the starting project ID (numeric, e.g. 123)'
+    )
+    parser.add_argument(
+        '-e', '--end',
+        type = int,
+        help = 'the last project ID (numeric, default --start + 1)'
+    )
+    parser.add_argument(
+        '-p', '--plates',
+        type = int,
+        default = 5,
+        help = 'the number of plates (numeric, default 5)'
+    )
     return parser
 
 def main():
     parser = getArgs()
-    (options, args) = parser.parse_args()
-    if not (options.start):
-        print (sys.stderr, 'Usage: %s %s' % \
-            (parser.get_prog_name(), parser.usage), file=sys.stderr)
-        sys.exit()
-
-    if not (options.plates):
-        options.plates = 5
-    if not (options.end):
-        options.end = options.start +1
-    if options.start >= options.end:
-        print ('end value has to be > start value', file=sys.stderr)
-        sys.exit()
+    args = vars(parser.parse_args())
+    if not args['start']:
+        parser.error('--start is required')
+    if not args['end']:
+        args['end'] = args['start'] +1
+    if args['start'] >= args['end']:
+        parser.error('End value has to be > start value')
     try:
-        construct(start=options.start, end=options.end, plates=options.plates)
+        construct(args['start'], args['end'], args['plates'])
     except KeyboardInterrupt:
-        print ('Interupted!', file=sys.stderr)
-        quit()
+        parser.error('Interrupted!')
 
 if __name__ == '__main__':
     main()
