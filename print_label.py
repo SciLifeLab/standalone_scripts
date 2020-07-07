@@ -14,10 +14,10 @@ def construct(start, end, plates):
     end = int(end)
     plates = int(plates)
     for i in range(start, end):
-        PID = "P"+str(i)
-        makeProjectBarcode(PID,plates)
+        project_id = "P{}".format(i)
+        makeProjectBarcode(project_id, plates)
 
-def makeProjectBarcode(PID,plates):
+def makeProjectBarcode(project_id, plates):
     print ("^XA") # start of label
     print ("^DFFORMAT^FS") # download and store format, name of format, end of field data (FS = field stop)
     print ("^LH0,0") # label home position (label home = LH)
@@ -25,13 +25,12 @@ def makeProjectBarcode(PID,plates):
     print ("^FO80,10^BCN,70,N,N^FN2^FS") # BC=barcode 128, field number 2, Normal orientation, height 70, no interpreation line.
     print ("^XZ") # end format
 
-    for i in range (1,plates +1):
-        PlateID = "P"+str(i)
-        plateCode = PID+PlateID
-        print ("^XA") #start of label format
-        print ("^XFFORMAT^FS") #label home posision
-        print ("^FN1^FD"+plateCode+"^FS") #this is readable
-        print ("^FN2^FD"+plateCode+"^FS") #this is the barcode
+    for i in range (1, plates+1):
+        plate_code = "{}P{}".format(project_id, i)
+        print ("^XA") # start of label format
+        print ("^XFFORMAT^FS") # label home posision
+        print ("^FN1^FD{}^FS".format(plate_code)) # this is readable
+        print ("^FN2^FD{}^FS".format(plate_code)) # this is the barcode
         print ("^XZ")
 
 def getArgs():
