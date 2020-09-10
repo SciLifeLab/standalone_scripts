@@ -9,6 +9,7 @@ from couchdb import Server
 import requests
 from requests.auth import HTTPBasicAuth
 import json
+import sys
 
 def update_statusdb(config, dryrun=True):
     url_string = 'http://{}:{}@{}:{}'.format(config['statusdb'].get('username'), config['statusdb'].get('password'),
@@ -22,24 +23,25 @@ def update_statusdb(config, dryrun=True):
     for project in open_projs:
         doc = project.doc
         update_doc = False
-        if project.value.get('delivery_type') == 'GRUS':
-            if project.value['details'].get('snic_checked'):
-                if not project.value['details']['snic_checked']['status']:
-                    email = project.value['order_details']['fields'].get('project_pi_email')
-                    check = snic_check(email, config['SNIC'])
-                    if check:
-                        doc['details']['snic_checked']['status'] = check
-                        update_doc = True
-
-            else:
-                #roles = ['project_lab_email','project_bx_email', 'project_pi_email']
-                if project.value.get('order_details'):
-                    email = project.value['order_details']['fields'].get('project_pi_email')
-                    if email:
-                            snic_checked['status'] = snic_check(email, config['SNIC'])
-                    #Add the new field to project details
-                    doc['details']['snic_checked'] = snic_checked
+        if not project.value.get('delivery_type') == 'GRUS':
+            continue
+        if project.value['details'].get('snic_checked'):
+            if not project.value['details']['snic_checked']['status']:
+                email = project.value['order_details']['fields'].get('project_pi_email')
+                check = snic_check(email, config['SNIC'])
+                if check:
+                    doc['details']['snic_checked']['status'] = check
                     update_doc = True
+
+        else:
+            snic_checked = {}
+            if project.value.get('order_details'):
+                email = project.value['order_details']['fields'].get('project_pi_email')
+                if email:
+                        snic_checked['status'] = snic_check(email, config['SNIC'])
+                #Add the new field to project details
+                doc['details']['snic_checked'] = snic_checked
+                update_doc = True
         #write to projects doc
         if update_doc:
             if not dryrun:
@@ -50,6 +52,9 @@ def update_statusdb(config, dryrun=True):
 def snic_check(email, config):
     url = 'https://supr.snic.se/api/person/email_present/?email={}'.format(email)
     response = requests.get(url, auth=HTTPBasicAuth(config.get('username'), config.get('password')))
+    if not response.ok and response.reason == 'Unauthorized':
+        print('ERROR: SNIC API is IP restricted and this script can only be run from ngi-internal')
+        sys.exit(1)
     return json.loads(response.content)['email_present']
 
 if __name__ == '__main__':
