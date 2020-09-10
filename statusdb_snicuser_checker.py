@@ -21,7 +21,7 @@ def update_statusdb(config, dryrun=True):
 
     for project in open_projs:
         doc = project.doc
-        flag = False
+        update_doc = False
         if project.value.get('delivery_type') == 'GRUS':
             if project.value['details'].get('snic_checked'):
                 if not project.value['details']['snic_checked']['status']:
@@ -29,21 +29,19 @@ def update_statusdb(config, dryrun=True):
                     check = snic_check(email, config['SNIC'])
                     if check:
                         doc['details']['snic_checked']['status'] = check
-                        flag = True
+                        update_doc = True
 
             else:
-                snic_checked = {'status': True}
                 #roles = ['project_lab_email','project_bx_email', 'project_pi_email']
                 if project.value.get('order_details'):
                     email = project.value['order_details']['fields'].get('project_pi_email')
                     if email:
-                        if not snic_check(email, config['SNIC']):
-                            snic_checked['status'] = False
+                            snic_checked['status'] = snic_check(email, config['SNIC'])
                     #Add the new field to project details
                     doc['details']['snic_checked'] = snic_checked
-                    flag = True
+                    update_doc = True
         #write to projects doc
-        if flag:
+        if update_doc:
             if not dryrun:
                 proj_db.save(doc)
             else:
@@ -57,22 +55,17 @@ def snic_check(email, config):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', metavar='Path to config file', help='Path to yaml file with credentials for statusdb and SNIC API')
-    parser.add_argument('--check_email', metavar='Option to run script to check emails', nargs = 1,
+    parser.add_argument('--check_email', metavar='Option to run script to check emails',
                         help='Check an individual email directly in SNIC')
-    parser.add_argument('--update_statusdb',action='store_true', dest='update_statusdb', default=False,
-                        help='Update SNIC status for users of all open projects in statusdb.')
     parser.add_argument('-d', '--dryrun',
                       action='store_true', dest='dryrun', default=False,
                       help='Use this to print out what would have been saved to statusdb')
 
     args = parser.parse_args()
-    config = {}
     with open(args.config) as config_file:
-        yamlfile = yaml.load(config_file, Loader=yaml.SafeLoader)
-    config['statusdb'] = yamlfile['statusdb']
-    config['SNIC'] = yamlfile['SNIC']
+        config = yaml.load(config_file, Loader=yaml.SafeLoader)
     if args.check_email:
-        result = snic_check(args.check_email[0], config['SNIC'])
-        print('The email "{}" has {} associated SNIC account.'.format(args.check_email[0], 'an' if result else 'NO'))
-    elif args.update_statusdb:
+        result = snic_check(args.check_email, config['SNIC'])
+        print('The email "{}" has {} associated SNIC account.'.format(args.check_email, 'an' if result else 'NO'))
+    else:
         update_statusdb(config, args.dryrun)
