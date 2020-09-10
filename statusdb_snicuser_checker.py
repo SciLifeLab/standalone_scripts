@@ -46,7 +46,6 @@ def update_statusdb(config, dryrun=True):
         if flag:
             if not dryrun:
                 proj_db.save(doc)
-                import pdb; pdb.set_trace()
             else:
                 print(doc['project_name'], doc['details']['snic_checked'])
 
