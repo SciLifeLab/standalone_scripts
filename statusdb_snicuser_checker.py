@@ -12,6 +12,9 @@ import json
 import sys
 
 def update_statusdb(config, dryrun=True):
+    if not config['statusdb']:
+        print('Statusdb credentials not found')
+        sys.exit(1)
     url_string = 'http://{}:{}@{}:{}'.format(config['statusdb'].get('username'), config['statusdb'].get('password'),
                                               config['statusdb'].get('url'), config['statusdb'].get('port'))
     couch = Server(url=url_string)
@@ -38,7 +41,7 @@ def update_statusdb(config, dryrun=True):
             if project.value.get('order_details'):
                 email = project.value['order_details']['fields'].get('project_pi_email')
                 if email:
-                        snic_checked['status'] = snic_check(email, config['SNIC'])
+                    snic_checked['status'] = snic_check(email, config['SNIC'])
                 #Add the new field to project details
                 doc['details']['snic_checked'] = snic_checked
                 update_doc = True
@@ -53,7 +56,7 @@ def snic_check(email, config):
     url = 'https://supr.snic.se/api/person/email_present/?email={}'.format(email)
     response = requests.get(url, auth=HTTPBasicAuth(config.get('username'), config.get('password')))
     if not response.ok and response.reason == 'Unauthorized':
-        print('ERROR: SNIC API is IP restricted and this script can only be run from ngi-internal')
+        print('ERROR: SNIC API is IP restricted and this script can only be run from ngi-internal OR credentials are wrong')
         sys.exit(1)
     return json.loads(response.content)['email_present']
 
@@ -70,7 +73,10 @@ if __name__ == '__main__':
     with open(args.config) as config_file:
         config = yaml.load(config_file, Loader=yaml.SafeLoader)
     if args.check_email:
-        result = snic_check(args.check_email, config['SNIC'])
-        print('The email "{}" has {} associated SNIC account.'.format(args.check_email, 'an' if result else 'NO'))
+        if config.get('SNIC'):
+            result = snic_check(args.check_email, config['SNIC'])
+            print('The email "{}" has {} associated SNIC account.'.format(args.check_email, 'an' if result else 'NO'))
+        else:
+            print('SNIC credentials not found')
     else:
         update_statusdb(config, args.dryrun)
