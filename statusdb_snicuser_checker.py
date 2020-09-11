@@ -62,7 +62,8 @@ def snic_check(email, config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', metavar='Path to config file', help='Path to yaml file with credentials for statusdb and SNIC API')
+    parser.add_argument('--statusdb_config', metavar='Path to statusdb config file', help='Path to yaml file with credentials for statusdb')
+    parser.add_argument('--snic_config', metavar='Path to snic config file', help='Path to yaml file with credentials for SNIC API')
     parser.add_argument('--check_email', metavar='Option to run script to check emails',
                         help='Check an individual email directly in SNIC')
     parser.add_argument('-d', '--dryrun',
@@ -70,8 +71,11 @@ if __name__ == '__main__':
                       help='Use this to print out what would have been saved to statusdb')
 
     args = parser.parse_args()
-    with open(args.config) as config_file:
+    config = {}
+    with open(args.statusdb_config) as config_file:
         config = yaml.load(config_file, Loader=yaml.SafeLoader)
+    with open(args.snic_config) as config_file:
+        config.update(yaml.load(config_file, Loader=yaml.SafeLoader))
     if args.check_email:
         if config.get('SNIC'):
             result = snic_check(args.check_email, config['SNIC'])
