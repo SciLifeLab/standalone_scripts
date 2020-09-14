@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""A script to update the exchange rates for 1 EUR in SEK and 1 USD om SEK.
+"""A script to update the exchange rates for 1 EUR in SEK and 1 USD in SEK.
 
 """
 
@@ -44,8 +44,16 @@ def main(config, push_to_server=False):
 
     # Load the statusdb database
     with open(config) as settings_file:
-        server_settings = yaml.load(settings_file)
-    couch = Server(server_settings.get("couch_server", None))
+        server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
+
+    url_string = 'http://{}:{}@{}:{}'.format(
+                    server_settings['statusdb'].get('username'),
+                    server_settings['statusdb'].get('password'),
+                    server_settings['statusdb'].get('url'),
+                    server_settings['statusdb'].get('port')
+                )
+    couch = Server(url_string)
+
     db = couch['pricing_exchange_rates']
 
     # Check that new is not too strange compared to current.
@@ -75,7 +83,7 @@ def main(config, push_to_server=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--statusdb_config', required=True,
-                        help='The genomics-status settings.yaml file.')
+                        help='The statusdb_cred.yaml file.')
     parser.add_argument('--push', action='store_true', help='Use this tag to '
                         "make the script push the changes to statusdb")
 
