@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""Clones all the repositories from the specified GitHub organizations.
+
+   After cloning to the destination specified, an archive is created and moved
+   to a final destination which is backed up. Credentials needs to be given,
+   and private repositories can only be cloned if the user has access to those.
+   uses config file .githubbackup_config.yaml if no user/pw is provided.
+"""
 
 import argparse
 import os
@@ -8,15 +15,17 @@ import datetime
 import tarfile
 import shutil
 import yaml
+from itertools import chain
 
 from subprocess import CalledProcessError, PIPE, STDOUT, check_call
-from pygithub3 import Github
+from github import Github
 
 track_all_branches = """
 for branch in `git branch -a | grep remotes | grep -v HEAD | grep -v master`; do
     git branch --track ${branch##*/} $branch
 done
 """
+
 
 class cd(object):
     """Changes the current working directory to the one specified
@@ -31,114 +40,161 @@ class cd(object):
 
     def __exit__(self, type, value, tb):
         os.chdir(self.original_dir)
-        
+
+
 def credentials():
-    config_file = os.path.join(os.environ.get("HOME"), ".githubbackup_creds.yaml")
+    config_file = os.path.join(os.environ.get("HOME"),
+                               ".githubbackup_creds.yaml")
     if not os.path.exists(config_file):
         config_file = os.path.join(os.environ.get("GITHUBBACKUP_CREDS"))
     with open(config_file) as f:
-        conf = yaml.load(f)
+        conf = yaml.load(f, Loader=yaml.SafeLoader)
     return conf
 
-def backup(user, password, dest):
-    """Performs a backup of all the public repos in user's GitHub account on dest
-    """
-    if not password is None:
-        gh = Github(login=user, user=user, password=password)
-        repos = gh.repos.list(type='all')
-    if password is None or repos.all() == []:
-	print "No valid github credentials provided. Private repos will not be copied!"
-        logging.info("No valid github credentials provided. Private repos will not be copied!")
-        gh = Github()
-        repos = gh.repos.list(type='all', user=user)
 
-    for repo in repos.all():
-        if password is not None and repo.private is True:
-            source = repo.clone_url.replace("https://", "https://{}:{}@".format(user, password))
+def backup(user, password, organizations, dest):
+    """Performs a backup of all the accessible repos in given organizations
+    """
+    if password is None or user is None:
+        logger.error("No valid github credentials provided. Exiting!")
+        sys.exit(-1)
+    if password is not None:
+        github_instance = Github(user, password)
+        repositories = []  # list of repository *iterators*
+        for organization in organizations:
+            github_organization = github_instance.get_organization(organization)
+
+            repositories.append(github_organization.get_repos(type='all'))
+
+            # Check that destination directories are set up
+            organization_destination_path = os.path.join(dest, organization)
+            if not os.path.exists(organization_destination_path):
+                os.mkdir(organization_destination_path)
+
+    for repository in chain(*repositories):
+        if password is not None and repository.private is True:
+            source = repository.clone_url.replace(
+                                "https://",
+                                "https://{}:{}@".format(user, password)
+                                )
         else:
-            source = repo.clone_url
-            
-        repo_path = os.path.join(dest, repo.name)
-	print "Backing up repository {}".format(repo.name)
-        logging.info("Backing up repository {}".format(repo.name))
-        #If the repository is present on destination, update all branches
-        if os.path.exists(repo_path):
-            logging.info("The repository {} already exists on destination. Pulling " \
-                     "all branches".format(repo.name))
-            with cd(repo_path):
+            source = repository.clone_url
+
+        repository_path = os.path.join(dest, repository.organization.login,
+                                       repository.name)
+        logger.info("Backing up repository {}".format(repository.name))
+        # If the repository is present on destination, update all branches
+        if os.path.exists(repository_path):
+            logger.info("The repository {} already exists on destination. "
+                        "Pulling all branches".format(repository.name))
+            with cd(repository_path):
                 try:
-                    #These stdout and stderr flush out the normal github output
-                    #the alternative of using -q doesn't always work
+                    # These stdout and stderr flush out the normal github
+                    # output the alternative of using -q doesn't always work
                     check_call(['git', 'stash'], stdout=PIPE, stderr=STDOUT)
                     check_call(['git', 'pull'], stdout=PIPE, stderr=STDOUT)
-		#General exception to better catch errors
+                # General exception to better catch errors
                 except CalledProcessError:
-		    print "ERROR: There was an error fetching the branches from " \
-                              "the repository {}, skipping it".format(repo.name)
-                    logging.error("There was an error fetching the branches from " \
-                              "the repository {}, skipping it".format(repo.name))
+                    logger.error("There was an error fetching the branches "
+                                 "from the repository {}, "
+                                 "skipping it".format(repository.name))
                     pass
-	    logging.info("Finished copying repo {}".format(repo.name))
-	    print "Finished copying repo {}".format(repo.name)
-        #Otherwise clone the repository and fetch all branches
+            logger.info("Finished copying repo {}".format(repository.name))
+        # Otherwise clone the repository and fetch all branches
         else:
-            logging.info("The repository {} isn't cloned at {}, cloning instead of updating...".format(repo.name, repo_path))
+            logger.info("The repository {} isn't cloned at {}, cloning instead"
+                        " of updating...".format(repository.name,
+                                                 repository_path))
             try:
-                check_call(['git', 'clone', source, repo_path], stdout=PIPE, stderr=STDOUT)
-                logging.info("Cloning {}".format(repo.name))
-            except CalledProcessError:
-                print 'ERROR: Problem cloning repository {}, skipping it'.format(repo.name)
-                logging.error('ERROR: Error cloning repository {}, skipping it'.format(repo.name))
-            pass
+                check_call(['git', 'clone', source, repository_path],
+                           stdout=PIPE, stderr=STDOUT)
+                logger.info("Cloning {}".format(repository.name))
+            except CalledProcessError as e:
+                logger.error("ERROR: Error cloning repository {}, "
+                             "skipping it".format(repository.name))
+                logger.error(str(e))
+                pass
             try:
-                with cd(repo_path):
-                    check_call(track_all_branches, shell=True, stdout=PIPE, stderr=STDOUT)
-                    logging.info("Fetching branches for {}".format(repo.name))
-            except CalledProcessError:
-                print 'ERROR: Problem fetching branches for repository {}, skipping it'.format(repo.name)
-                logging.error('ERROR: Problem fetching branches for repository {}, skipping it'.format(repo.name))
+                with cd(repository_path):
+                    check_call(track_all_branches, shell=True,
+                               stdout=PIPE, stderr=STDOUT)
+                    logger.info("Fetching branches for {}".format(
+                                                            repository.name
+                                                            ))
+            except CalledProcessError as e:
+                logger.error("ERROR: Problem fetching branches for "
+                             "repository {}, skipping it".format(
+                                                            repository.name
+                                                            ))
+                logger.error(str(e))
                 pass
 
-def compressAndMove(source):
+
+def compress_and_move(source, final_dest):
     stamp = datetime.datetime.now().isoformat()
     try:
         with tarfile.open("githubbackup_{}.tar.gz".format(stamp), "w:gz") as tar:
             tar.add(source, arcname=os.path.basename(source))
         tar.close()
-    except Exception:
-    	print "ERROR: Unable to compress backup into archive."
-    	logging.error("Unable to compress backup into archive.")
-    	pass
-    #Moves output to backup folder
+    except Exception as e:
+        logger.error("Unable to compress backup into archive.")
+        raise e
+    # Moves output to backup folder
     try:
-       shutil.move("{}/githubbackup_{}.tar.gz".format(os.getcwd(), stamp), "/home/bupp/scilifelab_github/archives/")
-    except Exception:
-        print "ERROR: Unable to move backup archive."
-        logging.error("Unable to move backup archive.")
+        shutil.move("{}/githubbackup_{}.tar.gz".format(os.getcwd(), stamp),
+                    final_dest)
+    except Exception as e:
+        logger.error("Unable to move backup archive.")
+        raise e
 
-if __name__=="__main__":
-    logfile = 'githubbackup.log'
-    parser = argparse.ArgumentParser(description="Clones all the " \
-            "repositories from a GitHub account." \
-            "Restricted to public ones if no password is given" \
-            "uses config file .githubbackup_config.yaml if no user/pw is provided.")
-    parser.add_argument("user", nargs='?', type=str, help="GitHub username")
-    parser.add_argument("password", nargs='?', type=str, help="GitHub password")
-    parser.add_argument("-d", type=str, help="Destination of the copy")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--user", nargs='?', type=str, help="GitHub username")
+    parser.add_argument("--password", nargs='?', type=str,
+                        help="GitHub password")
+    parser.add_argument("--dest", type=str,
+                        help="Destination of the uncompressed copy")
+    parser.add_argument('--final_dest', type=str, help="Final destination of "
+                        "the copy, typically a directory that will "
+                        "be backed up", required=True)
+    parser.add_argument('--organizations', nargs='*', required=True,
+                        help="Github organizations that should be backed up")
+    parser.add_argument('--logfile', type=str, default='githubbackup.log',
+                        help="File to append the log to.")
     args = parser.parse_args()
-    
-    #Command line flags take priority. Else use config
+
+    # Command line flags take priority. Otherwise use config
     user = args.user
     password = args.password
     config = credentials()
     if user is None or password is None:
         user = config.get("github_username")
         password = config.get("github_password")
-        
-    dest = os.getcwd() if not args.d else args.d
-    
-    logging.basicConfig(filename=logfile, level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logging.info("Creating backup at {}, with github user {}".format(dest, user))
-    print "Creating backup at {}, with github user {}".format(dest, user) 
-    backup(user, password, dest)
-    compressAndMove(dest)
+
+    dest = os.getcwd() if not args.dest else args.dest
+
+    # Need to check if the directory exists for the given log file
+    logfile_directory = os.path.dirname(os.path.abspath(args.logfile))
+    if not os.path.exists(logfile_directory):
+        logging.error("The directory for the specified log file does not exist. Aborting")
+        sys.exit(-1)
+
+    logging.basicConfig(
+        filename=args.logfile, level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+
+    logger = logging.getLogger(__name__)
+
+    # Handler that will log warnings or worse to stderr
+    stderr_handler = logging.StreamHandler()
+    stderr_handler.setLevel(logging.WARNING)
+    logger.addHandler(stderr_handler)
+
+    logger.info("Creating backup at {}, for organizations {}".format(
+                                            dest,
+                                            ", ".join(args.organizations)
+                                            ))
+    backup(user, password, args.organizations, dest)
+    compress_and_move(dest, args.final_dest)
