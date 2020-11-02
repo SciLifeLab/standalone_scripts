@@ -1,14 +1,14 @@
 #!/bin/bash -e
 
 # Dumps a PostgresSQL over the network, from production to staging
-# Check the internal wiki (http://wiki.scilifelab.se/bioinfo/node/3752) for 
+# Check the internal wiki (http://wiki.scilifelab.se/bioinfo/node/3752) for
 # credentials' information
 
 DB="<insert here the DB name>"
 DB_USER="<insert here the DB user to make the dumping>"
 
-PROD="genologics.scilifelab.se"
-STAGING="genologics-stage.scilifelab.se"
+PROD="ngi-lims-prod.scilifelab.se"
+STAGING="ngi-lims-stage.scilifelab.se"
 
 # Clarity LIMS creates a new row in a table called LoginAudit every time a user logs
 # in. This includes the apiuser. We connect with this user hundreds of times per day
