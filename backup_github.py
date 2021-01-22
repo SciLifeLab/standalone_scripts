@@ -73,6 +73,7 @@ def backup(user, password, access_token, organizations, dest):
                 os.mkdir(organization_destination_path)
 
     for repository in chain(*repositories):
+        logger.info("Github API rate limit: {}".format(github_instance.get_rate_limit()))
         if password is not None and repository.private is True:
             source = repository.clone_url.replace(
                                 "https://",
