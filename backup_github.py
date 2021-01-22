@@ -52,16 +52,17 @@ def credentials():
     return conf
 
 
-def backup(user, password, organizations, dest):
+def backup(user, password, access_token, organizations, dest):
     """Performs a backup of all the accessible repos in given organizations
     """
     if password is None or user is None:
         logger.error("No valid github credentials provided. Exiting!")
         sys.exit(-1)
     if password is not None:
-        github_instance = Github(user, password)
+        github_instance = Github(access_token)
         repositories = []  # list of repository *iterators*
         for organization in organizations:
+            logger.info("Github API rate limit: {}".format(github_instance.get_rate_limit()))
             github_organization = github_instance.get_organization(organization)
 
             repositories.append(github_organization.get_repos(type='all'))
@@ -150,9 +151,6 @@ def compress_and_move(source, final_dest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--user", nargs='?', type=str, help="GitHub username")
-    parser.add_argument("--password", nargs='?', type=str,
-                        help="GitHub password")
     parser.add_argument("--dest", type=str,
                         help="Destination of the uncompressed copy")
     parser.add_argument('--final_dest', type=str, help="Final destination of "
@@ -163,14 +161,6 @@ if __name__ == "__main__":
     parser.add_argument('--logfile', type=str, default='githubbackup.log',
                         help="File to append the log to.")
     args = parser.parse_args()
-
-    # Command line flags take priority. Otherwise use config
-    user = args.user
-    password = args.password
-    config = credentials()
-    if user is None or password is None:
-        user = config.get("github_username")
-        password = config.get("github_password")
 
     dest = os.getcwd() if not args.dest else args.dest
 
@@ -196,5 +186,21 @@ if __name__ == "__main__":
                                             dest,
                                             ", ".join(args.organizations)
                                             ))
-    backup(user, password, args.organizations, dest)
+
+    config = credentials()
+    user = config.get("github_username")
+    password = config.get("github_password")
+    access_token = config.get("access_token")
+
+    if user is None:
+        logger.error("Missing user from the .githubcredentials file. Exiting!")
+        sys.exit(-1)
+    if password is None:
+        logger.error("Missing password from the .githubcredentials file. Exiting!")
+        sys.exit(-1)
+    if access_token is None:
+        logger.error("Missing access_token from the .githubcredentials file. Exiting!")
+        sys.exit(-1)
+
+    backup(user, password, access_token, args.organizations, dest)
     compress_and_move(dest, args.final_dest)
