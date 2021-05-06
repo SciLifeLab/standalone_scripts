@@ -11,7 +11,7 @@ import requests
 import sys
 import yaml
 from collections import OrderedDict
-from taca_ngi_pipeline.utils.database import statusdb_session as sdb
+from taca.utils.statusdb import StatusdbSession as sdb
 from ngi_pipeline.database.classes import CharonSession, CharonError
 
 # set logger object
@@ -211,7 +211,7 @@ class _snic_wrapper(snic_util):
 class DbConnections():
     def __init__(self):
         with open(os.getenv('STATUS_DB_CONFIG'), 'r') as db_cred_file:
-            db_conf = yaml.load(db_cred_file)['statusdb']
+            db_conf = yaml.load(db_cred_file, Loader=yaml.SafeLoader)['statusdb']
         self.statusdbSess = sdb(db_conf, db="projects")
         self.CharonSess = CharonSession()
 
@@ -287,7 +287,7 @@ if __name__ == "__main__":
     params = vars(parser.parse_args())
     # try loading config file
     try:
-        snic_config = yaml.load(params["config"])["snic"]
+        snic_config = yaml.load(params["config"], Loader=yaml.SafeLoader)["snic"]
     except:
         logger.error("Error loading config file, make sure config is in following format\n\n{}".format(config_format))
         raise
