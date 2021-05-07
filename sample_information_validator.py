@@ -173,7 +173,7 @@ class ProjectSheet:
         plate number is not already in couchDB.
         """
         project_name_DB = info['project_name']
-        samples = info['samples'].keys()
+        samples = list(info['samples'].keys())
         plate ='P{}_{}'.format(project_plate_ID.split("P")[1],project_plate_ID.split("P")[2])
         found_plate = [s for s in samples if plate in s]
         if(len(found_plate)>0):

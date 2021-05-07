@@ -6,11 +6,14 @@ import socket
 import couchdb
 import logging
 import argparse
-import ConfigParser
 import yaml
 import json
 import distance
 import operator
+try:
+    import ConfigParser
+except ImportError:
+    import configparser
 
 CONFIG = {}
 
@@ -39,17 +42,17 @@ def associete_samples(samples_name, mode):
                 status           = project['samples'][sample]['details']['status_(manual)']
                 if mode == 'user2NGI':
                     if sample_user_name in  samples_name:
-                        print "{},{},{}".format(sample_user_name.encode('ascii', 'ignore'), sample_NGI_name, status)
+                        print("{},{},{}".format(sample_user_name.encode('ascii', 'ignore'), sample_NGI_name, status))
                 else:
                     if sample_NGI_name in  samples_name:
-                        print "{},{},{}".format(sample_NGI_name, sample_user_name.encode('ascii', 'ignore'), status)
+                        print("{},{},{}".format(sample_NGI_name, sample_user_name.encode('ascii', 'ignore'), status))
 
 
 
 def associate_projects(projects_name, mode):
     couch        = setupServer(CONFIG)
     projects_db  = couch['projects']
-    
+
     user2NGI_samples_names = {}
     NGI2user_samples_names = {}
     for doc_id in projects_db:
@@ -75,19 +78,19 @@ def associate_projects(projects_name, mode):
                 if sample_NGI_name not in NGI2user_samples_names:
                     NGI2user_samples_names[sample_NGI_name] = []
                 NGI2user_samples_names[sample_NGI_name].append([sample_user_name, status, user_project_name, NGI_project_name])
-    
+
     if mode == 'user2NGI':
         for sample in user2NGI_samples_names:
-            print "{}".format(sample.encode('ascii', 'ignore')), # handle unicode in sample names
+            print("{}".format(sample.encode('ascii', 'ignore')), end=' ') # handle unicode in sample names
             for NGI_id in user2NGI_samples_names[sample]:
-                print " --- {},{},{},{}".format(NGI_id[0].encode('ascii', 'ignore'),NGI_id[1],NGI_id[2],NGI_id[3]),
-            print ""
+                print(" --- {},{},{},{}".format(NGI_id[0].encode('ascii', 'ignore'),NGI_id[1],NGI_id[2],NGI_id[3]), end=' ')
+            print("")
     else:
         for sample in NGI2user_samples_names:
             sys.stdout.write("{}".format(sample))
             for user_id in NGI2user_samples_names[sample]:
                 sys.stdout.write(" --- {},{},{},{}".format(user_id[0].encode('ascii', 'ignore'),user_id[1],user_id[2],user_id[3]))
-            print ""
+            print("")
 
 
 
@@ -138,13 +141,13 @@ def main(args):
     load_yaml_config(configuration_file)
     if args.project != None and args.sample != None: #Mutually exclusive arguments
         sys.exit("Only one between --project and --sample can be specified")
-    
+
     if args.project is not None:
         associate_projects(args.project, args.mode)
     else:
         associete_samples(args.sample, args.mode)
 
-    
+
     #findNGISampleNames("2014-02321")
     #findNGISampleNames("2153-08D")
     #findUserSampleNames(projects_name)
@@ -161,6 +164,3 @@ if __name__ == '__main__':
     parser.add_argument('--sample', help="Sample name. If specified returns a list of the samples the associated user/NGI names", type=str, action='append')
     args = parser.parse_args()
     main(args)
-
-
-

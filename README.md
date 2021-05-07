@@ -12,13 +12,13 @@ The following operations are supported:
  - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
  - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
  - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
- - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool.
 
 #### Usage
 Examples:
- 
+
   - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
-    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000`
  - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
     - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
 
@@ -32,13 +32,13 @@ The following operations are supported:
  - most_undet: outputs a summary about undetermiend indexes, printing the most 20 most occurring indexes for each instrument type
  - single_sample_lanes: prints stats about HiSeqX lanes run with a single sample in it
  - workset_undet: prints for each workset the FC, lanes and samples where the specified index has been found in undet. For each sample the plate position is printed.
- - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool. 
+ - fetch_pooled_projects: returns pooled projects, that is projects that have been run in a pool.
 
 #### Usage
 Examples:
- 
+
   - compute for each workset the FC that contain a lane with index CTTGTAAT present in undet at least 0.5M times:
-    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000` 
+    -  `python compute_undet_index_stats.py --config couch_db.yaml --index CTTGTAAT --mode workset_undet --min_occurences 500000`
  - Compute a list of the most occurring undetemriend indexes for HiSeqX runs:
     - `python compute_undet_index_stats.py --config couch_db.yaml -- mode most_undet --instrument-type HiSeqX`
 
@@ -48,7 +48,7 @@ Examples:
 
 ### runs_per_week.sh
 Run on Irma prints a three columns:
- 
+
   - first column is the week number
   - second column number of HiSeqX runs in that week
   - seconf column number of HiSeq2500 runs in that week
@@ -267,11 +267,9 @@ zendesk_attachment_backup.py -i ngisweden-yyyymmdd/tickets.xml
 ```
 
 ###### Usage
-If you're using this on `tools` for the first time, you'll need to set up conda.
-`tools` only has v2.6 of Python installed by default, which is old and not
-compatible with this script
+The scripts are compatible with Python 2.7+ and Python 3.
 
-These instructions get a copy of Python 2.7 for you. You only need to do this once:
+Instructions in below show how to get a copy of Python 2.7. You only need to do this once:
 
 1. Download & install Miniconda
 ```

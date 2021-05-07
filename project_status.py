@@ -2,6 +2,7 @@ import sys, os, glob
 import argparse
 from operator import itemgetter
 import glob
+import six
 
 def init_sample_hash_emtry():
     empty_sample_result = {
@@ -128,8 +129,8 @@ def parse_bamtools_markdup(picard_duplication_metrics, sample):
         for line in f:
             line.strip()
             if line.startswith("## METRICS CLASS"):
-                line = f.next() # this is the header
-                line = f.next().strip() # thisis the one I am intrested
+                line = six.next(f) # this is the header
+                line = six.next(f).strip() # thisis the one I am intrested
                 duplicate_stats= line.split()
                 UNPAIRED_READ_DUPLICATES = int(duplicate_stats[4])
                 READ_PAIR_DUPLICATES     = int(duplicate_stats[5])
@@ -233,7 +234,7 @@ def main(args):
 
     if args.project_status:
         if len(args.projects[0]) != 1:
-            print "WARNING: only one project when project-status specified\n"
+            print("WARNING: only one project when project-status specified\n")
             return
 
     for project in args.projects[0]:
@@ -247,20 +248,20 @@ def main(args):
     if args.project_status:
         sequenced_samples = 0
         delivered_samples = 0
-        print "SAMPLE\tARCHIVE_SEQ_RUN\tDATA_SEQ_RUN\tANALYSIS_SEQ_RUN"
+        print("SAMPLE\tARCHIVE_SEQ_RUN\tDATA_SEQ_RUN\tANALYSIS_SEQ_RUN")
         for sample, sample_entry in samples.items():
             sequenced_samples +=1
             if  sample_entry['Delivered']:
                 delivered_samples += 1
-            print "{}\t{}\t{}\t{}".format(
+            print("{}\t{}\t{}\t{}".format(
                 sample,
                 sample_entry['#Archived_runs'],
                 sample_entry['#Data_runs'],
                 sample_entry['#Analysis_runs']
-            )
-        print "PROJECT SUMMARY:"
-        print "  SAMPLES_SEQUENCED: {}".format(sequenced_samples)
-        print "  SAMPLES_DELIVERED: {}".format(delivered_samples)
+            ))
+        print("PROJECT SUMMARY:")
+        print("  SAMPLES_SEQUENCED: {}".format(sequenced_samples))
+        print("  SAMPLES_DELIVERED: {}".format(delivered_samples))
 
 
     else:
@@ -274,19 +275,19 @@ def main(args):
                 skip_print = 1 # no problem here as might have demux runs
 
             if skip_print == 1:
-                print "WARNING: Sample {} has incoherent numbers of runs: ({} {} {})".format(sample,
+                print("WARNING: Sample {} has incoherent numbers of runs: ({} {} {})".format(sample,
                                                 sample_entry['#Archived_runs'],
                                                 sample_entry['#Data_runs'],
                                                 sample_entry['#Analysis_runs']
-                                                )
+                                                ))
             samples[sample]["skip print"] = skip_print
 
         if not args.skip_header:
-            print "sample_name\t#Reads\tRaw_coverage\t#Aligned_reads\t%Aligned_reads\tAlign_cov\tAutosomalCoverage\t%Dup\tMedianInsertSize"
+            print("sample_name\t#Reads\tRaw_coverage\t#Aligned_reads\t%Aligned_reads\tAlign_cov\tAutosomalCoverage\t%Dup\tMedianInsertSize")
 
         for sample, sample_entry in samples.items():
             if sample_entry["skip print"] == 0:
-                print "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                print("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
                     sample,
                     sample_entry['#Reads'],
                     sample_entry['RowCov'],
@@ -296,7 +297,7 @@ def main(args):
                     sample_entry['AutosomalCoverage'],
                     sample_entry['%Dup'],
                     sample_entry['MedianInsertSize']
-                )
+                ))
 
 
 
@@ -313,10 +314,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if not args.projects:
-        print "ERROR: projects must be specified"
+        print("ERROR: projects must be specified")
         sys.exit()
 
     main(args)
-
-
-

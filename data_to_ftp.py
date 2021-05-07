@@ -2,9 +2,12 @@
 import os
 import sys
 import argparse
-import ConfigParser
 import subprocess
 from ftplib import FTP
+try:
+    import ConfigParser
+except ImportError:
+    import configparser
 
 DESCRIPTION = """\
 A stand alone script to deliver the data to a ftp server provided by USER outside
@@ -37,7 +40,10 @@ args = parser.parse_args()
 
 ## method to check and parse config file ##
 def get_config_info(config_file,check_keys):
-    config = ConfigParser.ConfigParser()
+    try:
+        config = ConfigParser.ConfigParser()
+    except NameError:
+        config = configparser.ConfigParser()
     config_path = config.read(config_file)
     try:
         return {k:config.get('ftp',k) for k in check_keys}
@@ -70,7 +76,7 @@ else:
     samples = [item for item in os.listdir(os.getcwd()) if os.path.isdir(item) and item not in exculde_samples]
 reports = [item for item in os.listdir(os.getcwd()) if item.endswith('.pdf')] if not args.no_reports else []
 
-print "Total {} samples and {} reports are going to be copied now for project {}".format(len(samples),len(reports),proj)
+print("Total {} samples and {} reports are going to be copied now for project {}".format(len(samples),len(reports),proj))
 
 ## opening a ftp session ##
 ftp = FTP()
@@ -79,9 +85,9 @@ ftp.login(config_info.get('username'),config_info.get('password'))
 ftp.cwd('/')
 try:
     ftp.mkd(proj)
-    print "Project folder has been created for {} in remote..".format(proj)
+    print("Project folder has been created for {} in remote..".format(proj))
 except:
-    print "Project folder already exists for {} in remote..".format(proj)
+    print("Project folder already exists for {} in remote..".format(proj))
     pass
 ftp.cwd(proj)
 ## transfer reports if not otherwise mentioned
@@ -96,9 +102,9 @@ for sam in samples:
     try:
         ftp.mkd(sam)
         ftp.cwd(sam)
-        print "Process for samples {} have started..".format(sam)
+        print("Process for samples {} have started..".format(sam))
     except:
-        print "Sample {} already exists in remote.. skipping..".format(sam)
+        print("Sample {} already exists in remote.. skipping..".format(sam))
         continue
     flowcell = os.listdir(sam)
     for fc in flowcell:
@@ -118,8 +124,8 @@ for sam in samples:
                     ftp.storbinary("STOR {}".format(md5),md5_file)
             with open(fq,'rb') as fq_file:
                 ftp.storbinary("STOR {}".format(fq),fq_file)
-        print "Data uploaded for sample {} in flowcell {}".format(sam,fc)
-    print "All data for sample {} is now completed..".format(sam)
+        print("Data uploaded for sample {} in flowcell {}".format(sam,fc))
+    print("All data for sample {} is now completed..".format(sam))
     sm_cnt += 1
 ftp.quit()
-print "Transfer done, total {}/{} samples proccessed".format(sm_cnt,len(samples))
+print("Transfer done, total {}/{} samples proccessed".format(sm_cnt,len(samples)))
