@@ -43,7 +43,7 @@ def backup(config_file, days):
         r = requests.get(url, auth=auth)
     except Exception as e:
         logging.error("Cannot retrieve requested data from url: {}".format(url))
-        logging.error(e.message)
+        logging.error(str(e))
         return
 
     tickets = r.json().get('tickets')
@@ -56,19 +56,19 @@ def backup(config_file, days):
             os.makedirs(output_path)
         except Exception as e:
             logging.error('Cannot create path: {}'.format(output_path))
-            logging.error(e.message)
+            logging.error(str(e))
             return
     try:
         file = open(output_file, 'w+')
     except Exception as e:
         logging.error('Cannot open/create file: {}'.format(output_file))
-        logging.error(e.message)
+        logging.error(str(e))
         return
     try:
         file.write(json.dumps(tickets))
     except Exception as e:
         logging.error('Cannot write to file: {}'.format(output_file))
-        logging.error(e.message)
+        logging.error(str(e))
 
 
 if __name__ == '__main__':
