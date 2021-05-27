@@ -6,12 +6,13 @@
 """
 
 import requests
-import datetime
 import argparse
 import yaml
 import os
 import sys
-
+import pytz
+from datetime import datetime, time, timedelta
+import dateutil
 
 class SensorPushConnection(object):
     def __init__(self, email, password):
@@ -77,10 +78,17 @@ class SensorPushConnection(object):
             minutes_ago_td = datetime.timedelta(minutes=loopcount)
             request_start_time = start_time - minutes_ago_td
             self.get_samples(nr_samples, startTime=request_start_time.isoformat())
-        print(loopcount)
 
 
-def main(samples, hours_ago, statusdb_config, sensorpush_config):
+def main(samples, arg_start_date, statusdb_config, sensorpush_config):
+    if arg_start_date is None:
+        midnight = datetime.combine(datetime.today(), time.min)
+        start_date_datetime = midnight - timedelta(days=1)
+    else:
+        start_date_datetime = datetime.strptime(arg_start_date, '%Y-%m-%d')
+
+    start_date = start_date_datetime.astimezone(tz=pytz.utc).isoformat()
+
     with open(os.path.expanduser(sensorpush_config), 'r') as sp_config_file:
         sp_config = yaml.safe_load(sp_config_file)
 
@@ -89,17 +97,8 @@ def main(samples, hours_ago, statusdb_config, sensorpush_config):
 
     sp = SensorPushConnection(sp_config['email'], sp_config['password'])
 
-    sp.count_requests(samples)
-
-    sys.exit(-1)
     # Request sensor data
-    if hours_ago:
-        now = datetime.datetime.now()
-        hours_ago_td = datetime.timedelta(hours=hours_ago)
-        start_time = now - hours_ago_td
-        print(sp.get_samples(samples, startTime=start_time.isoformat()))
-    else:
-        print(sp.get_samples(samples))
+    print(sp.get_samples(samples, startTime=start_date))
 
 
     # Collect time points outside of range
@@ -113,9 +112,9 @@ if __name__ == '__main__':
                         help=('Nr of samples that will be fetched'
                               'default value is 1440 e.g. 24 hours')
                         )
-    parser.add_argument('--hours_ago', type=int, default=0,
-                        help=('Collect samples starting from this nr of hours ago, '
-                              'by default, the most recent samples are collected.')
+    parser.add_argument('--start_date', type=str, default=None,
+                        help=('Collect samples starting from midnight at this date, '
+                              'by default, yesterday is used.')
                         )
     parser.add_argument('--statusdb_config', default='~/conf/statusdb_cred.yaml',
                         help='StatusDB config file, default is ~/conf/statusdb_cred.yaml'
@@ -126,4 +125,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.samples, args.hours_ago, args.statusdb_config, args.config)
+    main(args.samples, args.start_date, args.statusdb_config, args.config)
