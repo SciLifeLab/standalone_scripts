@@ -48,7 +48,10 @@ class SensorPushConnection(object):
         url = '/'.join(x.strip('/') for x in [self.base_url, url_ending] if x)
         auth_headers = {'Authorization': self.access_token}
         resp = requests.post(url, json=body_data, headers=auth_headers)
-        assert resp.status_code == 200
+        try:
+            assert resp.status_code == 200
+        except AssertionError:
+            print(resp)
         return resp
 
     def get_samples(self, nr_samples, startTime=None):
@@ -60,6 +63,12 @@ class SensorPushConnection(object):
             body_data['limit'] = nr_samples
         if startTime:
             body_data['startTime'] = startTime
+        r = self._make_request(url, body_data)
+        return r.json()
+
+    def get_sensors(self):
+        url = '/devices/sensors'
+        body_data = {}
         r = self._make_request(url, body_data)
         return r.json()
 
@@ -80,6 +89,9 @@ class SensorPushConnection(object):
             self.get_samples(nr_samples, startTime=request_start_time.isoformat())
 
 
+def process_data(sensors, samples):
+    pass
+
 def main(samples, arg_start_date, statusdb_config, sensorpush_config):
     if arg_start_date is None:
         midnight = datetime.combine(datetime.today(), time.min)
@@ -98,10 +110,13 @@ def main(samples, arg_start_date, statusdb_config, sensorpush_config):
     sp = SensorPushConnection(sp_config['email'], sp_config['password'])
 
     # Request sensor data
-    print(sp.get_samples(samples, startTime=start_date))
+    sensors = sp.get_sensors()
+    samples = sp.get_samples(samples, startTime=start_date)
 
+    return sensors, samples
 
     # Collect time points outside of range
+    data = process_data(sensors, samples)
 
     # Upload to StatusDB
 
