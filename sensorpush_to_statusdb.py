@@ -9,10 +9,15 @@ import requests
 import argparse
 import yaml
 import os
-import sys
 import pytz
-from datetime import datetime, time, timedelta
-import dateutil
+import datetime
+import numpy as np
+import pandas as pd
+import logging
+import json
+
+logger = logging.getLogger('sensorpush')
+
 
 class SensorPushConnection(object):
     def __init__(self, email, password):
@@ -48,10 +53,16 @@ class SensorPushConnection(object):
         url = '/'.join(x.strip('/') for x in [self.base_url, url_ending] if x)
         auth_headers = {'Authorization': self.access_token}
         resp = requests.post(url, json=body_data, headers=auth_headers)
-        try:
-            assert resp.status_code == 200
-        except AssertionError:
-            print(resp)
+        attempt = 1
+        max_attempts = 3
+        while attempt < max_attempts:
+            try:
+                assert resp.status_code == 200
+            except AssertionError:
+                logger.error(f'Error fetching sensorpush data: {resp.text}, attempt {attempt} of {max_attempts}')
+                if attempt > max_attempts:
+                    resp.raise_for_status()
+            attempt += 1
         return resp
 
     def get_samples(self, nr_samples, startTime=None):
@@ -63,6 +74,7 @@ class SensorPushConnection(object):
             body_data['limit'] = nr_samples
         if startTime:
             body_data['startTime'] = startTime
+
         r = self._make_request(url, body_data)
         return r.json()
 
@@ -89,17 +101,160 @@ class SensorPushConnection(object):
             self.get_samples(nr_samples, startTime=request_start_time.isoformat())
 
 
-def process_data(sensors, samples):
-    pass
+class SensorDocument(object):
+    def __init__(self, original_samples, sensor_name, limit_lower, limit_upper):
+        self.original_samples = original_samples
+        self.sensor_name = sensor_name
+        self.limit_lower = limit_lower
+        self.limit_upper = limit_upper
+        self.intervals_lower = []
+        self.intervals_lower_str = []
+        self.intervals_lower_extended = []
+        self.intervals_lower_extended_str = []
+        self.intervals_higher = []
+        self.intervals_higher_str = []
+        self.intervals_higher_extended = []
+        self.intervals_higher_extended_str = []
+
+        # Save all samples around areas outside of limits, otherwise save only hourly averages
+        self.saved_samples = {}
+
+    def to_dict(self):
+        {'sensor_name': self.sensor_name,
+         'limit_lower':  self.limit_lower,
+         'limit_upper': self.limit_upper,
+         'intervals_lower': self.intervals_upper}
+
+    def _samples_from_intervals(self, intervals):
+        for interval_lower, interval_upper in intervals:
+            conv_lower = interval_lower.to_pydatetime()
+            conv_upper = interval_upper.to_pydatetime()
+            samples_dict = self.original_samples[conv_lower:conv_upper].to_dict()
+            self.saved_samples.update({(str(k), round(v, 3)) for k, v in samples_dict.items()})
+
+    def add_samples_from_intervals_lower(self):
+        self._samples_from_intervals(self.intervals_lower_extended)
+
+    def add_samples_from_intervals_higher(self):
+        self._samples_from_intervals(self.intervals_higher_extended)
+
+    def summarize_intervals(self, sample_series, limit_type):
+        """Identify start- and endpoints of each out-of-limit intervals."""
+        # Find all time points that are more than 2 minutes apart
+        # closer than that and they will be considered the same interval
+        gaps = np.abs(np.diff(sample_series.index)) > np.timedelta64(2, 'm')
+
+        # Translate into positions
+        gap_positions = np.where(gaps)[0] + 1
+
+        interval_points = []
+        extended_intervals = []
+        # Corresponding variables that can be saved in the json doc
+        interval_points_str = []
+        extended_intervals_str = []
+        for interval in np.split(sample_series, gap_positions):
+            lower = interval.index[0]
+            upper = interval.index[-1]
+            interval_points.append((lower, upper))
+            interval_points.append((str(lower), str(upper)))
+            logger.warning(f'Interval with temperature too {limit_type} detected for {self.sensor_name} between: {lower} - {upper}')
+            # Extended interval with 1 hour in each direction
+            extend_lower = lower - np.timedelta64(1, 'h')
+            extend_upper = upper + np.timedelta64(1, 'h')
+            extended_intervals.append((extend_lower, extend_upper))
+            extended_intervals_str.append((str(extend_lower), str(extend_upper)))
+
+        return interval_points, extended_intervals, interval_points_str, extended_intervals_str
+
+    def time_in_any_extended_interval(self, time_point):
+        for interval_lower, interval_upper in self.intervals_lower_extended:
+            if interval_lower < time_point < interval_upper:
+                return True
+
+        for interval_lower, interval_upper in self.intervals_higher_extended:
+            if interval_lower < time_point < interval_upper:
+                return True
+
+        return False
+
+
+def sensor_limits(sensor_info):
+    limit_upper = None
+    limit_lower = None
+    temp_alerts = sensor_info['alerts'].get('temperature', {})
+
+    if temp_alerts.get('enabled'):
+        if 'max' in temp_alerts:
+            limit_upper = temp_alerts['max']
+        if 'min' in temp_alerts:
+            limit_lower = temp_alerts['min']
+
+    return limit_lower, limit_upper
+
+
+def samples_to_df(samples_json):
+    data_d = {}
+    for sensor_id, samples in samples_json['sensors'].items():
+        sensor_d = {}
+        for sample in samples:
+            time_point = datetime.datetime.strptime(sample['observed'], '%Y-%m-%dT%H:%M:%S.%fZ')
+            sensor_d[time_point] = sample['temperature']
+        data_d[sensor_id] = sensor_d
+
+    df = pd.DataFrame.from_dict(data_d)
+    df = df.sort_index(ascending=True)
+    return df
+
+
+def process_data(sensors_json, samples_json):
+    df = samples_to_df(samples_json)
+
+    sensor_documents = []
+    for sensor_id, sensor_info in sensors_json.items():
+        sensor_limit_lower, sensor_limit_upper = sensor_limits(sensor_info)
+        if (sensor_limit_lower is None) and (sensor_limit_upper is None):
+            logger.warning(f'Temperature alert not set for sensor {sensor_info["name"]}')
+
+        sensor_samples = df[sensor_id].dropna()
+
+        # TODO, samples are in Fahrenheit and UTC
+        sd = SensorDocument(sensor_samples, sensor_info['name'], sensor_limit_lower, sensor_limit_upper)
+
+        # Check if there are samples outside of limits
+        if sensor_limit_lower is not None:
+            samples_too_low = sensor_samples[sensor_samples < sensor_limit_lower]
+            # Collect the exact intervals outside of limits
+            if not samples_too_low.empty:
+                sd.intervals_lower, sd.intervals_lower_extended, \
+                    sd.intervals_lower_str, sd.intervals_lower_extended_str = sd.summarize_intervals(samples_too_low, 'low')
+                sd.add_samples_from_intervals_lower()
+
+        if sensor_limit_upper is not None:
+            samples_too_high = sensor_samples[sensor_samples > sensor_limit_upper]
+            # Collect the exact intervals outside of limits
+            if not samples_too_high.empty:
+                sd.intervals_higher, sd.intervals_higher_extended, \
+                    sd.intervals_higher_str, sd.intervals_higher_extended_str = sd.summarize_intervals(samples_too_high, 'high')
+                sd.add_samples_from_intervals_higher()
+
+        hourly_mean = sensor_samples.resample('1H').mean()
+        for hour, mean_val in hourly_mean.iteritems():
+            # Don't add any hourly mean values where we've saved more detailed info
+            if not sd.time_in_any_extended_interval(hour):
+                sd.saved_samples[str(hour)] = round(mean_val, 3)
+
+        sensor_documents.append(sd)
+    return sensor_documents
+
 
 def main(samples, arg_start_date, statusdb_config, sensorpush_config):
     if arg_start_date is None:
-        midnight = datetime.combine(datetime.today(), time.min)
-        start_date_datetime = midnight - timedelta(days=1)
+        midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min)
+        start_date_datetime = midnight - datetime.timedelta(days=1)
     else:
-        start_date_datetime = datetime.strptime(arg_start_date, '%Y-%m-%d')
+        start_date_datetime = datetime.datetime.strptime(arg_start_date, '%Y-%m-%d')
 
-    start_date = start_date_datetime.astimezone(tz=pytz.utc).isoformat()
+    start_time = start_date_datetime.astimezone(tz=pytz.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
     with open(os.path.expanduser(sensorpush_config), 'r') as sp_config_file:
         sp_config = yaml.safe_load(sp_config_file)
@@ -109,21 +264,28 @@ def main(samples, arg_start_date, statusdb_config, sensorpush_config):
 
     sp = SensorPushConnection(sp_config['email'], sp_config['password'])
 
+    logging.info(f'Fetching {samples} samples from {start_time}')
     # Request sensor data
     sensors = sp.get_sensors()
-    samples = sp.get_samples(samples, startTime=start_date)
+    samples = sp.get_samples(samples, startTime=start_time)
 
-    return sensors, samples
-
-    # Collect time points outside of range
-    data = process_data(sensors, samples)
+    # Summarize data and put into documents suitable for upload
+    sensor_documents = process_data(sensors, samples)
 
     # Upload to StatusDB
+    for sd in sensor_documents:
+        sd_dict = vars(sd)
+        del sd_dict['original_samples']
+        del sd_dict['intervals_lower']
+        del sd_dict['intervals_lower_extended']
+        del sd_dict['intervals_higher']
+        del sd_dict['intervals_higher_extended']
+        print(json.dumps(sd_dict))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--samples', '-s', type=int,
+    parser.add_argument('--samples', '-s', type=int, default=1440,
                         help=('Nr of samples that will be fetched'
                               'default value is 1440 e.g. 24 hours')
                         )
