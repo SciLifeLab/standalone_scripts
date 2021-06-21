@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import logging
 import json
+from couchdb import Server
 
 logger = logging.getLogger('sensorpush')
 
@@ -273,6 +274,12 @@ def main(samples, arg_start_date, statusdb_config, sensorpush_config):
     sensor_documents = process_data(sensors, samples)
 
     # Upload to StatusDB
+    with open(statusdb_config) as settings_file:
+        server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
+    couch = Server(server_settings.get("couch_server", None))
+    sensorpush_db = couch['sensorpush']
+
+
     for sd in sensor_documents:
         sd_dict = vars(sd)
         del sd_dict['original_samples']
@@ -280,7 +287,13 @@ def main(samples, arg_start_date, statusdb_config, sensorpush_config):
         del sd_dict['intervals_lower_extended']
         del sd_dict['intervals_higher']
         del sd_dict['intervals_higher_extended']
-        print(json.dumps(sd_dict))
+        logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
+        sensorpush_db.save(sd_dict)
+
+
+# TODO: UTC and Fahrenheit
+# use a real id?
+# change name of the interval variables
 
 
 if __name__ == '__main__':
