@@ -14,10 +14,8 @@ import datetime
 import numpy as np
 import pandas as pd
 import logging
-import json
 from couchdb import Server
 
-logger = logging.getLogger('sensorpush')
 
 
 class SensorPushConnection(object):
@@ -56,9 +54,10 @@ class SensorPushConnection(object):
         resp = requests.post(url, json=body_data, headers=auth_headers)
         attempt = 1
         max_attempts = 3
-        while attempt < max_attempts:
+        while attempt <= max_attempts:
             try:
                 assert resp.status_code == 200
+                attempt = 3
             except AssertionError:
                 logger.error(f'Error fetching sensorpush data: {resp.text}, attempt {attempt} of {max_attempts}')
                 if attempt > max_attempts:
@@ -85,53 +84,40 @@ class SensorPushConnection(object):
         r = self._make_request(url, body_data)
         return r.json()
 
-    def count_requests(self, nr_samples):
-        start_time = datetime.datetime.now()
-
-        runtime_seconds = 0
-        loopcount = 0
-        while runtime_seconds < 120:
-            loopcount += 1
-            if (loopcount % 20) == 0:
-                print("Made {} requests".format(loopcount))
-            runtime = datetime.datetime.now() - start_time
-            runtime_seconds = runtime.total_seconds()
-
-            minutes_ago_td = datetime.timedelta(minutes=loopcount)
-            request_start_time = start_time - minutes_ago_td
-            self.get_samples(nr_samples, startTime=request_start_time.isoformat())
-
 
 class SensorDocument(object):
-    def __init__(self, original_samples, sensor_name, limit_lower, limit_upper):
+    def __init__(self, original_samples, sensor_name, start_time, nr_samples_requested, limit_lower, limit_upper):
         self.original_samples = original_samples
         self.sensor_name = sensor_name
+        self.start_time = start_time.strftime('%Y-%m-%dT%H:%M:%S')
+        self.nr_samples_requested = nr_samples_requested
         self.limit_lower = limit_lower
         self.limit_upper = limit_upper
         self.intervals_lower = []
-        self.intervals_lower_str = []
         self.intervals_lower_extended = []
-        self.intervals_lower_extended_str = []
         self.intervals_higher = []
-        self.intervals_higher_str = []
         self.intervals_higher_extended = []
-        self.intervals_higher_extended_str = []
 
         # Save all samples around areas outside of limits, otherwise save only hourly averages
         self.saved_samples = {}
 
-    def to_dict(self):
-        {'sensor_name': self.sensor_name,
-         'limit_lower':  self.limit_lower,
-         'limit_upper': self.limit_upper,
-         'intervals_lower': self.intervals_upper}
+    def format_for_statusdb(self):
+        return_d = vars(self)
+        del return_d['original_samples']
+        for interval_type in ['intervals_lower', 'intervals_lower_extended', 'intervals_higher', 'intervals_higher_extended']:
+            return_d[interval_type] = self._interval_list_to_str(return_d[interval_type])
+
+        return return_d
+
+    def _interval_list_to_str(self, input_list):
+        return [(sp.strftime('%Y-%m-%dT%H:%M:%S'), ep.strftime('%Y-%m-%dT%H:%M:%S')) for sp, ep in input_list]
 
     def _samples_from_intervals(self, intervals):
         for interval_lower, interval_upper in intervals:
             conv_lower = interval_lower.to_pydatetime()
             conv_upper = interval_upper.to_pydatetime()
             samples_dict = self.original_samples[conv_lower:conv_upper].to_dict()
-            self.saved_samples.update({(str(k), round(v, 3)) for k, v in samples_dict.items()})
+            self.saved_samples.update({(k.strftime('%Y-%m-%dT%H:%M:%S'), round(v, 3)) for k, v in samples_dict.items()})
 
     def add_samples_from_intervals_lower(self):
         self._samples_from_intervals(self.intervals_lower_extended)
@@ -150,22 +136,17 @@ class SensorDocument(object):
 
         interval_points = []
         extended_intervals = []
-        # Corresponding variables that can be saved in the json doc
-        interval_points_str = []
-        extended_intervals_str = []
         for interval in np.split(sample_series, gap_positions):
             lower = interval.index[0]
             upper = interval.index[-1]
             interval_points.append((lower, upper))
-            interval_points.append((str(lower), str(upper)))
             logger.warning(f'Interval with temperature too {limit_type} detected for {self.sensor_name} between: {lower} - {upper}')
             # Extended interval with 1 hour in each direction
             extend_lower = lower - np.timedelta64(1, 'h')
             extend_upper = upper + np.timedelta64(1, 'h')
             extended_intervals.append((extend_lower, extend_upper))
-            extended_intervals_str.append((str(extend_lower), str(extend_upper)))
 
-        return interval_points, extended_intervals, interval_points_str, extended_intervals_str
+        return interval_points, extended_intervals
 
     def time_in_any_extended_interval(self, time_point):
         for interval_lower, interval_upper in self.intervals_lower_extended:
@@ -186,11 +167,15 @@ def sensor_limits(sensor_info):
 
     if temp_alerts.get('enabled'):
         if 'max' in temp_alerts:
-            limit_upper = temp_alerts['max']
+            limit_upper = to_celsius(temp_alerts['max'])
         if 'min' in temp_alerts:
-            limit_lower = temp_alerts['min']
+            limit_lower = to_celsius(temp_alerts['min'])
 
     return limit_lower, limit_upper
+
+
+def to_celsius(temp):
+    return ((temp-32)*5)/9
 
 
 def samples_to_df(samples_json):
@@ -199,7 +184,11 @@ def samples_to_df(samples_json):
         sensor_d = {}
         for sample in samples:
             time_point = datetime.datetime.strptime(sample['observed'], '%Y-%m-%dT%H:%M:%S.%fZ')
-            sensor_d[time_point] = sample['temperature']
+            # Make datetime aware of timezone
+            time_point = time_point.replace(tzinfo=datetime.timezone.utc)
+            # Transform to local timezone
+            time_point = time_point.astimezone()
+            sensor_d[time_point] = to_celsius(sample['temperature'])
         data_d[sensor_id] = sensor_d
 
     df = pd.DataFrame.from_dict(data_d)
@@ -207,7 +196,7 @@ def samples_to_df(samples_json):
     return df
 
 
-def process_data(sensors_json, samples_json):
+def process_data(sensors_json, samples_json, start_time, nr_samples_requested):
     df = samples_to_df(samples_json)
 
     sensor_documents = []
@@ -219,23 +208,22 @@ def process_data(sensors_json, samples_json):
         sensor_samples = df[sensor_id].dropna()
 
         # TODO, samples are in Fahrenheit and UTC
-        sd = SensorDocument(sensor_samples, sensor_info['name'], sensor_limit_lower, sensor_limit_upper)
+        sd = SensorDocument(sensor_samples, sensor_info['name'], start_time,
+                            nr_samples_requested, sensor_limit_lower, sensor_limit_upper)
 
         # Check if there are samples outside of limits
         if sensor_limit_lower is not None:
             samples_too_low = sensor_samples[sensor_samples < sensor_limit_lower]
             # Collect the exact intervals outside of limits
             if not samples_too_low.empty:
-                sd.intervals_lower, sd.intervals_lower_extended, \
-                    sd.intervals_lower_str, sd.intervals_lower_extended_str = sd.summarize_intervals(samples_too_low, 'low')
+                sd.intervals_lower, sd.intervals_lower_extended = sd.summarize_intervals(samples_too_low, 'low')
                 sd.add_samples_from_intervals_lower()
 
         if sensor_limit_upper is not None:
             samples_too_high = sensor_samples[sensor_samples > sensor_limit_upper]
             # Collect the exact intervals outside of limits
             if not samples_too_high.empty:
-                sd.intervals_higher, sd.intervals_higher_extended, \
-                    sd.intervals_higher_str, sd.intervals_higher_extended_str = sd.summarize_intervals(samples_too_high, 'high')
+                sd.intervals_higher, sd.intervals_higher_extended = sd.summarize_intervals(samples_too_high, 'high')
                 sd.add_samples_from_intervals_higher()
 
         hourly_mean = sensor_samples.resample('1H').mean()
@@ -248,14 +236,15 @@ def process_data(sensors_json, samples_json):
     return sensor_documents
 
 
-def main(samples, arg_start_date, statusdb_config, sensorpush_config):
+def main(nr_samples_requested, arg_start_date, statusdb_config, sensorpush_config, push):
     if arg_start_date is None:
         midnight = datetime.datetime.combine(datetime.datetime.today(), datetime.time.min)
         start_date_datetime = midnight - datetime.timedelta(days=1)
     else:
         start_date_datetime = datetime.datetime.strptime(arg_start_date, '%Y-%m-%d')
 
-    start_time = start_date_datetime.astimezone(tz=pytz.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    # Need to use UTC timezone for the API call
+    start_time = start_date_datetime.astimezone(tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
     with open(os.path.expanduser(sensorpush_config), 'r') as sp_config_file:
         sp_config = yaml.safe_load(sp_config_file)
@@ -265,35 +254,36 @@ def main(samples, arg_start_date, statusdb_config, sensorpush_config):
 
     sp = SensorPushConnection(sp_config['email'], sp_config['password'])
 
-    logging.info(f'Fetching {samples} samples from {start_time}')
+    logging.info(f'Fetching {nr_samples_requested} samples from {start_time}')
     # Request sensor data
     sensors = sp.get_sensors()
-    samples = sp.get_samples(samples, startTime=start_time)
+    samples = sp.get_samples(nr_samples_requested, startTime=start_time)
 
     # Summarize data and put into documents suitable for upload
-    sensor_documents = process_data(sensors, samples)
+    sensor_documents = process_data(sensors, samples, start_date_datetime, nr_samples_requested)
 
     # Upload to StatusDB
     with open(statusdb_config) as settings_file:
         server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
-    couch = Server(server_settings.get("couch_server", None))
+
+    url_string = 'http://{}:{}@{}:{}'.format(
+                    server_settings['statusdb'].get('username'),
+                    server_settings['statusdb'].get('password'),
+                    server_settings['statusdb'].get('url'),
+                    server_settings['statusdb'].get('port')
+                )
+    couch = Server(url_string)
     sensorpush_db = couch['sensorpush']
 
-
     for sd in sensor_documents:
-        sd_dict = vars(sd)
-        del sd_dict['original_samples']
-        del sd_dict['intervals_lower']
-        del sd_dict['intervals_lower_extended']
-        del sd_dict['intervals_higher']
-        del sd_dict['intervals_higher_extended']
-        logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
-        sensorpush_db.save(sd_dict)
+        sd_dict = sd.format_for_statusdb()
 
-
-# TODO: UTC and Fahrenheit
-# use a real id?
-# change name of the interval variables
+        if push:
+            logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
+            sensorpush_db.save(sd_dict)
+        else:
+            logging.info(f'Printing {sd_dict["sensor_name"]} to stderr')
+            print(sd_dict)
 
 
 if __name__ == '__main__':
@@ -312,7 +302,24 @@ if __name__ == '__main__':
     parser.add_argument('--config', '-c', default='~/conf/sensorpush_cred.yaml',
                         help='Sensorpush credentials, default is ~/conf/sensorpush_cred.yaml'
                         )
+    parser.add_argument('--logfile', '-l', default='~/log/sensorpush_script/to_statusdb.log',
+                        help='Logfile used')
+    parser.add_argument('--push', '-p', action='store_true',
+                        help='Push to statusdb, otherwise just print to terminal'
+                        )
 
     args = parser.parse_args()
 
-    main(args.samples, args.start_date, args.statusdb_config, args.config)
+    logging.basicConfig(
+        filename=args.logfile, level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+
+    logger = logging.getLogger(__name__)
+
+    # Handler that will log warnings or worse to stderr
+    stderr_handler = logging.StreamHandler()
+    stderr_handler.setLevel(logging.ERROR)
+    logger.addHandler(stderr_handler)
+
+    main(args.samples, args.start_date, args.statusdb_config, args.config, args.push)
