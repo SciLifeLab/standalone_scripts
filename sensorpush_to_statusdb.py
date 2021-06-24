@@ -23,12 +23,12 @@ class SensorPushConnection(object):
         self.email = email
         self.password = password
         self._authorized = False
-        self.base_url = 'https://api.sensorpush.com/api/v1/'
+        self.base_url = 'https://api.sensorpush.com/api/v1'
         self.access_token = None
 
     def _authorize(self):
         url_ending = 'oauth/authorize'
-        url = '/'.join(x.strip('/') for x in [self.base_url, url_ending] if x)
+        url = '/'.join([self.base_url, url_ending])
         body_data = {
                         'email': self.email,
                         'password': self.password
@@ -65,7 +65,7 @@ class SensorPushConnection(object):
             attempt += 1
         return resp
 
-    def get_samples(self, nr_samples, startTime=None):
+    def get_samples(self, nr_samples, startTime=None, stopTime=None):
         url = '/samples'
         body_data = {
                 'measures': ['temperature'],
@@ -74,6 +74,8 @@ class SensorPushConnection(object):
             body_data['limit'] = nr_samples
         if startTime:
             body_data['startTime'] = startTime
+        if stopTime:
+            body_data['stopTime'] = stopTime
 
         r = self._make_request(url, body_data)
         return r.json()
@@ -106,7 +108,8 @@ class SensorDocument(object):
         del return_d['original_samples']
         for interval_type in ['intervals_lower', 'intervals_lower_extended', 'intervals_higher', 'intervals_higher_extended']:
             return_d[interval_type] = self._interval_list_to_str(return_d[interval_type])
-
+        # For convenience with the javascript plotting library, save it as a list of lists
+        return_d['saved_samples'] = [[k, v] for k, v in sorted(return_d['saved_samples'].items())]
         return return_d
 
     def _interval_list_to_str(self, input_list):
@@ -230,7 +233,7 @@ def process_data(sensors_json, samples_json, start_time, nr_samples_requested):
         for hour, mean_val in hourly_mean.iteritems():
             # Don't add any hourly mean values where we've saved more detailed info
             if not sd.time_in_any_extended_interval(hour):
-                sd.saved_samples[str(hour)] = round(mean_val, 3)
+                sd.saved_samples[hour.strftime('%Y-%m-%dT%H:%M:%S')] = round(mean_val, 3)
 
         sensor_documents.append(sd)
     return sensor_documents
@@ -243,8 +246,11 @@ def main(nr_samples_requested, arg_start_date, statusdb_config, sensorpush_confi
     else:
         start_date_datetime = datetime.datetime.strptime(arg_start_date, '%Y-%m-%d')
 
+    end_date_datetime = start_date_datetime + datetime.timedelta(days=1)
+
     # Need to use UTC timezone for the API call
     start_time = start_date_datetime.astimezone(tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    end_time = end_date_datetime.astimezone(tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')
 
     with open(os.path.expanduser(sensorpush_config), 'r') as sp_config_file:
         sp_config = yaml.safe_load(sp_config_file)
@@ -257,7 +263,7 @@ def main(nr_samples_requested, arg_start_date, statusdb_config, sensorpush_confi
     logging.info(f'Fetching {nr_samples_requested} samples from {start_time}')
     # Request sensor data
     sensors = sp.get_sensors()
-    samples = sp.get_samples(nr_samples_requested, startTime=start_time)
+    samples = sp.get_samples(nr_samples_requested, startTime=start_time, stopTime=end_time)
 
     # Summarize data and put into documents suitable for upload
     sensor_documents = process_data(sensors, samples, start_date_datetime, nr_samples_requested)
@@ -290,7 +296,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--samples', '-s', type=int, default=1440,
                         help=('Nr of samples that will be fetched'
-                              'default value is 1440 e.g. 24 hours')
+                              'default value is 1440 e.g. 24 hours, '
+                              'which is the maximum allowed value as well.')
                         )
     parser.add_argument('--start_date', type=str, default=None,
                         help=('Collect samples starting from midnight at this date, '
@@ -321,5 +328,8 @@ if __name__ == '__main__':
     stderr_handler = logging.StreamHandler()
     stderr_handler.setLevel(logging.ERROR)
     logger.addHandler(stderr_handler)
+    # Genomics status wants 1 document per day, so this is the way to enforce that,
+    # should potentially be fixed in the future
+    assert args.samples <= 1440
 
     main(args.samples, args.start_date, args.statusdb_config, args.config, args.push)
