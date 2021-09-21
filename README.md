@@ -269,7 +269,7 @@ zendesk_attachment_backup.py -i ngisweden-yyyymmdd/tickets.xml
 ###### Usage
 The scripts are compatible with Python 2.7+ and Python 3.
 
-Instructions in below show how to get a copy of Python 2.7. You only need to do this once:
+The instructions in below show how to get a copy of Python 2.7. You only need to do this once:
 
 1. Download & install Miniconda
 ```
