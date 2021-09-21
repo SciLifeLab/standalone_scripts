@@ -13,6 +13,7 @@ import urllib2
 import re
 import zipfile
 import sys
+from io import open
 
 def collect_urls(input_files, print_urls, **kwargs):
    """ Collect delivery report URLs and print to file
@@ -29,7 +30,7 @@ def collect_urls(input_files, print_urls, **kwargs):
       '_library_info.txt',
    ]
    urls = set()
-   
+
    # Go through each supplied file
    for fn in input_files:
       if not kwargs.get('quiet'):
@@ -44,9 +45,9 @@ def collect_urls(input_files, print_urls, **kwargs):
             continue
          for f in zendesk_zip.namelist():
             if f.endswith('tickets.xml'):
-               with zendesk_zip.open(f) as fh:
-                  tickets_xml = fh.read().decode('utf8')
-      
+               with zendesk_zip.open(f, encoding='utf-8') as fh:
+                  tickets_xml = fh.read()
+
       else:
          with open(fn,'r') as f_h:
              tickets_xml = f_h.read()
@@ -55,16 +56,16 @@ def collect_urls(input_files, print_urls, **kwargs):
       if tickets_xml is not None:
          for pattern in re_patterns:
             urls.update(re.findall(url_prefix + pattern, tickets_xml))
-      
+
       if not kwargs.get('quiet'):
           print("  Found {} unique URLs so far..".format(len(urls)))
-      
-   
+
+
    # Check we have some URLs
    if len(urls) == 0:
       print("Error - no URLs found")
       sys.exit(1)
-   
+
    # Make nice filenames
    downloads = dict()
    for url in urls:
@@ -88,22 +89,22 @@ def download_files(downloads, output_dir, force_overwrite, **kwargs):
     # Make the directory if we need to
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-   
+
     # Check if any files exist and skip them if so
     num_dls = len(downloads)
     if not force_overwrite:
-        downloads = {fn:url for fn,url in downloads.iteritems() if not os.path.exists(os.path.join(output_dir, fn))}
+        downloads = {fn:url for fn,url in downloads.items() if not os.path.exists(os.path.join(output_dir, fn))}
         if num_dls != len(downloads) and not kwargs.get('quiet'):
             print("Skipping {} files as already downloaded.".format(num_dls - len(downloads)))
 
    # Loop through the downloads and get them one at a time
     num_dls = len(downloads)
     i = 1
-    for fn, url in downloads.iteritems():
+    for fn, url in downloads.items():
         path = os.path.join(output_dir, fn)
         if not kwargs.get('quiet'):
             print("Downloading {} of {} - {}".format(i, num_dls, fn))
-    for _try in xrange(3):
+    for _try in range(3):
         try:
             dl = urllib2.urlopen(url)
             with open(path, 'wb') as fh:

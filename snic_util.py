@@ -33,7 +33,10 @@ def to_bool(s):
 def proceed_or_not(question):
     sys.stdout.write("{}".format(question))
     while True:
-        choice = raw_input().lower()
+        if sys.version_info[0] == 3:
+            choice = input().lower()
+        elif sys.version_info[0] == 2:
+            choice = raw_input().lower()
         if choice in ['yes','y']:
             return True
         elif choice in ['no','n']:
@@ -52,11 +55,11 @@ class snic_util(object):
             self.api_pass = config['snic_api_password']
             self.api_cred = (self.api_user, self.api_pass)
         except KeyError as e:
-            print "Config is missing key {}".format(e)
+            print("Config is missing key {}".format(e))
             raise e
         # if any params given set them as attributes
         if params:
-            for _key, _val in params.iteritems():
+            for _key, _val in params.items():
                 setattr(self, _key, _val)
 
     def create_grus_project(self, proj_data={}):
@@ -206,7 +209,7 @@ class _snic_wrapper(snic_util):
         search_hits = exec_func()
         for ind, inf in enumerate(search_hits, 1):
             oinf = inf if all_info else OrderedDict((k, inf.get(k)) for k in filter_keys)
-            print "Hit {}:\n{}".format(ind, json.dumps(oinf, indent=4))
+            print("Hit {}:\n{}".format(ind, json.dumps(oinf, indent=4)))
 
 class DbConnections():
     def __init__(self):
@@ -228,7 +231,7 @@ class DbConnections():
                 logger.info('Charon delivery_projects for project {} updated with value {}'.format(projectid, delivery_proj))
             else:
                 logger.warn('Charon delivery_projects for project {} not updated with value {} because the value was already present'.format(projectid, delivery_proj))
-        except Exception, e:
+        except Exception as e:
             logger.error('Failed to update delivery_projects in charon for {}. Error says: {}'.format(projectid, e))
             logger.exception(e)
 
@@ -242,7 +245,7 @@ class DbConnections():
         try:
             self.statusdbSess.save_db_doc(project_page)
             logger.info('Delivery_projects for project {} updated with value {} in statusdb'.format(projectid, delivery_proj))
-        except Exception, e:
+        except Exception as e:
             logger.error('Failed to update delivery_projects in statusdb for {}. Error says: {}'.format(projectid, e))
             logger.exception(e)
 

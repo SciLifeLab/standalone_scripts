@@ -6,11 +6,14 @@ import socket
 import couchdb
 import logging
 import argparse
-import ConfigParser
 import yaml
 import json
 import distance
 import operator
+try:
+    import ConfigParser
+except ImportError:
+    import configparser
 
 CONFIG = {}
 
@@ -52,7 +55,7 @@ def load_yaml_config(config_file):
 
 
 class Indexes:
-    
+
     #indexes_by_kit looks like:
     #Kit_name:
     #   i7_index1:
@@ -74,10 +77,10 @@ class Indexes:
         #now create a more index centric object
         for kit_type in self.indexes_by_kit: #for each kit type
             if kit_type not in self.indexes_by_kit:
-                print "file {} badly fomatted".format(indexes_file)
+                print("file {} badly fomatted".format(indexes_file))
                 return
             for index_type in self.indexes_by_kit[kit_type]: # for each type of indexes
-                for index_name, index_seq in self.indexes_by_kit[kit_type][index_type].iteritems():
+                for index_name, index_seq in self.indexes_by_kit[kit_type][index_type].items():
                     index_obj = {'name': index_name, 'index_type': index_type, 'kit_type': kit_type}
                     self._add_index(index_seq, index_obj)
 
@@ -85,7 +88,7 @@ class Indexes:
     def _reverse_complement(self, index):
         for base in index:
             if base not in 'ATCGNatcgn':
-                print "Error: NOT a DNA sequence"
+                print("Error: NOT a DNA sequence")
                 return None
         complement_dict = {"A":"T", "C":"G", "G":"C", "T":"A", "N":"N", "a":"t", "c":"g", "g":"c", "t":"a", "n":"n" }
         return "".join([complement_dict[base] for base in reversed(index)])
@@ -108,7 +111,7 @@ class Indexes:
             self.indexes[index_to_modify] = []
         #add the information
         self.indexes[index_to_modify].append(index_obj)
-        
+
 
 
 
@@ -124,12 +127,12 @@ class Indexes:
         #checks if indexes from the same library after a left shift are conflicting
         for kit_type in self.indexes_by_kit: #for each lib kit type
             for index_type in self.indexes_by_kit[kit_type]: # for each type of indexes
-                for index_name, index_seq in self.indexes_by_kit[kit_type][index_type].iteritems():
+                for index_name, index_seq in self.indexes_by_kit[kit_type][index_type].items():
                     fake_index = index_seq[1:] + "A"
-                    for index_name_check, index_seq_check in self.indexes_by_kit[kit_type][index_type].iteritems():
+                    for index_name_check, index_seq_check in self.indexes_by_kit[kit_type][index_type].items():
                         hamming_dist = distance.hamming(index_seq_check, fake_index)
                         if hamming_dist <= 2:
-                            print "{} {} {} {} {}".format(index_seq, index_seq_check, fake_index, hamming_dist, kit_type)
+                            print("{} {} {} {} {}".format(index_seq, index_seq_check, fake_index, hamming_dist, kit_type))
 
 
 
@@ -150,14 +153,14 @@ def check_single_sample_lanes(instrument_type):
     couch=setupServer(CONFIG)
     flowcell_db = couch["x_flowcells"]
     flowcell_docs = {}
-    
+
     for fc_doc in flowcell_db:
         try:
             undetermined = flowcell_db[fc_doc]["Undetermined"]
         except KeyError:
             continue
         flowcell_docs[flowcell_db[fc_doc]["RunInfo"]["Id"]] = fc_doc
-    
+
     undet_stats = {}
     indexes = {}
     date_limit = date(16,3,1)
@@ -213,20 +216,20 @@ def check_single_sample_lanes(instrument_type):
                     undet_stats[instrument_name][index] = 0 #initialiaze this
                     indexes[index] = 0 #mark this as seen
                 undet_stats[instrument_name][index] += 1 # seen a lane with high amount of undetermined
-    
-    print ",",
+
+    print(",", end=' ')
     for index in indexes:
-        print "{},".format(index),
-    print ""
+        print("{},".format(index), end=' ')
+    print("")
     for instrument in undet_stats:
-        print "{},".format(instrument),
+        print("{},".format(instrument), end=' ')
         for index in indexes:
             if index in undet_stats[instrument]:
-                print "{},".format(undet_stats[instrument][index]),
+                print("{},".format(undet_stats[instrument][index]), end=' ')
             else:
-                print "0,",
-        print ""
-    print ""
+                print("0,", end=' ')
+        print("")
+    print("")
 
 
 
@@ -245,7 +248,7 @@ def find_undetermined_index_over_time(index_to_be_searched, instrument_type):
 
 
     time_line = []
-    
+
     for FCid in sorted(flowcell_docs):
         # first check that I have all necessary info to extract information
         fc_doc = flowcell_docs[FCid]
@@ -270,7 +273,7 @@ def find_undetermined_index_over_time(index_to_be_searched, instrument_type):
     for FC in time_line:
         FCid = FC[0]
         for lane in FC[1]:
-            print "{}_{} {}".format(FCid, lane[0], lane[1])
+            print("{}_{} {}".format(FCid, lane[0], lane[1]))
 
 
 
@@ -279,8 +282,8 @@ def undet_index_to_projects(index_to_be_searched, instrument_type, min_occurence
     status_db = setupServer(CONFIG)
     workset_db = status_db['worksets']
     workset_project_view = workset_db.view('project/ws_proj')
-    
-    
+
+
     flowcell_db = status_db["x_flowcells"]
     flowcell_docs = {}
     counter = 0
@@ -323,8 +326,8 @@ def undet_index_to_projects(index_to_be_searched, instrument_type, min_occurence
                         #now I need to figure out in which WS the samples were... might be more than one as samples might be pooled
                         for row in workset_project_view[project].rows:
                             ws_doc_id = row.id
-                            ws_id = row.value.keys()[0] #I am pretty sure that for each row I have a sinlge entry
-                            if sample in row.value[ws_id]['samples'].keys():
+                            ws_id = list(row.value.keys())[0] #I am pretty sure that for each row I have a sinlge entry
+                            if sample in list(row.value[ws_id]['samples'].keys()):
                                 location = row.value[ws_id]['samples'][sample]['location']
                                 #now I know that this sample in this lane in this FC was affected by index presence and I know the position
                                 if ws_id not in worksets_with_undet_in_fc:
@@ -336,9 +339,9 @@ def undet_index_to_projects(index_to_be_searched, instrument_type, min_occurence
                                 worksets_with_undet_in_fc[ws_id][FCid][lane].add((sample,location))
 
     for ws_id in sorted(worksets_with_undet_in_fc):
-        print ws_id
+        print(ws_id)
         for run_id in sorted(worksets_with_undet_in_fc[ws_id]):
-            print "\t{}".format(run_id)
+            print("\t{}".format(run_id))
             for lane in sorted(worksets_with_undet_in_fc[ws_id][run_id]):
                 sys.stdout.write("\t\t{}: ".format(lane))
                 for sample_location in worksets_with_undet_in_fc[ws_id][run_id][lane]:
@@ -392,7 +395,7 @@ def fetch_undermined_stats():
             if len(undetermined[lane]) > 1: # if there are elements (there is the NoIndex case)
                 if 'TOTAL' in undetermined[lane]:
                     del undetermined[lane]['TOTAL']
-                most_occuring_undet = sorted(undetermined[lane].items(), key=operator.itemgetter(1), reverse=True)[0]
+                most_occuring_undet = sorted(list(undetermined[lane].items()), key=operator.itemgetter(1), reverse=True)[0]
                 lanes_num += 1
                 if FC_type == "HiSeqX":
                     lanes_Xten_num += 1
@@ -400,7 +403,7 @@ def fetch_undermined_stats():
                     lanes_HiSeq_num += 1
                 elif FC_type == "MiSeq":
                     lanes_MiSeq_num += 1
-                
+
                 if most_occuring_undet[0] not in MostOccurringUndetIndexes[FC_type]:
                     MostOccurringUndetIndexes[FC_type][most_occuring_undet[0]] = 0
                 MostOccurringUndetIndexes[FC_type][most_occuring_undet[0]] += 1
@@ -410,24 +413,24 @@ def fetch_undermined_stats():
 
 
 
-    print "Flowcells (lanes): {} ({})".format(FC_num, lanes_num)
-    print "HiSeqX (lanes): {} ({})".format(FC_XTen_num, lanes_Xten_num)
-    print "HiSeq2500 (lanes): {} ({})".format(FC_HiSeq_num, lanes_HiSeq_num)
-    print "MiSeq (lanes): {} ({})".format(FC_MiSeq_num, lanes_MiSeq_num)
+    print("Flowcells (lanes): {} ({})".format(FC_num, lanes_num))
+    print("HiSeqX (lanes): {} ({})".format(FC_XTen_num, lanes_Xten_num))
+    print("HiSeq2500 (lanes): {} ({})".format(FC_HiSeq_num, lanes_HiSeq_num))
+    print("MiSeq (lanes): {} ({})".format(FC_MiSeq_num, lanes_MiSeq_num))
 
-    print "Most occuring undetermined (seen in #lanes)"
-    print "All Flowcells:"
-    for twenty_most_occuring_undet in sorted(MostOccurringUndetIndexes["Total"].items(), key=operator.itemgetter(1), reverse=True)[0:10]:
-        print "{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_num))
-    print "All HiSeqX:"
-    for twenty_most_occuring_undet in sorted(MostOccurringUndetIndexes["HiSeqX"].items(), key=operator.itemgetter(1), reverse=True)[0:10]:
-        print "{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_Xten_num))
-    print "All HiSeq2500:"
-    for twenty_most_occuring_undet in sorted(MostOccurringUndetIndexes["HiSeq2500"].items(), key=operator.itemgetter(1), reverse=True)[0:10]:
-        print "{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_HiSeq_num))
-    print "All MiSeq:"
-    for twenty_most_occuring_undet in sorted(MostOccurringUndetIndexes["MiSeq"].items(), key=operator.itemgetter(1), reverse=True)[0:10]:
-        print "{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_MiSeq_num))
+    print("Most occuring undetermined (seen in #lanes)")
+    print("All Flowcells:")
+    for twenty_most_occuring_undet in sorted(list(MostOccurringUndetIndexes["Total"].items()), key=operator.itemgetter(1), reverse=True)[0:10]:
+        print("{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_num)))
+    print("All HiSeqX:")
+    for twenty_most_occuring_undet in sorted(list(MostOccurringUndetIndexes["HiSeqX"].items()), key=operator.itemgetter(1), reverse=True)[0:10]:
+        print("{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_Xten_num)))
+    print("All HiSeq2500:")
+    for twenty_most_occuring_undet in sorted(list(MostOccurringUndetIndexes["HiSeq2500"].items()), key=operator.itemgetter(1), reverse=True)[0:10]:
+        print("{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_HiSeq_num)))
+    print("All MiSeq:")
+    for twenty_most_occuring_undet in sorted(list(MostOccurringUndetIndexes["MiSeq"].items()), key=operator.itemgetter(1), reverse=True)[0:10]:
+        print("{}\t{}\t{}".format(twenty_most_occuring_undet[0], twenty_most_occuring_undet[1], twenty_most_occuring_undet[1]/float(lanes_MiSeq_num)))
 
 
 
@@ -448,13 +451,13 @@ def fetch_pooled_projects(instrument_type):
             if instrument_type != FC_type:
                 continue
         if 'illumina' not in flowcell_db[fc_doc]:
-            print "Not illumina field found in doc"
+            print("Not illumina field found in doc")
             continue
         if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
-            print "Not Demultiplex_Stats field found in doc"
+            print("Not Demultiplex_Stats field found in doc")
             continue
         if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
-            print "Not Barcode_lane_statistics field found in doc"
+            print("Not Barcode_lane_statistics field found in doc")
             continue
         demux_stats = flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']
         for lane in ['1','2','3','4','5','6','7','8']:
@@ -471,9 +474,9 @@ def fetch_pooled_projects(instrument_type):
                     projects_pooled[project].add(samples_concat)
 
     for project in projects_pooled:
-        print project
+        print(project)
         for pool in projects_pooled[project]:
-            print "\t{}".format(pool)
+            print("\t{}".format(pool))
 
 
 def main(args):
@@ -482,7 +485,7 @@ def main(args):
 
     if args.mode == 'most_undet':
         fetch_undermined_stats()
-    
+
     if args.mode == 'check_undet_index':
         if args.index is None:
             sys.exit("in this mode --index must be specified")
@@ -518,15 +521,12 @@ if __name__ == '__main__':
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
     parser.add_argument('--indexes', help="yamls file containing indexes we want to analyse", type=str)
     parser.add_argument('--min_occurences', help="minimum number of occurences in undet in workset_undet mode", type=int, default=0)
-   
-    
+
+
     parser.add_argument('--mode', help="define what action needs to be executed", type=str, required=True, choices=('check_undet_index', 'most_undet', 'single_sample_lanes', 'workset_undet', 'fetch_pooled_projects'))
-    
-    
+
+
     parser.add_argument('--index', help="a specifc index (e.g., CTTGTAAT) to be searched across lanes and FCs", type=str)
     parser.add_argument('--instrument-type', help="type of instrument", type=str, default=None, choices=('HiSeqX', 'MiSeq', 'HiSeq2500'))
     args = parser.parse_args()
     main(args)
-
-
-

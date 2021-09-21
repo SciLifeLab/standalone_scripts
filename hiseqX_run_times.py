@@ -5,8 +5,11 @@ import logging
 from datetime import datetime
 from datetime import date
 import argparse
-import ConfigParser
 import yaml
+try:
+    import ConfigParser
+except ImportError:
+    import configparser
 
 CONFIG = {}
 
@@ -49,13 +52,13 @@ def main(args):
             last_cycle_date = datetime.strptime(last_cycle_end.split(".")[0], '%Y-%m-%d %H:%M:%S')
             delta = last_cycle_date - first_cycle_date
             instruments[instrument].append({"{}".format(fcid):  delta.total_seconds()/3600 } )
-            
+
     for instrument in instruments:
-        print "time\t{}".format(instrument)
+        print("time\t{}".format(instrument))
         for run in  sorted(instruments[instrument]):
-            date_illumina_format =run.keys()[0].split("_")[0]
+            date_illumina_format =list(run.keys())[0].split("_")[0]
             date_exel_format="{}/{}/20{}".format(date_illumina_format[4:6] , date_illumina_format[2:4], date_illumina_format[0:2])
-            print "{}\t{}".format(date_exel_format, run[run.keys()[0]])
+            print("{}\t{}".format(date_exel_format, run[list(run.keys())[0]]))
 
 
 
@@ -95,8 +98,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("""Check running times""")
     parser.add_argument('--config', help="configuration file", type=str,  required=True)
     args = parser.parse_args()
-    
+
     main(args)
-
-
-

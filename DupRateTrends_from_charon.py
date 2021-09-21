@@ -36,7 +36,7 @@ def duplicate_trends(args):
         #    continue
         request = session.get(url+'/api/v1/samples/{}'.format(pid), headers=headers)
         if request.status_code != 200:
-            print pid
+            print(pid)
             continue
         for sample in request.json()['samples']:
             if sample.get('analysis_status') != 'ANALYZED':
@@ -82,7 +82,7 @@ def duplicate_trends(args):
             sys.stdout.write("({},{},{}) ".format(pid,num_samples,average_dup_rate_proj))
         sys.stdout.write("\n")
     for project in projects:
-        print project
+        print(project)
 
 def compute_human_genomes(args):
     """Fetch all project and start to loop over them
@@ -121,11 +121,11 @@ def compute_human_genomes(args):
                 samples_without_autosome_cov += 1
             total_coverage += sample[coverage_field]
             total_samples  += 1
-    print "TOTAL SAMPLES {}".format(total_samples)
-    print "TOTAL SAMPLES no cov {}".format(samples_without_autosome_cov)
-    print "TOTAL COVERAGE {}".format(total_coverage)
-    print "AVERAGE COVERAGE PER SAMPLE {}".format(total_coverage/total_samples)
-    print "NUMBER OF 30X HG EQUVALENTS {}".format(total_coverage/30)
+    print("TOTAL SAMPLES {}".format(total_samples))
+    print("TOTAL SAMPLES no cov {}".format(samples_without_autosome_cov))
+    print("TOTAL COVERAGE {}".format(total_coverage))
+    print("AVERAGE COVERAGE PER SAMPLE {}".format(total_coverage/total_samples))
+    print("NUMBER OF 30X HG EQUVALENTS {}".format(total_coverage/30))
 
 
 
@@ -147,6 +147,3 @@ if __name__ == '__main__':
 
     compute_human_genomes(args)
     duplicate_trends(args)
-
-
-

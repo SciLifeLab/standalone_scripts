@@ -6,7 +6,6 @@ import socket
 import couchdb
 import logging
 import argparse
-import ConfigParser
 import yaml
 import json
 import distance
@@ -14,6 +13,10 @@ import operator
 import time
 from datetime import  date
 from datetime import  datetime
+try:
+    import ConfigParser
+except ImportError:
+    import configparser
 
 CONFIG = {}
 
@@ -74,7 +77,7 @@ def parse_flowcell_db():
     projects = {}
     for row in project_summary:
         if "project_name" not in row.value:
-            print "somehting is wrong here... I guess I am going to fail"
+            print("somehting is wrong here... I guess I am going to fail")
         if "reference_genome" in row.value:
             projects[row.value["project_name"]] = row.value["reference_genome"]
         else:
@@ -82,7 +85,7 @@ def parse_flowcell_db():
 
     flowcell_db = couch["x_flowcells"]
     flowcells   = {}
-    
+
     instrument_types = ["HiSeqX", "MiSeq", "HiSeq2500"]
     for instrument_type in instrument_types:
         flowcells[instrument_type] = {}
@@ -92,7 +95,7 @@ def parse_flowcell_db():
             samplesheet_csv = flowcell_db[fc_doc]["samplesheet_csv"]
         except KeyError:
             if "RunInfo" in flowcell_db[fc_doc]:
-                print "{}".format(flowcell_db[fc_doc]["RunInfo"]["Id"])
+                print("{}".format(flowcell_db[fc_doc]["RunInfo"]["Id"]))
             continue
         flowcell_id     = flowcell_db[fc_doc]["RunInfo"]["Id"]
         instrument_type = get_FC_type(flowcell_id)
@@ -111,7 +114,7 @@ def parse_flowcell_db():
             elif "Project" in sample_lane:
                 project = sample_lane["Project"].strip()
             else:
-                print "WRONG"
+                print("WRONG")
             # now correct the project
             if "." not in project:
                 project = project.replace("__", "_").replace("_", ".", 1)
@@ -120,12 +123,12 @@ def parse_flowcell_db():
                 project = "{}.{}".format(project_pieaces[0].upper(), project_pieaces[1])
 
             if project not in projects:
-                print "{} not found in projects".format(project)
+                print("{} not found in projects".format(project))
                 continue
             if project in flowcells[instrument_type][flowcell_id][lane]:
                 # cehck that it is the same
                 if projects[project] != flowcells[instrument_type][flowcell_id][lane][project]:
-                    print "stange found same  project but different organisms"
+                    print("stange found same  project but different organisms")
             else:
                 flowcells[instrument_type][flowcell_id][lane][project] = projects[project]
 
@@ -175,22 +178,22 @@ def parse_flowcell_db():
                         instrument_number_non_human_lanes += 1
             else:
                 continue
-        print "{}".format(instrument_type)
-        print "\tNumber of FC: {}".format(instrument_number_FC)
-        print "\tNumber of lanes: {}".format(instrument_number_lanes)
-        print "\tNumber of Human lanes: {}".format(instrument_number_human_lanes)
-        print "\tNumber of Non-Human lanes: {}".format(instrument_number_non_human_lanes)
-        print "\tNumber of Mixed lanes: {}".format(instrument_number_mixed_lanes)
-    print "TOTAL"
-    print "\tNumber of FC: {}".format(total_number_FC)
-    print "\tNumber of lanes: {}".format(total_number_lanes)
-    print "\tNumber of Human lanes: {}".format(total_number_human_lanes)
-    print "\tNumber of Non-Human lanes: {}".format(total_number_non_human_lanes)
-    print "\tNumber of Mixed lanes: {}".format(total_number_mixed_lanes)
+        print("{}".format(instrument_type))
+        print("\tNumber of FC: {}".format(instrument_number_FC))
+        print("\tNumber of lanes: {}".format(instrument_number_lanes))
+        print("\tNumber of Human lanes: {}".format(instrument_number_human_lanes))
+        print("\tNumber of Non-Human lanes: {}".format(instrument_number_non_human_lanes))
+        print("\tNumber of Mixed lanes: {}".format(instrument_number_mixed_lanes))
+    print("TOTAL")
+    print("\tNumber of FC: {}".format(total_number_FC))
+    print("\tNumber of lanes: {}".format(total_number_lanes))
+    print("\tNumber of Human lanes: {}".format(total_number_human_lanes))
+    print("\tNumber of Non-Human lanes: {}".format(total_number_non_human_lanes))
+    print("\tNumber of Mixed lanes: {}".format(total_number_mixed_lanes))
 
 
-            
-    
+
+
 def instrument_usage():
     couch       = setupServer(CONFIG)
     #fetch info about proejcts (reference type)
@@ -241,13 +244,13 @@ def instrument_usage():
             continue
         instrument = flowcell_db[fc_doc]["RunInfo"]['Instrument']
         if 'illumina' not in flowcell_db[fc_doc]:
-            print "Not illumina field found in doc"
+            print("Not illumina field found in doc")
             continue
         if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
-            print "Not Demultiplex_Stats field found in doc"
+            print("Not Demultiplex_Stats field found in doc")
             continue
         if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
-            print "Not Barcode_lane_statistics field found in doc"
+            print("Not Barcode_lane_statistics field found in doc")
             continue
         projects_in_lanes = {}
         for sample_lane in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
@@ -258,14 +261,14 @@ def instrument_usage():
             elif "Project" in sample_lane:
                 project = sample_lane["Project"].strip()
             else:
-                print "WRONG"
+                print("WRONG")
             # now correct the project
             if "." not in project:
                 project = project.replace("__", "_").replace("_", ".", 1)
             if "." in project:
                 project_pieaces = project.split(".")
                 project = "{}.{}".format(project_pieaces[0].upper(), project_pieaces[1])
-            
+
             if project == "default":
                 continue
             elif project not in projects:
@@ -306,23 +309,23 @@ def instrument_usage():
             continue
         year = int(flowcell_db[fc_doc]['RunInfo']['Date'][0:2])
         if year < 13:
-            print "run {} too old".format(flowcell_db[fc_doc]['RunInfo']['Id'])
+            print("run {} too old".format(flowcell_db[fc_doc]['RunInfo']['Id']))
             continue
         if 'Instrument' not in flowcell_db[fc_doc]["RunInfo"]:
-            print "ERROR: Instrument not found in RunInfo: how is this possible?"
+            print("ERROR: Instrument not found in RunInfo: how is this possible?")
             exit
 
         instrument = flowcell_db[fc_doc]["RunInfo"]['Instrument']
         if 'illumina' not in flowcell_db[fc_doc]:
-            print "Not illumina field found in doc {}".format(fc_doc)
+            print("Not illumina field found in doc {}".format(fc_doc))
             continue
         if 'Demultiplex_Stats' not in  flowcell_db[fc_doc]['illumina']:
-            print "Not Demultiplex_Stats field found in doc {}".format(fc_doc)
+            print("Not Demultiplex_Stats field found in doc {}".format(fc_doc))
             continue
         if 'Barcode_lane_statistics' not in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']:
-            print "Not Barcode_lane_statistics field found in doc {}".format(fc_doc)
+            print("Not Barcode_lane_statistics field found in doc {}".format(fc_doc))
             continue
-        
+
         projects_in_lanes = {}
         for sample_lane in flowcell_db[fc_doc]['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
             if sample_lane['Sample ID'] == 'unknown' :
@@ -332,7 +335,7 @@ def instrument_usage():
             elif "Project" in sample_lane:
                 project = sample_lane["Project"].strip()
             else:
-                print "WRONG"
+                print("WRONG")
             # now correct the project
             if "." not in project:
                 project = project.replace("__", "_").replace("_", ".", 1)
@@ -382,7 +385,7 @@ def instrument_usage():
         sys.stdout.write('{},'.format(instrument))
     sys.stdout.write('\n')
     for year in years:
-        for week in xrange(1,13):
+        for week in range(1,13):
             date_to_search = "{}_{}".format(year, week)
             sys.stdout.write('{},'.format(date_to_search))
             for instrument in sorted(instrument_runs_per_week):
@@ -392,7 +395,7 @@ def instrument_usage():
                     sys.stdout.write('0,')
             sys.stdout.write('\n')
     sys.stdout.write('\n')
-    
+
     years = [2013, 2014, 2015, 2016, 2017]
     sequencers_year_setup = {}
     sequencers_setup = set([ projects[project]['sequencing_setup'] for project in projects if projects[project]['lanes'] > 0])
@@ -442,7 +445,7 @@ def year_bp_production():
             if 'RunInfo' not in flowcell_db[fc_doc]:
                 continue
             if 'Flowcell' not in flowcell_db[fc_doc]['RunInfo']:
-                continue 
+                continue
             fc_name = flowcell_db[fc_doc]['RunInfo']['Flowcell']
             if fc_name in flowcells:
                 continue
@@ -484,7 +487,7 @@ def year_bp_production():
     sys.stdout.write('\n')
 
 
-    
+
 def main(args):
     configuration_file = args.config
     load_yaml_config(configuration_file)
@@ -493,14 +496,14 @@ def main(args):
 
     if args.mode == 'production-stats':
         projects = parse_flowcell_db()
-    
+
     if args.mode == 'instrument-usage':
         instrument_usage()
 
     if args.mode == 'year-stats':
         year_bp_production()
 
-    
+
 
 
 
@@ -518,6 +521,3 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     main(args)
-
-
-

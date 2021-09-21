@@ -120,9 +120,9 @@ def check_discontinued(components, products):
     for product_id, product in products.items():
         component_ids = []
         if product["Components"]:
-            component_ids += product["Components"].keys()
+            component_ids += list(product["Components"].keys())
         if product["Alternative Components"]:
-            component_ids += product["Alternative Components"].keys()
+            component_ids += list(product["Alternative Components"].keys())
 
         for component_id in component_ids:
             if product["Status"] == "Enabled":
@@ -311,7 +311,7 @@ def compare_two_objects(obj1, obj2, ignore_updated_time=True):
 def set_last_updated_field(new_objects, current_objects, object_type):
     # if object is not found or changed in current set last updated field
     now = datetime.datetime.now().isoformat()
-    for id in new_objects.keys():
+    for id in list(new_objects.keys()):
         updated = False
         if id in current_objects:
             # Beware! This simple == comparison is quite brittle. Sensitive to
