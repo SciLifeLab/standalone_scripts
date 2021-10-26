@@ -36,7 +36,7 @@ class SensorPushConnection(object):
         authorization_value = resp.json().get("authorization")
         body_data = {"authorization": "{}".format(authorization_value)}
         url_ending = "oauth/accesstoken"
-        url = "/".join(x.strip("/") for x in [self.base_url, url_ending] if x)
+        url = "/".join([self.base_url, url_ending])
         resp = requests.post(url, json=body_data)
         assert resp.status_code == 200
         self.access_token = resp.json().get("accesstoken")
@@ -46,9 +46,8 @@ class SensorPushConnection(object):
         if not self._authorized:
             self._authorize()
 
-        url = "/".join(x.strip("/") for x in [self.base_url, url_ending] if x)
+        url = "/".join([self.base_url, url_ending])
         auth_headers = {"Authorization": self.access_token}
-
         attempt = 1
         max_attempts = 3
         while attempt <= max_attempts:
