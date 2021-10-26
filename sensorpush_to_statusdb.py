@@ -59,10 +59,14 @@ class SensorPushConnection(object):
                 assert resp.status_code == 200
                 attempt = 3
             except AssertionError:
-                logger.error(
+                logger.warning(
                     f"Error fetching sensorpush data: {resp.text}, attempt {attempt} of {max_attempts}"
                 )
                 if attempt > max_attempts:
+                    # Log to error here so that crontab can email the error
+                    logger.error(
+                        f"Error fetching sensorpush data: {resp.text}, attempt {attempt} of {max_attempts}"
+                    )
                     resp.raise_for_status()
             attempt += 1
         return resp
@@ -425,7 +429,7 @@ if __name__ == "__main__":
 
     logger = logging.getLogger(__name__)
 
-    # Handler that will log warnings or worse to stderr
+    # Handler that will log errors to stderr
     stderr_handler = logging.StreamHandler()
     stderr_handler.setLevel(logging.ERROR)
     logger.addHandler(stderr_handler)
@@ -436,8 +440,8 @@ if __name__ == "__main__":
     main(
         args.samples,
         args.start_date,
-        args.statusdb_config,
-        args.config,
+        os.path.abspath(os.path.expanduser(args.statusdb_config)),
+        os.path.abspath(os.path.expanduser(args.config)),
         args.push,
         args.verbose,
     )
