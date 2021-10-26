@@ -18,12 +18,13 @@ from couchdb import Server
 
 
 class SensorPushConnection(object):
-    def __init__(self, email, password):
+    def __init__(self, email, password, verbose):
         self.email = email
         self.password = password
         self._authorized = False
         self.base_url = "https://api.sensorpush.com/api/v1"
         self.access_token = None
+        self.verbose = verbose
 
     def _authorize(self):
         url_ending = "oauth/authorize"
@@ -47,11 +48,15 @@ class SensorPushConnection(object):
 
         url = "/".join(x.strip("/") for x in [self.base_url, url_ending] if x)
         auth_headers = {"Authorization": self.access_token}
-        resp = requests.post(url, json=body_data, headers=auth_headers)
+
         attempt = 1
         max_attempts = 3
         while attempt <= max_attempts:
             try:
+                resp = requests.post(url, json=body_data, headers=auth_headers)
+                if self.verbose:
+                    logging.info(f"Request sent: {vars(resp.request)}")
+                    logging.info(f"Status code: {resp.status_code}")
                 assert resp.status_code == 200
                 attempt = 3
             except AssertionError:
@@ -210,6 +215,7 @@ def samples_to_df(samples_json):
     data_d = {}
     for sensor_id, samples in samples_json["sensors"].items():
         sensor_d = {}
+        logging.info(f"Found {len(samples)} samples for sensor {sensor_id}")
         for sample in samples:
             time_point = datetime.datetime.strptime(
                 sample["observed"], "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -220,7 +226,7 @@ def samples_to_df(samples_json):
             time_point = time_point.astimezone()
             sensor_d[time_point] = to_celsius(sample["temperature"])
         data_d[sensor_id] = sensor_d
-
+    logging.info(f"Data_d has {len(data_d.keys())} nr of keys")
     df = pd.DataFrame.from_dict(data_d)
     df = df.sort_index(ascending=True)
     return df
@@ -283,7 +289,12 @@ def process_data(sensors_json, samples_json, start_time, nr_samples_requested):
 
 
 def main(
-    nr_samples_requested, arg_start_date, statusdb_config, sensorpush_config, push
+    nr_samples_requested,
+    arg_start_date,
+    statusdb_config,
+    sensorpush_config,
+    push,
+    verbose,
 ):
     if arg_start_date is None:
         midnight = datetime.datetime.combine(
@@ -309,15 +320,19 @@ def main(
     if ("email" not in sp_config) or ("password" not in sp_config):
         raise Exception("Credentials missing in SensorPush config")
 
-    sp = SensorPushConnection(sp_config["email"], sp_config["password"])
+    sp = SensorPushConnection(
+        sp_config["email"], sp_config["password"], verbose=verbose
+    )
 
     logging.info(f"Fetching {nr_samples_requested} samples from {start_time}")
     # Request sensor data
     sensors = sp.get_sensors()
+    logging.info(f"(Sensors found: {sensors}")
     samples = sp.get_samples(
         nr_samples_requested, startTime=start_time, stopTime=end_time
     )
 
+    logging.info(f"(Samples found: {samples}")
     # Summarize data and put into documents suitable for upload
     sensor_documents = process_data(
         sensors, samples, start_date_datetime, nr_samples_requested
@@ -392,11 +407,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Push to statusdb, otherwise just print to terminal",
     )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Use this tag to enable detailed logging.",
+    )
 
     args = parser.parse_args()
-
     logging.basicConfig(
-        filename=args.logfile,
+        filename=os.path.abspath(os.path.expanduser(args.logfile)),
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
@@ -411,4 +431,11 @@ if __name__ == "__main__":
     # should potentially be fixed in the future
     assert args.samples <= 1440
 
-    main(args.samples, args.start_date, args.statusdb_config, args.config, args.push)
+    main(
+        args.samples,
+        args.start_date,
+        args.statusdb_config,
+        args.config,
+        args.push,
+        args.verbose,
+    )
