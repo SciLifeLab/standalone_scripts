@@ -236,6 +236,10 @@ def process_data(sensors_json, samples_json, start_time, nr_samples_requested):
 
     sensor_documents = []
     for sensor_id, sensor_info in sensors_json.items():
+        # Check if any samples available for the sensor
+        if sensor_id not in df.columns:
+            continue
+
         sensor_limit_lower, sensor_limit_upper = sensor_limits(sensor_info)
         if (sensor_limit_lower is None) and (sensor_limit_upper is None):
             logger.warning(
@@ -331,7 +335,6 @@ def main(
         nr_samples_requested, startTime=start_time, stopTime=end_time
     )
 
-    logging.info(f"(Samples found: {samples}")
     # Summarize data and put into documents suitable for upload
     sensor_documents = process_data(
         sensors, samples, start_date_datetime, nr_samples_requested
