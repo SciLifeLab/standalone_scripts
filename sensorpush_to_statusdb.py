@@ -362,6 +362,13 @@ def main(
 
         if push:
             logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
+            # Check if there already is a document for the sensor & date combination
+            view_call = sensorpush_db.view(
+                [sd_dict["sensor_name"], sd_dict["start_dict"]]
+            )
+            if view_call.rows:
+                sd_dict["id"] = view_call.rows[0].id
+
             sensorpush_db.save(sd_dict)
         else:
             logging.info(f'Printing {sd_dict["sensor_name"]} to stderr')
