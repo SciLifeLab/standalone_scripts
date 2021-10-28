@@ -235,10 +235,10 @@ def samples_to_df(samples_dict):
             time_point = time_point.astimezone()
             sensor_d[time_point] = to_celsius(sample["temperature"])
         data_d[sensor_id] = sensor_d
-        logging.info(f"Data_d has {len(data_d.keys())} nr of keys")
-        df = pd.DataFrame.from_dict(data_d)
-        df = df.sort_index(ascending=True)
-        return df
+    logging.info(f"Data_d has {len(data_d.keys())} nr of keys")
+    df = pd.DataFrame.from_dict(data_d)
+    df = df.sort_index(ascending=True)
+    return df
 
 
 def process_data(sensors_json, samples_dict, start_time, nr_samples_requested):
