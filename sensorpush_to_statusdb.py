@@ -14,6 +14,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import logging
+import time
 from couchdb import Server
 
 
@@ -71,7 +72,7 @@ class SensorPushConnection(object):
             attempt += 1
         return resp
 
-    def get_samples(self, nr_samples, startTime=None, stopTime=None):
+    def get_samples(self, nr_samples, sensors=None, startTime=None, stopTime=None):
         url = "/samples"
         body_data = {
             "measures": ["temperature"],
@@ -82,6 +83,8 @@ class SensorPushConnection(object):
             body_data["startTime"] = startTime
         if stopTime:
             body_data["stopTime"] = stopTime
+        if sensors:
+            body_data["sensors"] = sensors
 
         r = self._make_request(url, body_data)
         return r.json()
@@ -214,9 +217,12 @@ def to_celsius(temp):
     return ((temp - 32) * 5) / 9
 
 
-def samples_to_df(samples_json):
+def samples_to_df(samples_dict):
     data_d = {}
-    for sensor_id, samples in samples_json["sensors"].items():
+    for sensor_id, samples_json in samples_dict.items():
+        samples = samples_json["sensors"][
+            sensor_id
+        ]  # Slightly weird but due to 1 request per sensor
         sensor_d = {}
         logging.info(f"Found {len(samples)} samples for sensor {sensor_id}")
         for sample in samples:
@@ -229,14 +235,14 @@ def samples_to_df(samples_json):
             time_point = time_point.astimezone()
             sensor_d[time_point] = to_celsius(sample["temperature"])
         data_d[sensor_id] = sensor_d
-    logging.info(f"Data_d has {len(data_d.keys())} nr of keys")
-    df = pd.DataFrame.from_dict(data_d)
-    df = df.sort_index(ascending=True)
-    return df
+        logging.info(f"Data_d has {len(data_d.keys())} nr of keys")
+        df = pd.DataFrame.from_dict(data_d)
+        df = df.sort_index(ascending=True)
+        return df
 
 
-def process_data(sensors_json, samples_json, start_time, nr_samples_requested):
-    df = samples_to_df(samples_json)
+def process_data(sensors_json, samples_dict, start_time, nr_samples_requested):
+    df = samples_to_df(samples_dict)
 
     sensor_documents = []
     for sensor_id, sensor_info in sensors_json.items():
@@ -335,9 +341,16 @@ def main(
     # Request sensor data
     sensors = sp.get_sensors()
     logging.info(f"(Sensors found: {sensors}")
-    samples = sp.get_samples(
-        nr_samples_requested, startTime=start_time, stopTime=end_time
-    )
+
+    samples = {}
+    for sensor in sensors.keys():
+        time.sleep(61)  # Sensorpush api recommends 1 request per minute
+        # Request only samples for one sensor at a time to limit the size of the payload,
+        # by recommendation from sensorpush support
+        samples[sensor] = sp.get_samples(
+            nr_samples_requested, [sensor], startTime=start_time, stopTime=end_time
+        )
+        logging.info(f"Fetched data for sensor {sensor}")
 
     # Summarize data and put into documents suitable for upload
     sensor_documents = process_data(
@@ -363,9 +376,9 @@ def main(
         if push:
             logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
             # Check if there already is a document for the sensor & date combination
-            view_call = sensorpush_db.view(
-                [sd_dict["sensor_name"], sd_dict["start_dict"]]
-            )
+            view_call = sensorpush_db.view("entire_document/by_name_and_date")[
+                sd_dict["sensor_name"], sd_dict["start_time"]
+            ]
             if view_call.rows:
                 sd_dict["id"] = view_call.rows[0].id
 
