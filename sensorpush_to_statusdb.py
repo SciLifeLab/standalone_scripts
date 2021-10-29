@@ -220,6 +220,9 @@ def to_celsius(temp):
 def samples_to_df(samples_dict):
     data_d = {}
     for sensor_id, samples_json in samples_dict.items():
+        if sensor_id not in samples_json["sensors"]:
+            logging.warning(f"Sensor {sensor_id} did not return any data.")
+            continue
         samples = samples_json["sensors"][
             sensor_id
         ]  # Slightly weird but due to 1 request per sensor
@@ -308,6 +311,7 @@ def main(
     sensorpush_config,
     push,
     verbose,
+    no_wait,
 ):
     if arg_start_date is None:
         midnight = datetime.datetime.combine(
@@ -344,7 +348,8 @@ def main(
 
     samples = {}
     for sensor in sensors.keys():
-        time.sleep(61)  # Sensorpush api recommends 1 request per minute
+        if not no_wait:
+            time.sleep(61)  # Sensorpush api recommends 1 request per minute
         # Request only samples for one sensor at a time to limit the size of the payload,
         # by recommendation from sensorpush support
         samples[sensor] = sp.get_samples(
@@ -439,6 +444,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Use this tag to enable detailed logging.",
     )
+    parser.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="Do not wait for 60 seconds between requests, useful for testing.",
+    )
 
     args = parser.parse_args()
     logging.basicConfig(
@@ -464,4 +474,5 @@ if __name__ == "__main__":
         os.path.abspath(os.path.expanduser(args.config)),
         args.push,
         args.verbose,
+        args.no_wait,
     )
