@@ -102,14 +102,15 @@ class SensorDocument(object):
         original_samples,
         sensor_name,
         start_time,
-        nr_samples_requested,
         limit_lower,
         limit_upper,
     ):
         self.original_samples = original_samples
         self.sensor_name = sensor_name
         self.start_time = start_time.strftime("%Y-%m-%dT%H:%M:%S")
-        self.nr_samples_requested = nr_samples_requested
+        self.start_date_midnight = start_time.replace(
+            hour=0, minute=0, second=0
+        ).strftime("%Y-%m-%dT%H:%M:%S")
         self.limit_lower = limit_lower
         self.limit_upper = limit_upper
         self.intervals_lower = []
@@ -132,6 +133,7 @@ class SensorDocument(object):
             return_d[interval_type] = self._interval_list_to_str(
                 return_d[interval_type]
             )
+
         # For convenience with the javascript plotting library, save it as a list of lists
         return_d["saved_samples"] = [
             [k, v] for k, v in sorted(return_d["saved_samples"].items())
@@ -177,9 +179,6 @@ class SensorDocument(object):
             lower = interval.index[0]
             upper = interval.index[-1]
             interval_points.append((lower, upper))
-            logger.warning(
-                f"Interval with temperature too {limit_type} detected for {self.sensor_name} between: {lower} - {upper}"
-            )
             # Extended interval with 1 hour in each direction
             extend_lower = lower - np.timedelta64(1, "h")
             extend_upper = upper + np.timedelta64(1, "h")
@@ -197,6 +196,86 @@ class SensorDocument(object):
                 return True
 
         return False
+
+    @staticmethod
+    def merge_with(new_doc_dict, old_doc_dict):
+        """Merge two documents, where the first one is the freshly collected from the api
+        and the second one is the one fetched from the database
+
+        should be two documents from the same date and can potentially be the same hour.
+
+        Sensor name, limit_lower and limit_upper are not updated
+        """
+
+        # Transform saved samples to dict
+        new_saved_samples = dict(
+            (row[0], row[1]) for row in new_doc_dict["saved_samples"]
+        )
+        old_saved_samples = dict(
+            (row[0], row[1]) for row in old_doc_dict["saved_samples"]
+        )
+
+        # Check for overlapping keys in saved_samples
+        for timestamp, old_temp in old_saved_samples.items():
+            if timestamp in new_saved_samples:
+                if new_saved_samples[timestamp] != old_temp:
+                    logging.warning(
+                        f"Key: {timestamp} found in both documents, keeping the most recently fetched value {new_saved_samples[timestamp]} and not {old_temp}"
+                    )
+            else:
+                new_saved_samples[timestamp] = old_temp
+
+        # As above, for convenience with the javascript plotting library, save it as a list of lists
+        new_doc_dict["saved_samples"] = [
+            [k, v] for k, v in sorted(new_saved_samples.items())
+        ]
+
+        # Helper method for below
+        def _merge_intervals(intervals_1, intervals_2):
+            """Merge two lists of intervals, each interval is a list of two date strings"""
+
+            # Sort intervals by start time
+            all_intervals = sorted(intervals_1 + intervals_2, key=lambda x: x[0])
+
+            # Merge overlapping intervals in all_intervals
+            merged_intervals = []
+            for interval in all_intervals:
+                if merged_intervals:
+                    last_interval = merged_intervals[-1]
+                    if last_interval[1] >= interval[0]:
+                        # Merge intervals
+                        merged_intervals[-1] = (
+                            last_interval[0],
+                            max(last_interval[1], interval[1]),
+                        )
+                    else:
+                        # Add interval
+                        merged_intervals.append(interval)
+                else:
+                    merged_intervals.append(interval)
+
+            return merged_intervals
+
+        # Use the earliest start time: (string comparison but that's fine with this format)
+        if old_doc_dict["start_time"] < new_doc_dict["start_time"]:
+            new_doc_dict["start_time"] = old_doc_dict["start_time"]
+
+        new_doc_dict["intervals_lower_extended"] = _merge_intervals(
+            new_doc_dict["intervals_lower_extended"],
+            old_doc_dict["intervals_lower_extended"],
+        )
+        new_doc_dict["intervals_higher_extended"] = _merge_intervals(
+            new_doc_dict["intervals_higher_extended"],
+            old_doc_dict["intervals_higher_extended"],
+        )
+        new_doc_dict["intervals_lower"] = _merge_intervals(
+            new_doc_dict["intervals_lower"], old_doc_dict["intervals_lower"]
+        )
+        new_doc_dict["intervals_higher"] = _merge_intervals(
+            new_doc_dict["intervals_higher"], old_doc_dict["intervals_higher"]
+        )
+
+        return new_doc_dict
 
 
 def sensor_limits(sensor_info):
@@ -234,13 +313,12 @@ def samples_to_df(samples_dict):
             )
             # Make datetime aware of timezone
             time_point = time_point.replace(tzinfo=datetime.timezone.utc)
-            # Transform to local timezone
-            time_point = time_point.astimezone()
             sensor_d[time_point] = to_celsius(sample["temperature"])
         data_d[sensor_id] = sensor_d
     logging.info(f"Data_d has {len(data_d.keys())} nr of keys")
     df = pd.DataFrame.from_dict(data_d)
     df = df.sort_index(ascending=True)
+    # convert pandas index to datetime index
     return df
 
 
@@ -266,7 +344,6 @@ def process_data(sensors_json, samples_dict, start_time, nr_samples_requested):
             sensor_samples,
             sensor_info["name"],
             start_time,
-            nr_samples_requested,
             sensor_limit_lower,
             sensor_limit_upper,
         )
@@ -315,21 +392,19 @@ def main(
 ):
     if arg_start_date is None:
         midnight = datetime.datetime.combine(
-            datetime.datetime.today(), datetime.time.min
+            datetime.datetime.utcnow().date(), datetime.time.min
         )
         start_date_datetime = midnight - datetime.timedelta(days=1)
     else:
-        start_date_datetime = datetime.datetime.strptime(arg_start_date, "%Y-%m-%d")
+        start_date_datetime = datetime.datetime.strptime(
+            arg_start_date, "%Y-%m-%d:%H:%M"
+        ).replace(tzinfo=datetime.timezone.utc)
 
     end_date_datetime = start_date_datetime + datetime.timedelta(days=1)
 
     # Need to use UTC timezone for the API call
-    start_time = start_date_datetime.astimezone(tz=datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%S.000Z"
-    )
-    end_time = end_date_datetime.astimezone(tz=datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%S.000Z"
-    )
+    start_time = start_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    end_time = end_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
     with open(os.path.expanduser(sensorpush_config), "r") as sp_config_file:
         sp_config = yaml.safe_load(sp_config_file)
@@ -376,17 +451,20 @@ def main(
     sensorpush_db = couch["sensorpush"]
 
     for sd in sensor_documents:
+        # Check if there already is a document for the sensor & date combination
+        view_call = sensorpush_db.view("entire_document/by_name_and_date")[
+            sd.sensor_name, sd.start_date_midnight
+        ]
+
         sd_dict = sd.format_for_statusdb()
+
+        existing_id = None
+        if view_call.rows:
+            sd_dict = SensorDocument.merge_with(sd_dict, view_call.rows[0].value)
+            sd_dict["id"] = existing_id
 
         if push:
             logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
-            # Check if there already is a document for the sensor & date combination
-            view_call = sensorpush_db.view("entire_document/by_name_and_date")[
-                sd_dict["sensor_name"], sd_dict["start_time"]
-            ]
-            if view_call.rows:
-                sd_dict["id"] = view_call.rows[0].id
-
             sensorpush_db.save(sd_dict)
         else:
             logging.info(f'Printing {sd_dict["sensor_name"]} to stderr')
@@ -407,12 +485,12 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--start_date",
+        "--start_time",
         type=str,
         default=None,
         help=(
-            "Collect samples starting from midnight at this date, "
-            "by default, yesterday is used."
+            "Collect samples starting from this UTC(!) time, "
+            "by default, yesterday at midnight is used."
         ),
     )
     parser.add_argument(
@@ -469,7 +547,7 @@ if __name__ == "__main__":
 
     main(
         args.samples,
-        args.start_date,
+        args.start_time,
         os.path.abspath(os.path.expanduser(args.statusdb_config)),
         os.path.abspath(os.path.expanduser(args.config)),
         args.push,
