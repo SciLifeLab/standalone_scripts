@@ -392,9 +392,7 @@ def main(
 ):
     if arg_start_date is None:
         # Start time is the start of the previous hour
-        start_date_datetime = datetime.datetime.now(
-            datetime.timezone.utc
-        ) - datetime.timedelta(hours=1)
+        start_date_datetime = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
         start_date_datetime = start_date_datetime.replace(
             minute=0, second=0, microsecond=0
         )
@@ -405,9 +403,8 @@ def main(
         ).replace(tzinfo=datetime.timezone.utc)
 
     # Get the midnight time, to use as enddate in order to not get samples from the next day
-    midnight = datetime.datetime.combine(
-        datetime.datetime.utcnow().date(), datetime.time.min
-    )
+    tomorrow = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    midnight = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Need to use UTC timezone for the API call
     start_time = start_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
