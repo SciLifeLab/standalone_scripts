@@ -468,6 +468,7 @@ def main(
         if view_call.rows:
             sd_dict = SensorDocument.merge_with(sd_dict, view_call.rows[0].value)
             sd_dict["_id"] = view_call.rows[0].value["_id"]
+            sd_dict["_rev"] = view_call.rows[0].value["_rev"]
 
         if push:
             logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
