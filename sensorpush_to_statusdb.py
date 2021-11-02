@@ -391,20 +391,27 @@ def main(
     no_wait,
 ):
     if arg_start_date is None:
-        midnight = datetime.datetime.combine(
-            datetime.datetime.utcnow().date(), datetime.time.min
+        # Start time is the start of the previous hour
+        start_date_datetime = datetime.datetime.now(
+            datetime.timezone.utc
+        ) - datetime.timedelta(hours=1)
+        start_date_datetime = start_date_datetime.replace(
+            minute=0, second=0, microsecond=0
         )
-        start_date_datetime = midnight - datetime.timedelta(days=1)
+
     else:
         start_date_datetime = datetime.datetime.strptime(
             arg_start_date, "%Y-%m-%d:%H:%M"
         ).replace(tzinfo=datetime.timezone.utc)
 
-    end_date_datetime = start_date_datetime + datetime.timedelta(days=1)
+    # Get the midnight time, to use as enddate in order to not get samples from the next day
+    midnight = datetime.datetime.combine(
+        datetime.datetime.utcnow().date(), datetime.time.min
+    )
 
     # Need to use UTC timezone for the API call
     start_time = start_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    end_time = end_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    end_time = midnight.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
     with open(os.path.expanduser(sensorpush_config), "r") as sp_config_file:
         sp_config = yaml.safe_load(sp_config_file)
@@ -460,7 +467,7 @@ def main(
 
         if view_call.rows:
             sd_dict = SensorDocument.merge_with(sd_dict, view_call.rows[0].value)
-            sd_dict["id"] = view_call.rows[0].value["id"]
+            sd_dict["id"] = view_call.rows[0].value["_id"]
 
         if push:
             logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
@@ -476,12 +483,8 @@ if __name__ == "__main__":
         "--samples",
         "-s",
         type=int,
-        default=1440,
-        help=(
-            "Nr of samples that will be fetched"
-            "default value is 1440 e.g. 24 hours, "
-            "which is the maximum allowed value as well."
-        ),
+        default=60,
+        help=("Nr of samples that will be fetched" "default value is 60 e.g. 1 hour."),
     )
     parser.add_argument(
         "--start_time",
