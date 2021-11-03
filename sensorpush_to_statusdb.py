@@ -376,7 +376,9 @@ def process_data(sensors_json, samples_dict, start_time, nr_samples_requested):
                 ) = sd.summarize_intervals(samples_too_high, "high")
                 sd.add_samples_from_intervals_higher()
 
-        hourly_mean = sensor_samples.resample("1H").mean()
+        # The dropna is needed since sometimes we get sparse samples
+        # and might have hours without samples.
+        hourly_mean = sensor_samples.resample("1H").mean().dropna()
         for hour, mean_val in hourly_mean.iteritems():
             # Don't add any hourly mean values where we've saved more detailed info
             if not sd.time_in_any_extended_interval(hour):
