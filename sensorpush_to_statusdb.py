@@ -397,87 +397,99 @@ def main(
     verbose,
     no_wait,
 ):
-    if arg_start_date is None:
-        # Start time is the start of the previous hour
-        start_date_datetime = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
-        start_date_datetime = start_date_datetime.replace(
-            minute=0, second=0, microsecond=0
-        )
+    try:
+        if arg_start_date is None:
+            # Start time is the start of the previous hour
+            start_date_datetime = datetime.datetime.utcnow() - datetime.timedelta(
+                hours=1
+            )
+            start_date_datetime = start_date_datetime.replace(
+                minute=0, second=0, microsecond=0
+            )
 
-    else:
-        start_date_datetime = datetime.datetime.strptime(
-            arg_start_date, "%Y-%m-%d:%H:%M"
-        ).replace(tzinfo=datetime.timezone.utc)
-
-    # Get the midnight time, to use as enddate in order to not get samples from the next day
-    tomorrow = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-    midnight = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Need to use UTC timezone for the API call
-    start_time = start_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    end_time = midnight.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-    with open(os.path.expanduser(sensorpush_config), "r") as sp_config_file:
-        sp_config = yaml.safe_load(sp_config_file)
-
-    if ("email" not in sp_config) or ("password" not in sp_config):
-        raise Exception("Credentials missing in SensorPush config")
-
-    sp = SensorPushConnection(
-        sp_config["email"], sp_config["password"], verbose=verbose
-    )
-
-    logging.info(f"Fetching {nr_samples_requested} samples from {start_time}")
-    # Request sensor data
-    sensors = sp.get_sensors()
-    logging.info(f"(Sensors found: {sensors}")
-
-    samples = {}
-    for sensor in sensors.keys():
-        if not no_wait:
-            time.sleep(61)  # Sensorpush api recommends 1 request per minute
-        # Request only samples for one sensor at a time to limit the size of the payload,
-        # by recommendation from sensorpush support
-        samples[sensor] = sp.get_samples(
-            nr_samples_requested, [sensor], startTime=start_time, stopTime=end_time
-        )
-        logging.info(f"Fetched data for sensor {sensor}")
-
-    # Summarize data and put into documents suitable for upload
-    sensor_documents = process_data(
-        sensors, samples, start_date_datetime, nr_samples_requested
-    )
-
-    # Upload to StatusDB
-    with open(statusdb_config) as settings_file:
-        server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
-
-    url_string = "http://{}:{}@{}:{}".format(
-        server_settings["statusdb"].get("username"),
-        server_settings["statusdb"].get("password"),
-        server_settings["statusdb"].get("url"),
-        server_settings["statusdb"].get("port"),
-    )
-    couch = Server(url_string)
-    sensorpush_db = couch["sensorpush"]
-
-    for sd in sensor_documents:
-        # Check if there already is a document for the sensor & date combination
-        view_call = sensorpush_db.view("entire_document/by_sensor_id_and_date")[
-            sd.sensor_id, sd.start_date_midnight
-        ]
-
-        sd_dict = sd.format_for_statusdb()
-
-        if view_call.rows:
-            sd_dict = SensorDocument.merge_with(sd_dict, view_call.rows[0].value)
-
-        if push:
-            logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
-            sensorpush_db.save(sd_dict)
         else:
-            logging.info(f'Printing {sd_dict["sensor_name"]} to stderr')
-            print(sd_dict)
+            start_date_datetime = datetime.datetime.strptime(
+                arg_start_date, "%Y-%m-%d:%H:%M"
+            ).replace(tzinfo=datetime.timezone.utc)
+
+        # Get the midnight time, to use as enddate in order to not get samples from the next day
+        tomorrow = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        midnight = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Need to use UTC timezone for the API call
+        start_time = start_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        end_time = midnight.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+        with open(os.path.expanduser(sensorpush_config), "r") as sp_config_file:
+            sp_config = yaml.safe_load(sp_config_file)
+
+        if ("email" not in sp_config) or ("password" not in sp_config):
+            raise Exception("Credentials missing in SensorPush config")
+
+        sp = SensorPushConnection(
+            sp_config["email"], sp_config["password"], verbose=verbose
+        )
+
+        logging.info(f"Fetching {nr_samples_requested} samples from {start_time}")
+        # Request sensor data
+        sensors = sp.get_sensors()
+        logging.info(f"(Sensors found: {sensors}")
+
+        samples = {}
+        for sensor in sensors.keys():
+            if not no_wait:
+                time.sleep(61)  # Sensorpush api recommends 1 request per minute
+            # Request only samples for one sensor at a time to limit the size of the payload,
+            # by recommendation from sensorpush support
+            samples[sensor] = sp.get_samples(
+                nr_samples_requested, [sensor], startTime=start_time, stopTime=end_time
+            )
+            logging.info(f"Fetched data for sensor {sensor}")
+
+        # Summarize data and put into documents suitable for upload
+        sensor_documents = process_data(
+            sensors, samples, start_date_datetime, nr_samples_requested
+        )
+
+        # Upload to StatusDB
+        with open(statusdb_config) as settings_file:
+            server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
+
+        url_string = "http://{}:{}@{}:{}".format(
+            server_settings["statusdb"].get("username"),
+            server_settings["statusdb"].get("password"),
+            server_settings["statusdb"].get("url"),
+            server_settings["statusdb"].get("port"),
+        )
+        couch = Server(url_string)
+        sensorpush_db = couch["sensorpush"]
+
+        for sd in sensor_documents:
+            # Check if there already is a document for the sensor & date combination
+            view_call = sensorpush_db.view("entire_document/by_sensor_id_and_date")[
+                sd.sensor_id, sd.start_date_midnight
+            ]
+
+            sd_dict = sd.format_for_statusdb()
+
+            if view_call.rows:
+                sd_dict = SensorDocument.merge_with(sd_dict, view_call.rows[0].value)
+
+            if push:
+                logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
+                try:
+                    sensorpush_db.save(sd_dict)
+                except Exception as e:
+                    logging.error(
+                        f"Error saving {sd_dict['sensor_name']} to statusdb: {e}"
+                    )
+                    raise e
+            else:
+                logging.info(f'Printing {sd_dict["sensor_name"]} to stderr')
+                print(sd_dict)
+    except Exception as e:
+        logging.exception(f"Error in main: {e}")
+        raise
 
 
 if __name__ == "__main__":
