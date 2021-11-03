@@ -99,6 +99,7 @@ class SensorPushConnection(object):
 class SensorDocument(object):
     def __init__(
         self,
+        sensor_id,
         original_samples,
         sensor_name,
         start_time,
@@ -107,6 +108,7 @@ class SensorDocument(object):
     ):
         self.original_samples = original_samples
         self.sensor_name = sensor_name
+        self.sensor_id = sensor_id
         self.start_time = start_time.strftime("%Y-%m-%dT%H:%M:%S")
         self.start_date_midnight = start_time.replace(
             hour=0, minute=0, second=0
@@ -206,6 +208,10 @@ class SensorDocument(object):
 
         Sensor name, limit_lower and limit_upper are not updated
         """
+
+        # Put an id and revision on the new document so that it will update the old one
+        new_doc_dict["_id"] = old_doc_dict["_id"]
+        new_doc_dict["_rev"] = old_doc_dict["_rev"]
 
         # Transform saved samples to dict
         new_saved_samples = dict(
@@ -341,6 +347,7 @@ def process_data(sensors_json, samples_dict, start_time, nr_samples_requested):
 
         # TODO, samples are in Fahrenheit and UTC
         sd = SensorDocument(
+            sensor_id,
             sensor_samples,
             sensor_info["name"],
             start_time,
@@ -456,16 +463,14 @@ def main(
 
     for sd in sensor_documents:
         # Check if there already is a document for the sensor & date combination
-        view_call = sensorpush_db.view("entire_document/by_name_and_date")[
-            sd.sensor_name, sd.start_date_midnight
+        view_call = sensorpush_db.view("entire_document/by_sensor_id_and_date")[
+            sd.sensor_id, sd.start_date_midnight
         ]
 
         sd_dict = sd.format_for_statusdb()
 
         if view_call.rows:
             sd_dict = SensorDocument.merge_with(sd_dict, view_call.rows[0].value)
-            sd_dict["_id"] = view_call.rows[0].value["_id"]
-            sd_dict["_rev"] = view_call.rows[0].value["_rev"]
 
         if push:
             logging.info(f'Saving {sd_dict["sensor_name"]} to statusdb')
