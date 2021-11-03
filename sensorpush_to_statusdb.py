@@ -225,8 +225,8 @@ class SensorDocument(object):
         for timestamp, old_temp in old_saved_samples.items():
             if timestamp in new_saved_samples:
                 if new_saved_samples[timestamp] != old_temp:
-                    logging.warning(
-                        f"Key: {timestamp} found in both documents, keeping the most recently fetched value {new_saved_samples[timestamp]} and not {old_temp}"
+                    logging.info(
+                        f"Key: {timestamp} found in both documents, keeping the most recently fetched value {new_saved_samples[timestamp]} and not {old_temp}. This occurs a lot since there is commonly less than 60 samples in an hour."
                     )
             else:
                 new_saved_samples[timestamp] = old_temp
@@ -415,12 +415,12 @@ def main(
             ).replace(tzinfo=datetime.timezone.utc)
 
         # Get the midnight time, to use as enddate in order to not get samples from the next day
-        tomorrow = datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        midnight = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_after = start_date_datetime + datetime.timedelta(days=1)
+        end_time_datetime = day_after.replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Need to use UTC timezone for the API call
         start_time = start_date_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        end_time = midnight.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        end_time = end_time_datetime.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         with open(os.path.expanduser(sensorpush_config), "r") as sp_config_file:
             sp_config = yaml.safe_load(sp_config_file)
@@ -432,10 +432,11 @@ def main(
             sp_config["email"], sp_config["password"], verbose=verbose
         )
 
-        logging.info(f"Fetching {nr_samples_requested} samples from {start_time}")
+        logging.info(
+            f"Fetching {nr_samples_requested} samples from {start_time} to {end_time} (absolute max)"
+        )
         # Request sensor data
         sensors = sp.get_sensors()
-        logging.info(f"(Sensors found: {sensors}")
 
         samples = {}
         for sensor in sensors.keys():
@@ -446,7 +447,6 @@ def main(
             samples[sensor] = sp.get_samples(
                 nr_samples_requested, [sensor], startTime=start_time, stopTime=end_time
             )
-            logging.info(f"Fetched data for sensor {sensor}")
 
         # Summarize data and put into documents suitable for upload
         sensor_documents = process_data(
