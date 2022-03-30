@@ -33,6 +33,10 @@ def main(config, push_to_server=False):
     usd_to_sek = c.get_rate('USD', 'SEK')
     eur_to_sek = c.get_rate('EUR', 'SEK')
 
+    # Inconsistent results for Euro after broken API was updated
+    if isinstance(eur_to_sek, str):
+        eur_to_sek = float(eur_to_sek)
+
     # Create the doc that will be uploaded
     doc = {}
     doc['Issued at'] = datetime.datetime.now().isoformat()
