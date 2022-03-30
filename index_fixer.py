@@ -46,16 +46,18 @@ def nuc_compliment(nuc):
         sys.exit("Critical error. Unknown nucleotide found: {}.".format(nuc))
 
 
+if sys.version_info[0] == 3:
+    ss_type = (str, str)
+elif sys.version_info[0] == 2:
+    ss_type = (unicode, unicode)
 @click.command()
 @click.option('--path', required=True,help='Path to the Samplesheet. E.g. ~/fc/161111_M01320_0095_000000000-AWE6P.csv')
 @click.option('--swap', is_flag=True,help='Swaps index 1 with 2 and vice versa.')
 @click.option('--rc1', is_flag=True,help='Exchanges index 1 for its reverse compliment.')
 @click.option('--rc2', is_flag=True,help='Exchanges index 2 for its reverse compliment.')
 @click.option('--platform', required=True, type=click.Choice(['hiseq', 'miseq', 'hiseqx']), help="Run platform ('hiseq', 'miseq', 'hiseqx')")
-if sys.version_info[0] == 3:
-    @click.option('--sampleswap', '--ss', multiple=True, type=(str, str), help='Swap index between sample pairs. Use one --ss per pair.')
-elif sys.version_info[0] == 2:
-    @click.option('--sampleswap', '--ss', multiple=True, type=(unicode, unicode), help='Swap index between sample pairs. Use one --ss per pair.')
+@click.option('--ss', multiple=True, type=ss_type, help='Swap index between sample pairs. Use one --ss per pair.')
+
 def main(path, swap, rc1, rc2, platform, ss):
     ss_reader=SampleSheetParser(path)
     ss_data=ss_reader.data
