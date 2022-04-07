@@ -55,28 +55,17 @@ elif sys.version_info[0] == 2:
 @click.option('--swap', is_flag=True,help='Swaps index 1 with 2 and vice versa.')
 @click.option('--rc1', is_flag=True,help='Exchanges index 1 for its reverse compliment.')
 @click.option('--rc2', is_flag=True,help='Exchanges index 2 for its reverse compliment.')
-@click.option('--platform', required=True, type=click.Choice(['hiseq', 'miseq', 'hiseqx']), help="Run platform ('hiseq', 'miseq', 'hiseqx')")
-@click.option('--ss', multiple=True, type=ss_type, help='Swap index between sample pairs. Use one --ss per pair.')
+@click.option('--platform', required=True, type=click.Choice(['miseq', 'novaseq', 'nextseq']), help="Run platform ('miseq', 'novaseq', 'nextseq')")
 
-def main(path, swap, rc1, rc2, platform, ss):
+def main(path, swap, rc1, rc2, platform):
     ss_reader=SampleSheetParser(path)
     ss_data=ss_reader.data
     single = True
 
-    if platform == "hiseq":
-        index1 = 'Index'
-        if re.search('[-+]', (ss_data[0][index1])):
-            single = False
-
-    elif platform == "miseq":
-        index1 = 'index'
-        index2 = 'index2'
-        if index2 in ss_data[0]:
-            single = False
-
-    elif platform == "hiseqx":
-        index1 = 'index1'
-        index2 = 'index2'
+    # Check whether both indexes are available
+    index1 = 'index'
+    index2 = 'index2'
+    if index2 in ss_data[0]:
         single = False
 
     if single:
@@ -99,25 +88,25 @@ def main(path, swap, rc1, rc2, platform, ss):
         #Reverse Compliment
         if rc1 or rc2:
             for row in ss_data:
-                if platform == "hiseq":
-                    index_in = re.match('([ATCG]{4,12})[-+]([ATCG]{4,12})', row[index1])
+                if platform == "miseq":
                     if rc1:
                         rc = ""
-                        for nuc in index_in.group(1)[::-1]:
+                        for nuc in row['index'][::-1]:
                             rc = rc + nuc_compliment(nuc)
-                        row[index1] = '{}-{}'.format(rc, index_in.group(2))
+                        row['index'] = rc
+                        row['I7_Index_ID'] = rc
                     if rc2:
                         rc = ""
-                        for nuc in index_in.group(2)[::-1]:
+                        for nuc in row['index2'][::-1]:
                             rc = rc + nuc_compliment(nuc)
-                        row[index1] = '{}-{}'.format(index_in.group(1), rc)
-
-                elif platform == "miseq" or platform == "hiseqx":
+                        row['index2'] = rc
+                        row['I5_Index_ID'] = rc
+                elif platform == "novaseq" or platform == "nextseq":
                     if rc1:
                         rc = ""
-                        for nuc in row['index1'][::-1]:
+                        for nuc in row['index'][::-1]:
                             rc = rc + nuc_compliment(nuc)
-                        row['index1'] = rc
+                        row['index'] = rc
                     if rc2:
                         rc = ""
                         for nuc in row['index2'][::-1]:
@@ -126,23 +115,19 @@ def main(path, swap, rc1, rc2, platform, ss):
         #Swap indexes
         if swap:
             for row in ss_data:
-                if platform == "hiseq":
-                    index_in = re.match('([ATCG]{4,12})[-+]([ATCG]{4,12})', row[index1])
-                    row[index1] = '{}-{}'.format(index_in.group(2), index_in.group(1))
-
-                elif platform == "miseq" or platform == "hiseqx":
-                    storage = row['index1']
-                    row['index1'] = row['index2']
+                if platform == "miseq":
+                    storage = row['index']
+                    row['index'] = row['index2']
+                    row['I7_Index_ID'] = row['index2']
+                    row['index2'] = storage
+                    row['I5_Index_ID'] = storage
+                elif platform == "novaseq" or platform == "nextseq":
+                    storage = row['index']
+                    row['index'] = row['index2']
                     row['index2'] = storage
 
-    #Rearrange samples
-    if ss:
-        #Need to catch all samples in a list prior to writing, then dump them in corrected order
-        sys.exit("Sample Swap isn't implemented yet.")
-
-    #redemux_ss = ss_reader.generate_clean_samplesheet()
     redemux_ss = generate_samplesheet(ss_reader)
-    if platform == "hiseq" or platform == "hiseqx":
+    if platform == "novaseq" or platform == "nextseq":
         filename = re.search('\/(\w+).csv$', path).group(1)
     else:
         filename = "SampleSheet"
