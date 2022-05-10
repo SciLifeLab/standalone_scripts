@@ -10,8 +10,7 @@ if len(sys.argv) == 1:
 prj = sys.argv[1]
 
 statusdb_config = os.getenv('STATUS_DB_CONFIG')
-conf = load_config(statusdb_config)
-conf = conf.get('statusdb')
+conf = load_config(statusdb_config).get('statusdb')
 
 pcon = ProjectSummaryConnection(config=conf)
 prj_obj = pcon.get_entry(prj)
