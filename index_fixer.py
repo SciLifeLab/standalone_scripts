@@ -52,12 +52,13 @@ elif sys.version_info[0] == 2:
     ss_type = (unicode, unicode)
 @click.command()
 @click.option('--path', required=True,help='Path to the Samplesheet. E.g. ~/fc/161111_M01320_0095_000000000-AWE6P.csv')
+@click.option('--project', required=False,help='Project ID, e.g. P10001. Only the indexes of samples with this specific project ID will be changed')
 @click.option('--swap', is_flag=True,help='Swaps index 1 with 2 and vice versa.')
 @click.option('--rc1', is_flag=True,help='Exchanges index 1 for its reverse compliment.')
 @click.option('--rc2', is_flag=True,help='Exchanges index 2 for its reverse compliment.')
 @click.option('--platform', required=True, type=click.Choice(['miseq', 'novaseq', 'nextseq']), help="Run platform ('miseq', 'novaseq', 'nextseq')")
 
-def main(path, swap, rc1, rc2, platform):
+def main(path, project, swap, rc1, rc2, platform):
     ss_reader=SampleSheetParser(path)
     ss_data=ss_reader.data
     single = True
@@ -76,55 +77,61 @@ def main(path, swap, rc1, rc2, platform):
         #Reverse compliment
         if rc1:
             for row in ss_data:
-                index_in = re.match('([ATCG]{4,12})', row[index1])
-                if index_in:
-                    if rc1:
-                        rc = ""
-                        for nuc in index_in.group(1)[::-1]:
-                            rc = rc + nuc_compliment(nuc)
-                        row[index1] = '{}'.format(rc)
+                sample_id = row['Sample_ID']
+                if (not project) or (project in sample_id):
+                    index_in = re.match('([ATCG]{4,12})', row[index1])
+                    if index_in:
+                        if rc1:
+                            rc = ""
+                            for nuc in index_in.group(1)[::-1]:
+                                rc = rc + nuc_compliment(nuc)
+                            row[index1] = '{}'.format(rc)
 
     if not single:
         #Reverse Compliment
         if rc1 or rc2:
             for row in ss_data:
-                if platform == "miseq":
-                    if rc1:
-                        rc = ""
-                        for nuc in row['index'][::-1]:
-                            rc = rc + nuc_compliment(nuc)
-                        row['index'] = rc
-                        row['I7_Index_ID'] = rc
-                    if rc2:
-                        rc = ""
-                        for nuc in row['index2'][::-1]:
-                            rc = rc + nuc_compliment(nuc)
-                        row['index2'] = rc
-                        row['I5_Index_ID'] = rc
-                elif platform == "novaseq" or platform == "nextseq":
-                    if rc1:
-                        rc = ""
-                        for nuc in row['index'][::-1]:
-                            rc = rc + nuc_compliment(nuc)
-                        row['index'] = rc
-                    if rc2:
-                        rc = ""
-                        for nuc in row['index2'][::-1]:
-                            rc = rc + nuc_compliment(nuc)
-                        row['index2'] = rc
+                sample_id = row['Sample_ID']
+                if (not project) or (project in sample_id):
+                    if platform == "miseq":
+                        if rc1:
+                            rc = ""
+                            for nuc in row['index'][::-1]:
+                                rc = rc + nuc_compliment(nuc)
+                            row['index'] = rc
+                            row['I7_Index_ID'] = rc
+                        if rc2:
+                            rc = ""
+                            for nuc in row['index2'][::-1]:
+                                rc = rc + nuc_compliment(nuc)
+                            row['index2'] = rc
+                            row['I5_Index_ID'] = rc
+                    elif platform == "novaseq" or platform == "nextseq":
+                        if rc1:
+                            rc = ""
+                            for nuc in row['index'][::-1]:
+                                rc = rc + nuc_compliment(nuc)
+                            row['index'] = rc
+                        if rc2:
+                            rc = ""
+                            for nuc in row['index2'][::-1]:
+                                rc = rc + nuc_compliment(nuc)
+                            row['index2'] = rc
         #Swap indexes
         if swap:
             for row in ss_data:
-                if platform == "miseq":
-                    storage = row['index']
-                    row['index'] = row['index2']
-                    row['I7_Index_ID'] = row['index2']
-                    row['index2'] = storage
-                    row['I5_Index_ID'] = storage
-                elif platform == "novaseq" or platform == "nextseq":
-                    storage = row['index']
-                    row['index'] = row['index2']
-                    row['index2'] = storage
+                sample_id = row['Sample_ID']
+                if (not project) or (project in sample_id):
+                    if platform == "miseq":
+                        storage = row['index']
+                        row['index'] = row['index2']
+                        row['I7_Index_ID'] = row['index2']
+                        row['index2'] = storage
+                        row['I5_Index_ID'] = storage
+                    elif platform == "novaseq" or platform == "nextseq":
+                        storage = row['index']
+                        row['index'] = row['index2']
+                        row['index2'] = storage
 
     redemux_ss = generate_samplesheet(ss_reader)
     if platform == "novaseq" or platform == "nextseq":
