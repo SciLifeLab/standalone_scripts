@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 
 import sys
-from statusdb.db import connections as statusdb
+import os
+from taca.utils.statusdb import ProjectSummaryConnection
+from taca.utils.config import load_config
 
 if len(sys.argv) == 1:
     sys.exit('Please provide a project name')
 prj = sys.argv[1]
 
-pcon = statusdb.ProjectSummaryConnection()
+statusdb_config = os.getenv('STATUS_DB_CONFIG')
+conf = load_config(statusdb_config).get('statusdb')
+
+pcon = ProjectSummaryConnection(config=conf)
 prj_obj = pcon.get_entry(prj)
 prj_samples = prj_obj.get('samples',{})
 
