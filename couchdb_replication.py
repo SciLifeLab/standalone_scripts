@@ -8,7 +8,7 @@ import sys
 import os
 import yaml
 import base64
-from Crypto.Cipher import AES 
+from Crypto.Cipher import AES
 
 
 from couchdb import PreconditionFailed
@@ -17,7 +17,7 @@ from couchdb import PreconditionFailed
 l = logbook.Logger('CouchDB-Replicator')
 
 class AESDecrypt():
-    def __init__(self, key): 
+    def __init__(self, key):
         self.key=key
     def decrypt(self, enc):
         enc = base64.b64decode(enc)
@@ -51,8 +51,8 @@ class Config(object):
             self.login=config.get('replication').get('login')
             decrypt=AESDecrypt("{}_keys".format(self.login))
             self.password=decrypt.decrypt(config.get('replication').get('password'))
-            self.source = "http://{}:{}@{}".format(self.login, self.password, config.get('replication').get('SOURCE'))
-            self.destination= "http://{}:{}@{}".format(self.login, self.password, config.get('replication').get('DESTINATION'))
+            self.source = "https://{}:{}@{}".format(self.login, self.password, config.get('replication').get('SOURCE'))
+            self.destination= "https://{}:{}@{}".format(self.login, self.password, config.get('replication').get('DESTINATION'))
         except:
             l.error("Please make sure you've created your own configuration file \
                 (i.e: ~/.couchrc), and that it contains a source and a destination servers")
@@ -84,7 +84,7 @@ def _get_databases_info(source, destination, skip=None):
     skip.append('_replicator')
     for db in skip:
         try:
-            s_dbs.remove(db) 
+            s_dbs.remove(db)
         except ValueError:
             pass
         try:
@@ -218,9 +218,9 @@ if __name__ == "__main__":
     parser.add_argument('action', type=str, help = "Action to perform, either \
             configure continuous replication (continuous) or punctual clone (clone)")
     parser.add_argument('--source', type=str, help = "Source CouchDB instance, \
-            with the credentials included in the URL. I.E: http://admin:passw@source_db:5984")
+            with the credentials included in the URL. I.E: https://admin:passw@source_db:5984")
     parser.add_argument('--destination', type=str, help = "Destination CouchDB instance, \
-            with the credentials included in the URL. I.E: http://admin:passw@destination_db:5984")
+            with the credentials included in the URL. I.E: https://admin:passw@destination_db:5984")
     parser.add_argument('--no-security', action='store_const', const=True, \
             help='Do not copy security objects')
     parser.add_argument('--with-exceptions', action='store_const', const=True, \
@@ -260,4 +260,3 @@ if __name__ == "__main__":
                         'with --no-security. Ignoring it')
             else:
                 _set_roles(destination)
-

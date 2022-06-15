@@ -15,8 +15,8 @@ def update_statusdb(config, dryrun=True):
     if not config['statusdb']:
         print('Statusdb credentials not found')
         sys.exit(1)
-    url_string = 'http://{}:{}@{}:{}'.format(config['statusdb'].get('username'), config['statusdb'].get('password'),
-                                              config['statusdb'].get('url'), config['statusdb'].get('port'))
+    url_string = 'https://{}:{}@{}'.format(config['statusdb'].get('username'), config['statusdb'].get('password'),
+                                              config['statusdb'].get('url'))
     couch = Server(url=url_string)
     assert couch, 'Could not connect to {}'.format(settings.get('url'))
 

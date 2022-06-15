@@ -1,5 +1,5 @@
 """
-Script used to upload robot log messages to statusdb. Works either with stdin or a file. 
+Script used to upload robot log messages to statusdb. Works either with stdin or a file.
 
 Denis Moreno, Joel Gruselius
 Scilifelab
@@ -36,7 +36,7 @@ def read_message(args):
 
 def setupServer(conf):
     db_conf = conf['statusdb']
-    url="http://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'], db_conf['port'])
+    url="https://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'])
     return couchdb.Server(url)
 
 def setupLog(name, logfile, log_level=logging.INFO, max_size=209715200, nb_files=5):
@@ -54,7 +54,7 @@ def main(args):
     #read the configuration
     with open(args.conf) as conf_file:
         conf=yaml.load(conf_file)
-    
+
     couch=setupServer(conf)
     db=couch[conf['statusdb']['instrument_logs_db']]
 
@@ -83,10 +83,9 @@ if __name__=="__main__":
     parser.add_argument("-l", "--logfile", dest = "logfile", help = ("log file",
                       " that will be used. Default is ./statusdb_upload.log "), default="statusdb_upload.log")
 
-    parser.add_argument("-c", "--conf", dest="conf", 
-    default='statusdb.yaml', 
+    parser.add_argument("-c", "--conf", dest="conf",
+    default='statusdb.yaml',
     help = "Config file.  Default: ./statusdb.yaml")
 
     args = parser.parse_args()
     main(args)
-
