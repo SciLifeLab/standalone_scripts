@@ -1,4 +1,4 @@
-"""Generates dictionaries for the load on the quota using 'uquota'. If a couchdb 
+"""Generates dictionaries for the load on the quota using 'uquota'. If a couchdb
 is specified, the dictionaries will be sent there. Otherwise prints the dictionaries.
 """
 import argparse
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=("Formats uquota information as "
         "a dict, and sends it to a given CouchDB."))
     parser.add_argument("--server", dest="server", action="store", help=("Address "
-        "to the CouchDB server. Add authentication like this if needed: user:password@couchdb_server.domain:port"))
+        "to the CouchDB server. Add authentication like this if needed: user:password@couchdb_server.domain"))
     parser.add_argument("--db", dest="db", action="store", default="uppmax",
         help="Name of the CouchDB database")
 

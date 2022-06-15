@@ -218,9 +218,9 @@ if __name__ == "__main__":
     parser.add_argument('action', type=str, help = "Action to perform, either \
             configure continuous replication (continuous) or punctual clone (clone)")
     parser.add_argument('--source', type=str, help = "Source CouchDB instance, \
-            with the credentials included in the URL. I.E: https://admin:passw@source_db:5984")
+            with the credentials included in the URL. I.E: https://admin:passw@source_db")
     parser.add_argument('--destination', type=str, help = "Destination CouchDB instance, \
-            with the credentials included in the URL. I.E: https://admin:passw@destination_db:5984")
+            with the credentials included in the URL. I.E: https://admin:passw@destination_db")
     parser.add_argument('--no-security', action='store_const', const=True, \
             help='Do not copy security objects')
     parser.add_argument('--with-exceptions', action='store_const', const=True, \
