@@ -36,7 +36,7 @@ def read_message(args):
 
 def setupServer(conf):
     db_conf = conf['statusdb']
-    url="https://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'])
+    url="https://{0}:{1}@{2}".format(db_conf['username'], db_conf['password'], db_conf['url'])
     return couchdb.Server(url)
 
 def setupLog(name, logfile, log_level=logging.INFO, max_size=209715200, nb_files=5):

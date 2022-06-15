@@ -44,7 +44,7 @@ def connection():
     pw = config.get("password")
     print("Database server used: https://{}".format(config.get("url")))
     print("LIMS server used: " + BASEURI)
-    couch = couchdb.Server('https://{}:{}@{}:{}'.format(user, pw, config.get("url")))
+    couch = couchdb.Server('https://{}:{}@{}'.format(user, pw, config.get("url")))
     try:
         print("Connecting to statusDB...")
         couch.version()
