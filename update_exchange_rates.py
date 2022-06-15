@@ -50,11 +50,10 @@ def main(config, push_to_server=False):
     with open(config) as settings_file:
         server_settings = yaml.load(settings_file, Loader=yaml.SafeLoader)
 
-    url_string = 'http://{}:{}@{}:{}'.format(
+    url_string = 'https://{}:{}@{}'.format(
                     server_settings['statusdb'].get('username'),
                     server_settings['statusdb'].get('password'),
-                    server_settings['statusdb'].get('url'),
-                    server_settings['statusdb'].get('port')
+                    server_settings['statusdb'].get('url'))
                 )
     couch = Server(url_string)
 

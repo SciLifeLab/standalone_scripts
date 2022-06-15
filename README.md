@@ -81,7 +81,6 @@ statusdb:
     url: path_to_tool
     username: Username
     password: *********
-    port: port_number
 ```
 
 

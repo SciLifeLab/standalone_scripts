@@ -366,7 +366,7 @@ if __name__ == '__main__':
                         help="Completed sample info sent to NGI by the user.")
     parser.add_argument('config_statusDB',
                         help="settings file in yaml format to access statusDB \
-                        in the format \"couch_server: http://<username>:<password>@tools.scilifelab.se:5984\"")
+                        in the format \"couch_server: https://<username>:<password>@ngi-statusdb.scilifelab.se\"")
     args = parser.parse_args()
 
     main(args.sampleInfoSheet,  args.config_statusDB)

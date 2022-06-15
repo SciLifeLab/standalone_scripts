@@ -97,7 +97,7 @@ def associate_projects(projects_name, mode):
 
 def setupServer(conf):
     db_conf = conf['statusdb']
-    url="http://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'], db_conf['port'])
+    url="https://{0}:{1}@{2}".format(db_conf['username'], db_conf['password'], db_conf['url'])
     return couchdb.Server(url)
 
 
