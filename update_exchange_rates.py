@@ -53,7 +53,7 @@ def main(config, push_to_server=False):
     url_string = 'https://{}:{}@{}'.format(
                     server_settings['statusdb'].get('username'),
                     server_settings['statusdb'].get('password'),
-                    server_settings['statusdb'].get('url'))
+                    server_settings['statusdb'].get('url')
                 )
     couch = Server(url_string)
 
