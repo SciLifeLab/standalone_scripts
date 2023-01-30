@@ -53,7 +53,7 @@ def update_statusdb(config, dryrun=True):
                 print(doc['project_name'], doc['details']['snic_checked'])
 
 def snic_check(email, config):
-    url = 'https://supr.snic.se/api/person/email_present/?email={}'.format(email)
+    url = 'https://api.supr.naiss.se/api/person/email_present/?email={}'.format(email)
     response = requests.get(url, auth=HTTPBasicAuth(config.get('username'), config.get('password')))
     if not response.ok and response.reason == 'Unauthorized':
         print('ERROR: SNIC API is IP restricted and this script can only be run from ngi-internal OR credentials are wrong')
