@@ -8,8 +8,10 @@
 
 currentDate=`date +"%Y-%m-%d"`
 echo 'Run $currentDate'
+GDRIVE="$HOME/Google Drive/My Drive"
 #Zip GDrive Sync file
-zip -vr $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip  $HOME/Google\ Drive/
+zip -vr $HOME/opt/zipFilesTemp/QAbackup.$currentDate.zip  $GDRIVE/Electronic\ logbooks\ \(QA\ system\) \
+        $GDRIVE/Genomics\ Platform $GDRIVE/_Quality\ assurance\ system
 
 #make mountpoint
 mkdir -p $HOME/kvalitetssystem
