@@ -79,9 +79,8 @@ def main(input_paths, raw_bytes=False, size_sorted=False, depth=0):
                     filename = line.split(" ")[2]
                     filename = filename.strip()
                 elif line.startswith("ceph.dir.rbytes"):
-                    bytes = int((line.split("=")[1]).replace('"', ""))
+                    bytes = int((line.split("=")[1]).strip('"')
                     filesizes.append((filename, bytes))
-                    bytes_readable = sizeof_fmt(bytes)
 
     if size_sorted:
         filesizes.sort(key=lambda x: x[1], reverse=False)
