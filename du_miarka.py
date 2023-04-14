@@ -54,6 +54,7 @@ def main(input_paths, raw_bytes=False, size_sorted=False, depth=0):
             except OSError as e:
                 # This happens ƒor example with broken links
                 print(str(e), file=sys.stderr)
+                continue
             bytes = statinfo.st_size
             filesizes.append((path, bytes))
         else:
@@ -79,7 +80,7 @@ def main(input_paths, raw_bytes=False, size_sorted=False, depth=0):
                     filename = line.split(" ")[2]
                     filename = filename.strip()
                 elif line.startswith("ceph.dir.rbytes"):
-                    bytes = int((line.split("=")[1]).strip('"')
+                    bytes = int((line.split("=")[1]).strip('"'))
                     filesizes.append((filename, bytes))
 
     if size_sorted:
