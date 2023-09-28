@@ -9,7 +9,7 @@ from git import Repo
 def check_if_dirty(repo_path):
     repo = Repo(repo_path)
     if repo.is_dirty():
-	    print("Repo is dirty.", file=sys.stderr)
+        print("Repo is dirty.", file=sys.stderr)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='check if dirty')
