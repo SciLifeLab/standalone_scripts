@@ -6,31 +6,38 @@ import click
 from flowcell_parser.classes import SampleSheetParser
 
 def generate_samplesheet(ss_reader):
-    """Will generate a 'clean' samplesheet, : the given fields will be removed. if rename_samples is True, samples prepended with 'Sample_'
-    are renamed to match the sample name"""
-    output=""
-    #Header
-    output+="[Header]{}".format(os.linesep)
-    for field in ss_reader.header:
-        output+="{},{}".format(field.rstrip(), ss_reader.header[field].rstrip())
-        output+=os.linesep
+    """Will generate a 'clean' samplesheet"""
+    output = ""
+    # Header
+    if ss_reader.header:
+        output += "[Header]{}".format(os.linesep)
+        for field in ss_reader.header:
+            output += "{},{}{}".format(field.rstrip(), ss_reader.header[field].rstrip(), os.linesep)
+    # Reads
+    if ss_reader.reads:
+        output += "[Reads]{}".format(os.linesep)
+        for read in ss_reader.reads:
+            output += "{}{}".format(read.rstrip(), os.linesep)
+    # Settings
+    if ss_reader.settings:
+        output += "[Settings]{}".format(os.linesep)
+        for field in ss_reader.settings:
+            output += "{},{}{}".format(field.rstrip(), ss_reader.settings[field].rstrip(), os.linesep)
     #Data
-    output+="[Data]{}".format(os.linesep)
-    datafields=[]
+    output += "[Data]{}".format(os.linesep)
+    datafields = []
     for field in ss_reader.datafields:
         datafields.append(field)
-    output+=",".join(datafields)
-    output+=os.linesep
+    output += ",".join(datafields)
+    output += os.linesep
     for line in ss_reader.data:
-        line_ar=[]
+        line_ar = []
         for field in datafields:
             value = line[field]
             line_ar.append(value)
-
-        output+=",".join(line_ar)
-        output+=os.linesep
+        output += ",".join(line_ar)
+        output += os.linesep
     return output
-
 
 
 def nuc_compliment(nuc):
@@ -56,11 +63,11 @@ elif sys.version_info[0] == 2:
 @click.option('--swap', is_flag=True,help='Swaps index 1 with 2 and vice versa.')
 @click.option('--rc1', is_flag=True,help='Exchanges index 1 for its reverse compliment.')
 @click.option('--rc2', is_flag=True,help='Exchanges index 2 for its reverse compliment.')
-@click.option('--platform', required=True, type=click.Choice(['miseq', 'novaseq', 'nextseq']), help="Run platform ('miseq', 'novaseq', 'nextseq')")
+@click.option('--platform', required=True, type=click.Choice(['miseq', 'miseq_old', 'novaseq', 'nextseq']), help="Run platform (Options: 'miseq', 'miseq_old' (V2 samplesheet for MiSeq), 'nextseq', 'novaseq' (No need to specify 6000 or X Plus))")
 
 def main(path, project, swap, rc1, rc2, platform):
-    ss_reader=SampleSheetParser(path)
-    ss_data=ss_reader.data
+    ss_reader = SampleSheetParser(path)
+    ss_data = ss_reader.data
     single = True
 
     # Check whether both indexes are available
@@ -93,7 +100,7 @@ def main(path, project, swap, rc1, rc2, platform):
             for row in ss_data:
                 sample_id = row['Sample_ID']
                 if (not project) or (project in sample_id):
-                    if platform == "miseq":
+                    if platform == "miseq_old":
                         if rc1:
                             rc = ""
                             for nuc in row['index'][::-1]:
@@ -106,7 +113,7 @@ def main(path, project, swap, rc1, rc2, platform):
                                 rc = rc + nuc_compliment(nuc)
                             row['index2'] = rc
                             row['I5_Index_ID'] = rc
-                    elif platform == "novaseq" or platform == "nextseq":
+                    elif platform == "miseq" or platform == "nextseq" platform == "novaseq":
                         if rc1:
                             rc = ""
                             for nuc in row['index'][::-1]:
@@ -122,19 +129,19 @@ def main(path, project, swap, rc1, rc2, platform):
             for row in ss_data:
                 sample_id = row['Sample_ID']
                 if (not project) or (project in sample_id):
-                    if platform == "miseq":
+                    if platform == "miseq_old":
                         storage = row['index']
                         row['index'] = row['index2']
                         row['I7_Index_ID'] = row['index2']
                         row['index2'] = storage
                         row['I5_Index_ID'] = storage
-                    elif platform == "novaseq" or platform == "nextseq":
+                    elif platform == "miseq" or platform == "nextseq" platform == "novaseq":
                         storage = row['index']
                         row['index'] = row['index2']
                         row['index2'] = storage
 
     redemux_ss = generate_samplesheet(ss_reader)
-    if platform == "novaseq" or platform == "nextseq":
+    if platform == "nextseq" or platform == "novaseq":
         filename = re.search('\/(\w+).csv$', path).group(1)
     else:
         filename = "SampleSheet"
