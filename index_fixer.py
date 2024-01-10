@@ -113,7 +113,7 @@ def main(path, project, swap, rc1, rc2, platform):
                                 rc = rc + nuc_compliment(nuc)
                             row['index2'] = rc
                             row['I5_Index_ID'] = rc
-                    elif platform == "miseq" or platform == "nextseq" platform == "novaseq":
+                    elif platform == "miseq" or platform == "nextseq" or platform == "novaseq":
                         if rc1:
                             rc = ""
                             for nuc in row['index'][::-1]:
@@ -135,7 +135,7 @@ def main(path, project, swap, rc1, rc2, platform):
                         row['I7_Index_ID'] = row['index2']
                         row['index2'] = storage
                         row['I5_Index_ID'] = storage
-                    elif platform == "miseq" or platform == "nextseq" platform == "novaseq":
+                    elif platform == "miseq" or platform == "nextseq" or platform == "novaseq":
                         storage = row['index']
                         row['index'] = row['index2']
                         row['index2'] = storage
