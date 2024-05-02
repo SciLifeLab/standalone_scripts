@@ -300,18 +300,3 @@ zendesk_attachment_backup.py <latest_backup>.zip
 * re
 * sys
 * zipfile
-
-### SNIC API UTILS
-
-`snic_util.py` is a python wrapper for `SNIC` API, to address most common/frequent purpose here at NGI. The subcommands available now are listed below.
-
-###### Sub-commands
-
-* `create_project`   - Create a GRUS delivery project with given information
-* `extend_project`   - Extend the end date of GRUS project for given 'days'
-* `project_info`     - Get information for specified GRUS project
-* `user_info`        - Get SNIC information for specified user
-* `change_pi`        - Change PI of mentioned GRUS project to given PI
-* `change_sensitive` - Change sensitivity of GRUS project
-
-The script itself is more self explanatory, so `python snic_util.py -h` will give more info on Usage.
