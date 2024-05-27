@@ -26,7 +26,8 @@ def update_statusdb(config, dryrun=True):
     for project in open_projs:
         doc = project.doc
         update_doc = False
-        if not project.value.get('delivery_type') == 'GRUS':
+        # Allows values 'GRUS' but also 'GRUS with raw data'.
+        if 'GRUS' not in project.value.get('delivery_type'):
             continue
         if project.value['details'].get('snic_checked'):
             if not project.value['details']['snic_checked']['status']:
