@@ -20,7 +20,7 @@ def create_doc_from_log_file(doc_option, handle, log_file_path, db=None):
         doc = {"run_finished": False}
         doc["file_name"] = handle
     
-        with open(os.path.join(log_file_path, handle), 'r') as inp:
+        with open(os.path.join(log_file_path, handle), "r", encoding="utf-8-sig") as inp:
             contents=inp.readlines()
 
             for line in contents:
@@ -38,7 +38,7 @@ def create_doc_from_log_file(doc_option, handle, log_file_path, db=None):
     elif doc_option == "update":
         doc = db[handle]
         doc.pop("_rev")
-        with open(os.path.join(log_file_path, doc["file_name"]), 'r') as inp:
+        with open(os.path.join(log_file_path, doc["file_name"]), "r", encoding="utf-8-sig") as inp:
             contents=inp.readlines()
             for line in contents:
                 if re.match(error_line_regex, line):
@@ -79,11 +79,11 @@ def main(args):
     logs_to_update = []
     save_docs = []
     for fname in log_files_list:
-        if (not db_view_run_finished[fname]):
-            logs_to_create.append(fname)
-        elif (db_view_run_finished[fname].rows[0].value == False):
-            import pdb; pdb.set_trace()
-            logs_to_update.append(db_view_run_finished[fname].rows[0].id)
+        if fname.startswith("Errors"):
+            if (not db_view_run_finished[fname]):
+                logs_to_create.append(fname)
+            elif (db_view_run_finished[fname].rows[0].value == False):
+                logs_to_update.append(db_view_run_finished[fname].rows[0].id)
 
 
     for fname in logs_to_create:
