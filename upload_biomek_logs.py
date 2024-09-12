@@ -80,10 +80,10 @@ def main(args):
     save_docs = []
     for fname in log_files_list:
         if fname.startswith("Errors"):
-            if (not db_view_run_finished[fname]):
+            if (not db_view_run_finished[[fname, args.inst_id]]):
                 logs_to_create.append(fname)
-            elif (db_view_run_finished[fname].rows[0].value == False):
-                logs_to_update.append(db_view_run_finished[fname].rows[0].id)
+            elif (db_view_run_finished[[fname, args.inst_id]].rows[0].value == False):
+                logs_to_update.append(db_view_run_finished[[fname, args.inst_id]].rows[0].id)
 
 
     for fname in logs_to_create:
@@ -116,6 +116,8 @@ if __name__=="__main__":
     parser.add_argument("-c", "--conf", dest="conf",
     default='statusdb.yaml',
     help = "Config file.  Default: ./statusdb.yaml")
+
+    parser.add_argument("-i", "--instrument_id", dest="inst_id", help = "Instrument id on which the script is run", required=True)
 
     args = parser.parse_args()
     main(args)
