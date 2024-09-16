@@ -36,8 +36,7 @@ def create_doc_from_log_file(doc_option, handle, log_file_path, db=None):
                         doc["run_finished"] = True          
             doc["errors"] = error_lines
     elif doc_option == "update":
-        doc = db[handle]
-        doc.pop("_rev")
+        doc = db.get(handle)
         with open(os.path.join(log_file_path, doc["file_name"]), "r", encoding="utf-8-sig") as inp:
             contents=inp.readlines()
             for line in contents:
@@ -70,7 +69,8 @@ def main(args):
     with open(args.conf) as conf_file:
         conf = yaml.safe_load(conf_file)
 
-    couch = setupServer(conf)
+    couch = setupServer(conf["couchdb_credentials"])
+    inst_id = conf["inst_id"]
     biomek_logs_db = couch['biomek_logs']
     db_view_run_finished = biomek_logs_db.view('names/run_finished')
 
@@ -80,10 +80,10 @@ def main(args):
     save_docs = []
     for fname in log_files_list:
         if fname.startswith("Errors"):
-            if (not db_view_run_finished[[fname, args.inst_id]]):
+            if (not db_view_run_finished[[fname, inst_id]]):
                 logs_to_create.append(fname)
-            elif (db_view_run_finished[[fname, args.inst_id]].rows[0].value == False):
-                logs_to_update.append(db_view_run_finished[[fname, args.inst_id]].rows[0].id)
+            elif (db_view_run_finished[[fname, inst_id]].rows[0].value == False):
+                logs_to_update.append(db_view_run_finished[[fname, inst_id]].rows[0].id)
 
 
     for fname in logs_to_create:
@@ -114,10 +114,8 @@ if __name__=="__main__":
                       " that will be used. Default is ./statusdb_upload.log "), default="statusdb_upload.log")
 
     parser.add_argument("-c", "--conf", dest="conf",
-    default='statusdb.yaml',
-    help = "Config file.  Default: ./statusdb.yaml")
-
-    parser.add_argument("-i", "--instrument_id", dest="inst_id", help = "Instrument id on which the script is run", required=True)
+    default='./biomek_upload_conf.yaml',
+    help = "Config file.  Default: ./biomek_upload_conf.yaml")
 
     args = parser.parse_args()
     main(args)
